@@ -1,7 +1,7 @@
 # Pico-Clock_Green
 Version 4.00 now available !!
 
-Consult the 70-pages User guide to see all changes / features added to the previous version. As mentionned previously, Version 4.00 adds Remote control, Night light, Dice rolling, Passive piezo buzzer support driven by PWM (buzzer must be installed by user), Calendar events now with jingles, Device checking on power-up, and more goodies...
+Consult the 70-pages User guide to see all changes / features added to the previous version. As mentioned previously, Version 4.00 adds Remote control, Night light, Dice rolling, Passive piezo buzzer support driven by PWM (buzzer must be installed by user), Calendar events now with jingles, Device checking on power-up, and more goodies...
 
 Do you use this version of the firmware?
 Do you like it?
