@@ -2,8 +2,8 @@
    define.h
    St-Louys Andre - February 2022
    astlouys@gmail.com
-   Revision 31-MAR-2022
-   Langage: Linux gcc
+   Revision 18-JUN-2022
+   Langage: GCC 7.3.1 arm-none-eabi
    Version 1.01
 
    Raspberry Pi Pico firmware to drive the Waveshare green clock
@@ -27,38 +27,7 @@
 /* $TITLE=Definitions and include files. */
 /* $PAGE */
 /* ----------------------------------------------------------------- *\
-                    Definitions and include files.
-List of GPIOs used by the Green Clock:
-
-GPIO  2 - (In) Top button
-GPIO  3 - (In) SQW (DS3231 RTC IC)
-GPIO  4 - Not used
-GPIO  5 - Not used
-GPIO  6 - (I2C) SDA (Temperature reading)
-GPIO  7 - (I2C) SCL (Temperature reading)
-GPIO  8 - DHT22 (added... not on the original Green Clock)
-GPIO  9 - Not used
-GPIO 10 - (Out) CLK (LED matrix controler)
-GPIO 11 - (Out) SDI (LED matrix controler)
-GPIO 12 - (Out) LE
-GPIO 13 - (Out) OE
-GPIO 14 - (Out) Piezo
-GPIO 15 - (In) Down button
-GPIO 16 - (Out) A0 (LED matrix brightness control)
-GPIO 17 - (In) Up button
-GPIO 18 - (Out) A1 (LED matrix brightness control)
-GPIO 19 - Not used (Reserved)
-GPIO 20 - Not used
-GPIO 21 - Not used
-GPIO 22 - (Out) A2 (LED matrix brightness control)
-GPIO 23 - Used internally for voltage regulation
-GPIO 24 - Used internally for voltage detection
-GPIO 25 - On-board Pico LED
-GPIO 26 - ADC0 (Ambient light reading)
-GPIO 27 - Not used
-GPIO 28 - Not used
-GPIO 29 - ADC-Vref (Power supply reading)
-
+                     Definitions and include files.
 \* ----------------------------------------------------------------- */
 #ifndef DEFINE_H
 #define DEFINE_H
@@ -72,58 +41,132 @@ GPIO 29 - ADC-Vref (Power supply reading)
 
 
 /* GPIO assignations. */
-#define SET_BUTTON   2  /* top clock button. */
+#define SET_BUTTON   2  // "Set" top clock button. */
 #define SQW          3
-#define SDA          6
-#define SCL          7
-#define DHT22        8
-#define CLK         10
+#define UART_TX_PIN  4  // optional serial line to transmit data to an external VT101-type monitor.
+#define UART_RX_PIN  5  // optional serial line to receive data from an external VT101-type monitor.
+#define SDA          6  // I2C data line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
+#define SCL          7  // I2C clock line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
+#define DHT22        8  // outside temperature & humidity sensor (must be added by user). Only one of DHT22 or BME280 must be defined.
+#define IR_RX        9  // infrared sensor for remote control rx (must be added by user). */
+#define CLK         10  // clock for LED matrix controler IC (SM1606SC)
 #define SDI         11
 #define LE          12
 #define OE          13
-#define BUZZ        14  /* piezo has its own integrated oscillator. */
-#define DOWN_BUTTON 15  /* bottom clock button. */
+#define BUZZ        14  // active piezo (integrated on Green clock PC board), and has its own integrated oscillator). */
+#define DOWN_BUTTON 15  // "Down" bottom clock button. */
 #define A0          16
-#define UP_BUTTON   17  /* middle clock button. */
+#define UP_BUTTON   17  // "Up" middle clock button. */
 #define A1          18
+#define PPIEZO      19  // passive piezo / buzzer (must be added by user). */
 #define A2          22
+#define PICO_LED    25  // Pico's integrated LED
+#define ADC_LIGHT   26  // analog-to-digital converter of the Pico: read ambient light. */
+#define ADC_VCC     29  // analog-to-digital converter of the Pico: read power supply voltage. */
 
-#define ADC_Light   26  /* analog-to-digital converter of the Pico: read ambient light. */
-#define ADC_VCC     29  /* analog-to-digital converter of the Pico: read power supply voltage. */
 
 
+/* GPIO macro definitions */
+#define A0_LOW     gpio_put(A0, 0)
+#define A0_HIGH    gpio_put(A0, 1)
 
-/* GPIO definitions */
-#define A0_LOW   gpio_put(A0, 0)
-#define A0_HIGH  gpio_put(A0, 1)
+#define A1_LOW     gpio_put(A1, 0)
+#define A1_HIGH    gpio_put(A1, 1)
 
-#define A1_LOW   gpio_put(A1, 0)
-#define A1_HIGH  gpio_put(A1, 1)
+#define A2_LOW     gpio_put(A2, 0)
+#define A2_HIGH    gpio_put(A2, 1)
 
-#define A2_LOW   gpio_put(A2, 0)
-#define A2_HIGH  gpio_put(A2, 1)
+#define CLK_LOW    gpio_put(CLK, 0)
+#define CLK_HIGH   gpio_put(CLK, 1)
 
-#define CLK_LOW  gpio_put(CLK, 0)
-#define CLK_HIGH gpio_put(CLK, 1)
+#define LE_LOW     gpio_put(LE, 0)
+#define LE_HIGH    gpio_put(LE, 1)
 
-#define LE_LOW   gpio_put(LE, 0)
-#define LE_HIGH  gpio_put(LE, 1)
+#define OE_ENABLE  gpio_put(OE, 0)
+#define OE_DISABLE gpio_put(OE, 1)
 
-#define OE_OPEN  gpio_put(OE, 0)
-#define OE_CLOSE gpio_put(OE, 1)
-
-#define SDI_LOW  gpio_put(SDI, 0)
-#define SDI_HIGH gpio_put(SDI, 1)
+#define SDI_LOW    gpio_put(SDI, 0)
+#define SDI_HIGH   gpio_put(SDI, 1)
 
 #define FLAG_UP      0xFF  // "Up"   (middle) button has been pressed.
 #define FLAG_DOWN    0x00  // "Down" (bottom) button has been pressed.
 
 /* Inter integrated circuit (I2C) protocol definitions. */
 #define I2C_PORT i2c1
-#define Address     0x68
-#define Address_ADS 0x48
+#define DS3231_ADDRESS  0x68
+/// #define Address_ADS 0x48
 
 
+/* Device address for the specific BME280 breakout used (from Waveshare) and BME280 internal register addresses. */
+#ifdef BME280_SUPPORT
+  #define BME280_ADDRESS 0x77
+
+  #define BME280_REGISTER_UNIQUE_ID  0x83;
+
+  #define BME280_REGISTER_CALIB00    0x88
+  #define BME280_REGISTER_CALIB01    0x89
+  #define BME280_REGISTER_CALIB02    0x8A
+  #define BME280_REGISTER_CALIB03    0x8B
+  #define BME280_REGISTER_CALIB04    0x8C
+  #define BME280_REGISTER_CALIB05    0x8D
+  #define BME280_REGISTER_CALIB06    0x8E
+  #define BME280_REGISTER_CALIB07    0x8F
+  #define BME280_REGISTER_CALIB08    0x90
+  #define BME280_REGISTER_CALIB09    0x91
+  #define BME280_REGISTER_CALIB10    0x92
+  #define BME280_REGISTER_CALIB11    0x93
+  #define BME280_REGISTER_CALIB12    0x94
+  #define BME280_REGISTER_CALIB13    0x95
+  #define BME280_REGISTER_CALIB14    0x96
+  #define BME280_REGISTER_CALIB15    0x97
+  #define BME280_REGISTER_CALIB16    0x98
+  #define BME280_REGISTER_CALIB17    0x99
+  #define BME280_REGISTER_CALIB18    0x9A
+  #define BME280_REGISTER_CALIB19    0x9B
+  #define BME280_REGISTER_CALIB20    0x9C
+  #define BME280_REGISTER_CALIB21    0x9D
+  #define BME280_REGISTER_CALIB22    0x9E
+  #define BME280_REGISTER_CALIB23    0x9F
+  #define BME280_REGISTER_CALIB24    0xA0
+  #define BME280_REGISTER_CALIB25    0xA1
+  
+  #define BME280_REGISTER_ID         0xD0
+  #define BME280_REGISTER_RESET      0xE0
+   
+  #define BME280_REGISTER_CALIB26    0xE1
+  #define BME280_REGISTER_CALIB27    0xE2
+  #define BME280_REGISTER_CALIB28    0xE3
+  #define BME280_REGISTER_CALIB29    0xE4
+  #define BME280_REGISTER_CALIB30    0xE5
+  #define BME280_REGISTER_CALIB31    0xE6
+  #define BME280_REGISTER_CALIB32    0xE7
+  #define BME280_REGISTER_CALIB33    0xE8
+  #define BME280_REGISTER_CALIB34    0xE9
+  #define BME280_REGISTER_CALIB35    0xEA
+  #define BME280_REGISTER_CALIB36    0xEB
+  #define BME280_REGISTER_CALIB37    0xEC
+  #define BME280_REGISTER_CALIB38    0xED
+  #define BME280_REGISTER_CALIB39    0xEE
+  #define BME280_REGISTER_CALIB40    0xEF
+  #define BME280_REGISTER_CALIB41    0xF0
+
+  #define BME280_REGISTER_CTRL_HUM   0xF2
+  #define BME280_REGISTER_STATUS     0xF3
+  #define BME280_REGISTER_CTRL_MEAS  0xF4
+  #define BME280_REGISTER_CONFIG     0xF5
+
+  #define BME280_REGISTER_PRESS_MSB  0xF7
+  #define BME280_REGISTER_PRESS_LSB  0xF8
+  #define BME280_REGISTER_PRESS_XLSB 0xF9
+
+  #define BME280_REGISTER_TEMP_MSB   0xFA
+  #define BME280_REGISTER_TEMP_LSB   0xFB
+  #define BME280_REGISTER_TEMP_XLSB  0xFC
+
+  #define BME280_REGISTER_HUM_MSB    0xFD
+  #define BME280_REGISTER_HUM_LSB    0xFE
+
+#endif
 
 /* First two bits of the display matrix are reserved for indicators. */
 #define DisplayOffset  2
