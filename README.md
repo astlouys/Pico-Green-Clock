@@ -1,4 +1,11 @@
 # Pico Green Clock
+Version 6.00 coming soon !! (a few days / a few weeks)...
+
+Main feature added in version 6.00: Green Clock configuration is now saved in Pico's flash memory. So, in case of a reboot and / or power failure,
+no need to reconfigure the options since the clock read the last active configuration from flash instead of initializing with default options.
+
+Keep watching !
+
 Version 5.00 is now available.
 
 Add support for BME280 sensor for temperature, relative humidity and barometric pressure.
