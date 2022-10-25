@@ -2,9 +2,9 @@
    bitmap.h
    St-Louys Andre - February 2022
    astlouys@gmail.com
-   Revision 02-MAR-2022
+   Revision 08-SEP-2022
    Langage: Linux gcc
-   Version 2.00
+   Version 6.00
 
    Raspberry Pi Pico firmware to drive the Waveshare green clock
    From an original software version by "Yufu" on 23-JAN-2021 and
@@ -14,6 +14,7 @@
    =================
    07-FEB-2022 1.00 - Initial release
    20-FEB-2022 2.00 - Implement 5 X 7 character map with variable character width.
+   08-SEP-2022 6.00 - Improve the symbol for "degree" for both Celsius and Fahrenheit.
 \* ======================================================================== */
 
 
@@ -250,8 +251,7 @@ UCHAR CharMap[]=
   0x10, 0x08, 0x08, 0x04, 0x08, 0x08, 0x10,  // 095   0x7D  }
   0x14, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x00,  // 096   0x7E  open double quote
   0x05, 0x0A, 0x14, 0x00, 0x00, 0x00, 0x00,  // 097   0x7F  close double quote
-  0x10, 0x06, 0x09, 0x08, 0x08, 0x09, 0x06,  // 098   0x80  degree Celsius
-  0x10, 0x0F, 0x08, 0x0F, 0x08, 0x08, 0x08,  // 099   0x81  degree Fahrenheit
+  0x04, 0x0A, 0x04, 0x00, 0x00, 0x00, 0x00,  // 098   0x80  symbol for degree
 };
 
 
@@ -365,8 +365,7 @@ UCHAR CharWidth[]=
   3,  // 095
   5,  // 096
   5,  // 097
-  5,  // 098
-  5,  // 099
+  4,  // 098
 };
 
 #endif

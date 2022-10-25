@@ -38,12 +38,12 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 
 
   /* If number of state changes is not standard, display it when debug On. */
-  if (FlagDebug)
+  if (DebugBitMask & DEBUG_IR_COMMAND)
   {
     if (IrStepCount != 73)
     {
       sprintf(String, "1) [%u]", IrStepCount);
-      scroll_string(24, String);
+      uart_send(__LINE__, String);
     }
   }
 
@@ -52,12 +52,11 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
   /* Analyse and process each step change in remote control burst. */
   for (Loop1UInt16 = 0; Loop1UInt16 < IrStepCount; ++Loop1UInt16)
   {
-    if (FlagDebug)
+    if (DebugBitMask & DEBUG_IR_COMMAND)
     {
       sprintf(String, "2) [%2.2u] %c %u", Loop1UInt16, Level[Loop1UInt16], ResultValue[Loop1UInt16]);
-      scroll_string(24, String);
+      uart_send(__LINE__, String);
     }
-
 
     /* Skip the two "Get ready" levels received from remote control
        (first: low level, then high level, both 4500 micro-seconds). */
@@ -70,10 +69,11 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
       /* We reached end of data stream, get out of "for" loop. */
       break;
     
-      /***
-      sprintf(String, "3) Result > 10000: %u", Loop1UInt16);
-      scroll_string(24, String);
-      ***/
+      if (DebugBitMask & DEBUG_IR_COMMAND)
+      {
+        sprintf(String, "3) Result > 10000: %u", Loop1UInt16);
+        uart_send(__LINE__, String);
+      }
     }
 
 
@@ -98,12 +98,10 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
       }
 
 
-      if (FlagDebug)
+      if (DebugBitMask & DEBUG_IR_COMMAND)
       {
-        /***
         sprintf(String, "4) Data: 0x%X", DataBuffer);
-        scroll_string(24, String);
-        ***/
+        uart_send(__LINE__, String);
       }
     }
   }
@@ -120,12 +118,11 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
   IrStepCount = 0;  // reset IrStepCount.
 
 
-
-  /***
-  sprintf(String, "5) Data: 0x%8.8X", DataBuffer);
-  scroll_string(24, String);
-  ***/
-
+  if (DebugBitMask & DEBUG_IR_COMMAND)
+  {
+    sprintf(String, "5) Data: 0x%8.8X", DataBuffer);
+    uart_send(__LINE__, String);
+  }
 
 
 
@@ -231,8 +228,8 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 
     case (0x2525B04F):
       /* Button "Rewind / Down". */
-      scroll_string(24, "Button <Rewind / Down>");
-      /// *IrCommand = IR_NOT_USED_FOR_NOW;
+      /// scroll_string(24, "Button <Rewind / Down>");
+      *IrCommand = IR_IDLE_TIME;
     break;
 
     case (0x2525A05F):
@@ -297,9 +294,11 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 
     default:
       /* Unrecognized. */
-      /***
-      scroll_string(24, "(???)");
-      ***/
+      if (DebugBitMask & DEBUG_IR_COMMAND)
+      {
+        sprintf(String, "Unrecognized IR command: 0x%X\r", DataBuffer);
+        uart_send(__LINE__, String);
+      }
       FlagError = FLAG_ON;
     break;
   }
@@ -398,7 +397,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
     
     if (CurrentClockMode == MODE_DISPLAY)
     {
-      *IrCommand       = IR_DISPLAY_GENERIC;
+      *IrCommand = IR_DISPLAY_GENERIC;
       // CurrentClockMode = MODE_DISPLAY;
       // SetupStep        = CommandSubSection;
       // FlagIdleCheck    = FLAG_ON;
@@ -436,8 +435,8 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
   }
   else
   {
-    tone(40);  // audible feedback when valid IR command has been decoded.
-    
+    sound_queue_active(50, 1);  // audible feedback when valid IR command has been decoded.
+    sound_queue_active(50, SILENT);
     return 0;
   }
 }

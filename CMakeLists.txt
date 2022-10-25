@@ -12,12 +12,17 @@ add_executable(Pico-Clock-Green
        Ds3231.c Ds3231.h)
 
 
-# create map/bin/hex file etc.
+# Send Pico's output to USB instead of UART (for debug purposes).
+pico_enable_stdio_uart(Pico-Clock-Green 0)
+pico_enable_stdio_usb(Pico-Clock-Green 1)
+
+
+# Create map/bin/hex file etc.
 pico_add_extra_outputs(Pico-Clock-Green)
 
 
 # Pull in our pico_stdlib which pulls in commonly used features
-target_link_libraries(Pico-Clock-Green pico_stdlib hardware_i2c hardware_adc hardware_pwm pico_unique_id)
+target_link_libraries(Pico-Clock-Green hardware_adc hardware_flash hardware_i2c hardware_pwm hardware_sync pico_stdlib pico_unique_id)
 
 
 # add url via pico_set_program_url

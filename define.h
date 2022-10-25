@@ -41,13 +41,14 @@
 
 
 /* GPIO assignations. */
+#define UART_TX_PIN  1  // optional serial line to transmit data to an external VT101-type monitor.
+// #define UART_RX_PIN  2  // optional serial line to receive data from an external VT101-type monitor.
 #define SET_BUTTON   2  // "Set" top clock button. */
 #define SQW          3
-#define UART_TX_PIN  4  // optional serial line to transmit data to an external VT101-type monitor.
-#define UART_RX_PIN  5  // optional serial line to receive data from an external VT101-type monitor.
 #define SDA          6  // I2C data line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
 #define SCL          7  // I2C clock line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
 #define DHT22        8  // outside temperature & humidity sensor (must be added by user). Only one of DHT22 or BME280 must be defined.
+#define DHT22_RX     8  // outside temperature & humidity sensor (must be added by user). Only one of DHT22 or BME280 must be defined.
 #define IR_RX        9  // infrared sensor for remote control rx (must be added by user). */
 #define CLK         10  // clock for LED matrix controler IC (SM1606SC)
 #define SDI         11
@@ -88,8 +89,10 @@
 #define SDI_LOW    gpio_put(SDI, 0)
 #define SDI_HIGH   gpio_put(SDI, 1)
 
-#define FLAG_UP      0xFF  // "Up"   (middle) button has been pressed.
-#define FLAG_DOWN    0x00  // "Down" (bottom) button has been pressed.
+#define FLAG_UP         0xFF  // "Up"   (middle) button has been pressed.
+#define FLAG_LONG_UP    0x55  // long press on middle button
+#define FLAG_DOWN       0x00  // "Down" (bottom) button has been pressed.
+#define FLAG_LONG_DOWN  0xAA  // long press on down button
 
 /* Inter integrated circuit (I2C) protocol definitions. */
 #define I2C_PORT i2c1
