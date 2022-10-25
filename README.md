@@ -1,27 +1,21 @@
 # Pico Green Clock
-Version 6.00 coming soon !! (a few days / a few weeks)...
+Firmware Version 6.00 just released 25-OCT-2022
 
-Main feature added in version 6.00: Green Clock configuration is now saved in Pico's flash memory. So, in case of a reboot and / or power failure,
-no need to reconfigure the options since the clock read the last active configuration from flash instead of initializing with default options.
+What`s new in Firmware Version 6.00 ?
 
-Keep watching !
+- Green Clock configuration is now saved to Pico's flash memory and automatically retrieved after a reboot / power-up.
+- Nine (9) alarms are now supported with the possibility to configure each of them for as many days-of-week as desired.
+- Add a "QUICK-START" compile-time option to skip some device tests during power-up sequence.
+- Add a "System Idle-Time Monitor" to get an idea of system load.
+- Add a sound queue for active buzzer (integrated in Green Clock) to optimise its support.
+- Improve DHT22 device support code.
+- Many other small changes / optimizations.
+- User Guide updated for Firmware Version 6.00
 
-Version 5.00 is now available.
-
-Add support for BME280 sensor for temperature, relative humidity and barometric pressure.
-Add support for debugging information display on an external monitor or through a PC monitor using serial or USB port.
-Rework LED matrix display automatic brightness for smoother changes.
-Fine tune parts of the code, some cleanup, debug and optimization...
-
-Consult the Version 5.00 80-pages User Guide to see all changes / features added to the original firmware Version 1.00. 
-Now support a Remote control, BME280 sensor, DHT22 sensor, automatic daylight saving time, Night light, Dice rolling, Passive piezo buzzer driven by PWM (buzzer must be installed by user), Calendar events with jingles, Device checking on power-up, debugging through a PC monitor and more goodies...
-
-I'll be happy to hear from you if you use this firmware (email address is given in the user guide).
-
-This project provides firmware for the "Pico Green Clock" product from Waveshare (available directly from Waveshare web site, or from Amazon).
+This project provides firmware for the "Pico Green Clock" product from Waveshare (available directly from Waveshare website, or from Amazon).
 It is based on a Raspberry Pi Pico microcontroller.
 
-Waveshare provides a basic firmware (Version 1.00) for the Pico Green clock. Current project adds tons of comments in the code and also provides many
-enhancements and functionalities to the clock. You may refer to the user guide of the most recent version (included in this repository), and / or to the revision history in the source code to see the list of changes / enhancements.
+Waveshare provides a basic Firmware (Version 1.00) for the Pico Green Clock. Current project provides many enhancements and functionalities to the clock.
+You may refer to the User Guide of the most recent firmware version (included in this repository) to see the list of changes / enhancements.
 
 Please take note that I'm not a Waveshare employee. This firmware is provided "as is" to help users develop their own code.
