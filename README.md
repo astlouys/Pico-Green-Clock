@@ -30,3 +30,30 @@ Waveshare provides a basic Firmware (Version 1.00) for the Pico Green Clock. Cur
 You may refer to the User Guide of the most recent firmware version (included in this repository) to see the list of changes / enhancements.
 
 Please take note that I'm not a Waveshare employee. This firmware is provided "as is" to help users develop their own code.
+
+## Building from source
+1. Follow the instructions for setting up the Pico build environment from https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf
+2. In the pico c root directory you want to install the Pico-Green-Clock source from github by running the following commands.
+```
+$ git clone git@github.com:astlouys/Pico-Green-Clock.git
+```
+3. Verify that the diretories are the following:
+```
+$ ls
+Pico-Green-Clock        pico-examples           pico-sdk
+```
+4. Now lets build
+```
+$ cd Pico-Green-Clock/
+$ mkdir build
+$ cd build/
+$ export PICO_SDK_PATH=../../pico-sdk
+$ cmake ..
+$ make -j4
+$ ls
+CMakeCache.txt                  Pico-Clock-Green.dis            Pico-Clock-Green.uf2            pico-sdk
+CMakeFiles                      Pico-Clock-Green.elf            cmake_install.cmake             pioasm
+Makefile                        Pico-Clock-Green.elf.map        elf2uf2
+Pico-Clock-Green.bin            Pico-Clock-Green.hex            generated
+```
+Perfect you have a built `uf2` binary you can copy over to the clock pico.
