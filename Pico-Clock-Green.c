@@ -427,8 +427,9 @@
 /* DAYLIGHT_SAVING_TIME choices are as below for now: */
 #define DST_LO_LIMIT      0             // to make the logic easier in the firmware.
 #define DST_NONE          0             // there is no "Daylight Saving Time" in user's country.
-#define DST_NORTH_AMERICA 1             // daylight saving time in user's country is similar to what it is in North America.
-#define DST_HI_LIMIT      2             // to make the logic easier in the firmware.
+#define DST_NORTH_AMERICA 1             //  02:00:00 second SUN in MAR  -until-  02:00:00 first SUN in NOV
+#define DST_EUROPE        2             //  01:00:00Z  last SUN in MAR  -until-  01:00:00Z last SUN in OCT
+#define DST_HI_LIMIT      3             // to make the logic easier in the firmware.
 /* Add choices here and search for "DST_" in the code to add the specific algorithm. */
 
 /* Clock mode definitions. */
@@ -845,6 +846,8 @@ UINT8  CurrentMinute;
 UINT8  CurrentMinuteSetting = 0;           // minutes setting from / to real time clock IC.
 UINT8  CurrentMonth;
 UINT8  CurrentYearLowPart;                 // lowest two digits of the year (battery backed-up).
+UINT8  FirstSunday;                        // Used for DST calculation, first sunday of current month.
+UINT8  LastSunday;                         // same as above, but last Sunday
 
 UINT64 DebugBitMask = DEBUG_NONE;          // bitmask of code sections to be debugged through UART display (see definitions of DEBUG sections above).
 UINT64 DhtErrors = 0;                      // cumulate number of errors while receiving DHT packets (for statistic purposes).
@@ -1162,6 +1165,9 @@ uint8_t total_one_bits(UINT32 Data, UINT8 Size);
 
 /* Send a string to a VT101 monitor or PC screen through Pico's UART (for debugging purposes). */
 void uart_send(UINT LineNumber, UCHAR *String);
+
+/* calculate if a date falls withing Daylight Savings Time */
+bool time_is_dst(TIME_RTC Time_RTC, UINT8 DST_Type);
 
 /* ------------------------------------------------------------------ *\
                   BME280-related function prototypes
@@ -1755,80 +1761,9 @@ int main(void)
       we will assume that we are passed the clock adjustment. If the guess is wrong and the user sees a discrepancy, he can
       turn off the clock, then turn it back on, after 3h00 during the first Sunday of November. This should fix the problem.
   \* ------------------------------------------------------------------------------------------------------------------------ */
-  if (FlashConfig.DaylightSavingTime == DST_NORTH_AMERICA)
+  if (FlashConfig.DaylightSavingTime != DST_NONE)
   {
-    /* Assume we are not during "Daylight Saving Time" on entry... */
-    FlagDayLightSavingTime = FLAG_OFF;
-
-    /* ...then, check if our assumption is correct... */
-    /* Read the real-time clock IC DS3231. */
-    Time_RTC = Read_RTC();
-
-    /* Convert to binary values. */
-    CurrentHour       = bcd_to_byte(Time_RTC.hour);
-    CurrentMinute     = bcd_to_byte(Time_RTC.minutes);
-    CurrentDayOfMonth = bcd_to_byte(Time_RTC.dayofmonth);
-    CurrentMonth      = bcd_to_byte(Time_RTC.month);
-    CurrentDayOfWeek  = bcd_to_byte(Time_RTC.dayofweek) + 1;
-    if (CurrentDayOfWeek == 8)
-      CurrentDayOfWeek = 1; // Sunday equals 1.
-    Year4Digits = 2000 + bcd_to_byte(Time_RTC.year);
-
-    /* Between (and including) April and October, we must be in "Daylight Saving Time". */
-    if ((CurrentMonth >= APR) && (CurrentMonth <= OCT))
-      FlagDayLightSavingTime = FLAG_ON;
-
-
-    /* -------------------------------------------------------------- *\
-                   If we are in March or November,
-         it could be "Daylight Saving Time" or not... let's check.
-         First, check the case if we are near the "March" boundary.
-    \* -------------------------------------------------------------- */
-    if (CurrentMonth == MAR)
-    {
-      /* Check if we are "at" or "passed" the second Sunday of March. */
-      SundayCounter = 0;
-      for (Loop1UInt8 = CurrentDayOfMonth; Loop1UInt8 > 0; --Loop1UInt8)
-      {
-        /* Check how many Sunday's have already passed since beginning of March. */
-        if (get_weekday(Year4Digits, CurrentMonth, Loop1UInt8) == SUN)
-        {
-          ++SundayCounter;
-        }
-      }
-
-      /* If we are "passed" the second Sunday of March, then we must be in Daylight Saving Time. */
-      if ((SundayCounter > 2) || ((SundayCounter == 2) && (get_weekday(Year4Digits, CurrentMonth, CurrentDayOfMonth) != SUN)))
-        FlagDayLightSavingTime = FLAG_ON;
-
-      /* If we are "at" the second Sunday of March, then it depends what time it is... */
-      if ((SundayCounter == 2) && (get_weekday(Year4Digits, CurrentMonth, CurrentDayOfMonth) == SUN) && (CurrentHour > 2))
-        FlagDayLightSavingTime = FLAG_ON;
-    }
-
-    /* -------------------------------------------------------------- *\
-        Then, check the case if we are near the "November" boundary.
-    \* -------------------------------------------------------------- */
-    if (CurrentMonth == NOV)
-    {
-      /* Check if we are "at" or "before" the first Sunday of November. */
-      SundayCounter = 0;
-      for (Loop1UInt8 = CurrentDayOfMonth; Loop1UInt8 > 0; --Loop1UInt8)
-      {
-        /* Check how many Sunday's have already passed since beginning of November. */
-        if (get_weekday(Year4Digits, CurrentMonth, Loop1UInt8) == SUN)
-          ++SundayCounter;
-      }
-
-      /* If we are before the first Sunday of November, then we must be in Daylight Saving Time. */
-      if (SundayCounter == 0)
-        FlagDayLightSavingTime = FLAG_ON;
-
-      /* If we are "at" the first Sunday of November, it depends what time it is... */
-      if ((SundayCounter == 1) && (get_weekday(Year4Digits, CurrentMonth, CurrentDayOfMonth) == SUN))
-        if (CurrentHour < 2)
-          FlagDayLightSavingTime = FLAG_ON;
-    }
+    FlagDayLightSavingTime = time_is_dst(Time_RTC, FlashConfig.DaylightSavingTime);
   }
   /* ------------------------------------------------------------------------------------------------------------------------ *\
                                                 End of daylight saving time section
@@ -8657,6 +8592,10 @@ void setup_clock_frame(void)
       case (DST_NORTH_AMERICA):
         fill_display_buffer_4X7(18, ('1' & FlagBlinking[SETUP_DST]));
       break;
+
+      case (DST_EUROPE):
+        fill_display_buffer_4X7(18, ('2' & FlagBlinking[SETUP_DST]));
+      break;
     }
 
     /* Clear the clock framebuffer. */
@@ -13361,35 +13300,18 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
                            Daylight Saving Time
   \* ................................................................ */
   /* Check if it is time to change for "daylight saving time" or "normal time". */
-  if ((SecondCounter == 0) && (CurrentMinute == 0) && (DAYLIGHT_SAVING_TIME != DST_NONE))
+  if ((SecondCounter == 0) && (CurrentMinute == 0) && (FlashConfig.DaylightSavingTime != DST_NONE))
   {
+    
     /* Determine if it is time to adjust for "Daylight Saving Time". */
-    switch (DAYLIGHT_SAVING_TIME)
-    {
-      case (DST_NORTH_AMERICA):
-        /* Check if it time to change from "Normal Time" to "Daylight Saving Time". */
-        if (CurrentHourSetting == 2)
-        {
-          if ((FlagDayLightSavingTime == FLAG_OFF) && (CurrentMonth == MAR) && ((get_weekday(Year4Digits, CurrentMonth, CurrentDayOfMonth) == SUN) && ((CurrentDayOfMonth >= 8) || (CurrentDayOfMonth <= 14))))
-          {
-            CurrentHourSetting = 3;
-            set_hour(CurrentHourSetting);
-            FlagDayLightSavingTime = FLAG_ON;
-          }
-
-          /* Check if it time to change from "Daylight Saving Time" time to "Normal Time". */
-          if ((FlagDayLightSavingTime == FLAG_ON) && (CurrentMonth == NOV) && (get_weekday(Year4Digits, CurrentMonth, CurrentDayOfMonth) == SUN) && ((CurrentDayOfMonth >= 1) || (CurrentDayOfMonth <= 7)))
-          {
-            CurrentHourSetting = 1;
-            set_hour(CurrentHourSetting);
-            FlagDayLightSavingTime = FLAG_OFF;
-          }
-        }
-      break;
-
-      default:
-        /* If "NONE" or invalid choice, perform no action. */
-      break;
+    if ((FlagDayLightSavingTime == FLAG_OFF) && time_is_dst(Time_RTC, FlashConfig.DaylightSavingTime)){
+      CurrentHourSetting++;
+      set_hour(CurrentHourSetting);
+      FlagDayLightSavingTime = FLAG_ON;
+    }else if ((FlagDayLightSavingTime == FLAG_ON) && !time_is_dst(Time_RTC, FlashConfig.DaylightSavingTime)){
+      CurrentHourSetting--;
+      set_hour(CurrentHourSetting);
+      FlagDayLightSavingTime = FLAG_OFF;
     }
   }
 
@@ -13602,4 +13524,76 @@ void uart_send(UINT LineNumber, UCHAR *String)
   printf(String);
 
   return;
+}
+
+/* $PAGE */
+/* $TITLE=time_is_dst() */
+/* ------------------------------------------------------------------ *\
+        Check if a timestamp falls within Daylight Savings Time.
+    Currently supports North America or European Union DST logic.
+\* ------------------------------------------------------------------ */
+bool time_is_dst(TIME_RTC Time_RTC, UINT8 DST_Flag){
+  // DST disabled: Don't even bother calculating anything.
+  if(DST_Flag==DST_NONE) return false;
+
+  CurrentHour       = bcd_to_byte(Time_RTC.hour);
+  CurrentMinute     = bcd_to_byte(Time_RTC.minutes);
+  CurrentDayOfMonth = bcd_to_byte(Time_RTC.dayofmonth);
+  CurrentMonth      = bcd_to_byte(Time_RTC.month);
+  CurrentDayOfWeek  = bcd_to_byte(Time_RTC.dayofweek)%7+1; // SUN = 1, but faster
+  Year4Digits = 2000 + bcd_to_byte(Time_RTC.year);
+
+  // Calculate first and last Sundays. You are not expected to understand this.
+  FirstSunday       = (CurrentDayOfMonth - CurrentDayOfWeek + 7) %7 + 1;
+  LastSunday        = FirstSunday+28;
+  if(LastSunday>get_month_days(Year4Digits, CurrentMonth)){
+    LastSunday       -= 7;
+  }
+
+  // Else, it depends on where we are.
+  switch(DST_Flag){
+    case DST_NORTH_AMERICA:   
+      // 02:00:00 second SUN in MAR  -until-  02:00:00 first SUN in NOV
+      // Before MAR or after NOV: we are not in DST
+      if (CurrentMonth < MAR || CurrentMonth > NOV) return false;
+      // Between APR and OCT: we are always in DST
+      if (CurrentMonth > MAR && CurrentMonth < NOV) return true;
+      if (CurrentMonth == MAR){
+        // Check if we are before or after second SUN
+        if(CurrentDayOfMonth<FirstSunday+7) return false;
+        if(CurrentDayOfMonth>FirstSunday+7) return true;
+        // we are not before or after second SUN and therefore directly on it - Check the hour.
+        return(CurrentHour>=2);
+      }else{ // CurrentMonth == NOV, by process of elimination
+        // Check for first SUN - same as above, but reversed
+        if(CurrentDayOfMonth>FirstSunday) return false;
+        if(CurrentDayOfMonth<FirstSunday) return true;
+        return(CurrentHour<2);
+      }
+      break; /* Not strictly needed, because every because every possible 
+                 if/else path ends in a break or return. 
+                The compiler will detect this and exclude this line from 
+                 the final program.*/
+    case DST_EUROPE:          
+      // 01:00:00Z  last SUN in MAR  -until-  01:00:00Z last SUN in OCT
+      // see the NORTH_AMERICA section for explanation
+      if (CurrentMonth < MAR || CurrentMonth > OCT) return false;
+      if (CurrentMonth > MAR && CurrentMonth < OCT) return true;
+      if (CurrentMonth == MAR){
+        if(CurrentDayOfMonth<LastSunday) return false;
+        if(CurrentDayOfMonth>LastSunday) return true;
+        /* Time switches at 01:00 GMT, which is 02:00 local for most EU countries.
+            Sorry, Ireland and Portugal.*/
+        return(CurrentHour>=2);
+      }else{ // CurrentMonth == OCT, by process of elimination
+        if(CurrentDayOfMonth>LastSunday) return false;
+        if(CurrentDayOfMonth<LastSunday) return true;
+        // Time switches at 01:00 GMT, which is now 03:00 local time due to DST.
+        return(CurrentHour<3);
+      }
+      break;
+    default: 
+      break;
+  }
+  return false;
 }
