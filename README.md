@@ -3,7 +3,7 @@ Firmware Version 7.00 released 16-NOV-2022
 
 Firmware Hilights
 
-- Add UTC (Coordinated Universal Time) clock parameter allowing proper handling of DST for some countries and also as a requirment for future NTP implementation.
+- Add UTC (Coordinated Universal Time) clock parameter allowing proper handling of DST for some countries and also as a requirement for future NTP implementation.
 - Improve algorithm for automatic handling of Daylight Saving Time / Summer Time - Winter Time / Spring Forward - Fall-Back. Now covers most (if not all) countries of the world.
 - Implement two circular buffers for inter-core communications.
 - Transfer code for DHT22 support to Pico's second core (core 1).
