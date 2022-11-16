@@ -22,7 +22,7 @@ pico_add_extra_outputs(Pico-Clock-Green)
 
 
 # Pull in our pico_stdlib which pulls in commonly used features
-target_link_libraries(Pico-Clock-Green hardware_adc hardware_flash hardware_i2c hardware_pwm hardware_sync pico_stdlib pico_unique_id)
+target_link_libraries(Pico-Clock-Green hardware_adc hardware_flash hardware_i2c hardware_pwm hardware_sync pico_stdlib pico_unique_id pico_multicore)
 
 
 # add url via pico_set_program_url

@@ -2,13 +2,13 @@
    Ds3231.c
    St-Louys Andre - February 2022
    astlouys@gmail.com
-   Revision 31-MAR-2022
+   Revision 26-OCT-2022
    Langage: GCC 7.3.1 arm-none-eabi
    Version 1.01
 
-   Raspberry Pi Pico firmware to drive the Waveshare green clock
+   Raspberry Pi Pico firmware to drive the Waveshare Green Clock
    From an original software version by "Yufu" on 25-JAN-2021 and
-   given with the Waveshare clock by 2020 Raspberry PI (Trading) Ltd.
+   given with the Waveshare Clock by 2020 Raspberry PI (Trading) Ltd.
 
    REVISION HISTORY:
    =================
@@ -24,8 +24,8 @@
 
 
 
-/* $TITLE=Definitions and include files. */
 /* $PAGE */
+/* $TITLE=Definitions and include files. */
 /* ----------------------------------------------------------------- *\
                     Definitions and include files
 \* ----------------------------------------------------------------- */
@@ -33,10 +33,10 @@
 
 #include "Ds3231.h"
 
-bool HourMode;
+/// bool HourMode;
 
-char Meridiem[2][3] = {"AM", "PM"};
-char StateOfTime[3] = "";
+/// char Meridiem[2][3] = {"AM", "PM"};
+/// char StateOfTime[3] = "";
 
 uint8_t Ds3231ReadRegister[17];
 uint8_t ByteData[16];
@@ -65,8 +65,8 @@ uint8_t REG_ADDRESSES[17] =
 
 
 
-/* $TITLE=bcd_to_byte() */
 /* $PAGE */
+/* $TITLE=bcd_to_byte() */
 /* ----------------------------------------------------------------- *\
        Convert the binary coded decimal value to integer value.
 \* ----------------------------------------------------------------- */
@@ -79,14 +79,15 @@ uint8_t bcd_to_byte(uint8_t BcdValue)
 
 
 
-/* $TITLE=byte_data() */
 /* $PAGE */
+/* $TITLE=byte_data() */
 /* ----------------------------------------------------------------- *\
      Read registers from RTC IC and convert them to integer value.
 \* ----------------------------------------------------------------- */
 void byte_data(void)
 {
   int Loop1Int;
+
 
   ds3231_register_read();
   for (Loop1Int = 0; Loop1Int < 14; ++Loop1Int)
@@ -101,8 +102,8 @@ void byte_data(void)
 
 
 
-/* $TITLE=dec_to_bcd() */
 /* $PAGE */
+/* $TITLE=dec_to_bcd() */
 /* ----------------------------------------------------------------- *\
          Convert the integer value to binary-coded-decimal.
 \* ----------------------------------------------------------------- */
@@ -115,10 +116,11 @@ uint8_t dec_to_bcd(int DecValue)
 
 
 
-/* $TITLE=ds3231_check_alarm_0() */
 /* $PAGE */
+/* $TITLE=ds3231_check_alarm_0() */
 /* ----------------------------------------------------------------- *\
               Check status of alarm 0 from the RTC IC.
+        New alarm algorithm is used instead of function below.
 \* ----------------------------------------------------------------- */
 bool ds3231_check_alarm_0()
 {
@@ -143,10 +145,11 @@ bool ds3231_check_alarm_0()
 
 
 
-/* $TITLE=ds3231_check_alarm_1() */
 /* $PAGE */
+/* $TITLE=ds3231_check_alarm_1() */
 /* ----------------------------------------------------------------- *\
               Check status of alarm 1 from the RTC IC.
+        New alarm algorithm is used instead of function below.
 \* ----------------------------------------------------------------- */
 bool ds3231_check_alarm_1()
 {
@@ -171,8 +174,8 @@ bool ds3231_check_alarm_1()
 
 
 
-/* $TITLE=ds3231_register_read() */
 /* $PAGE */
+/* $TITLE=ds3231_register_read() */
 /* ----------------------------------------------------------------- *\
           Read the main registers of the real-time clock IC.
 \* ----------------------------------------------------------------- */
@@ -194,8 +197,8 @@ void ds3231_register_read()
 
 
 
-/* $TITLE=ds3231_sqw_enable() */
 /* $PAGE */
+/* $TITLE=ds3231_sqw_enable() */
 /* ----------------------------------------------------------------- *\
 
 \* ----------------------------------------------------------------- */
@@ -210,12 +213,12 @@ void ds3231_sqw_enable(bool Enable)
 
   if (Enable)
   {
-    control |=   0b01000000; // set BBSQW to 1
-    control &=  ~0b00000100; // set INTCN to 1
+    control |=   0b01000000;  // set BBSQW to 1
+    control &=  ~0b00000100;  // set INTCN to 1
   }
   else
   {
-    control &= ~0b01000000; // set BBSQW to 0
+    control &= ~0b01000000;  // set BBSQW to 0
   }
 
   val[1] = control;
@@ -228,10 +231,11 @@ void ds3231_sqw_enable(bool Enable)
 
 
 
-/* $TITLE=format_time_mode() */
 /* $PAGE */
+/* $TITLE=format_time_mode() */
 /* ----------------------------------------------------------------- *\
-     Not used for now. 24-hours format is always used with RTC IC
+                  Was in original code but not used.
+             24-hours format is always used with RTC IC
     and Firmware takes care of the 12-hours conversion if required.
 \* ----------------------------------------------------------------- */
 /***
@@ -260,10 +264,10 @@ void format_time_mode()
 
 
 
-/* $TITLE=init_ds3231() */
 /* $PAGE */
+/* $TITLE=init_ds3231() */
 /* ----------------------------------------------------------------- *\
-
+                  Was in original code, but not used.
 \* ----------------------------------------------------------------- */
 /***
 void init_ds3231()
@@ -288,8 +292,8 @@ void init_ds3231()
 
 
 
-/* $TITLE=Read_RTC() */
 /* $PAGE */
+/* $TITLE=Read_RTC() */
 /* ----------------------------------------------------------------- *\
 
 \* ----------------------------------------------------------------- */
@@ -299,18 +303,20 @@ TIME_RTC Read_RTC()
 
   unsigned char RTC_buf[7];
 
+
   uint8_t val = 0x00;
 
   i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, &val,    1,  true);
   i2c_read_blocking( I2C_PORT, DS3231_ADDRESS, RTC_buf, 7, false);
 
-  timeRtc.seconds    = RTC_buf[0];
-  timeRtc.minutes    = RTC_buf[1];
-  timeRtc.hour       = RTC_buf[2];
-  timeRtc.dayofweek  = RTC_buf[3];
-  timeRtc.dayofmonth = RTC_buf[4];
-  timeRtc.month      = RTC_buf[5];
-  timeRtc.year       = RTC_buf[6];
+  timeRtc.seconds    = (RTC_buf[0] & 0x7F);
+  timeRtc.minutes    = (RTC_buf[1] & 0x7F);
+  timeRtc.hour       = (RTC_buf[2] & 0x3F);
+  timeRtc.dayofweek  = (RTC_buf[3] & 0x07);
+  timeRtc.dayofmonth = (RTC_buf[4] & 0x3F);
+  timeRtc.month      = (RTC_buf[5] & 0x1F);
+  timeRtc.year       =  RTC_buf[6];
+
 
   return timeRtc;
 }
@@ -319,10 +325,11 @@ TIME_RTC Read_RTC()
 
 
 
-/* $TITLE=set_alarm1_clock() */
 /* $PAGE */
+/* $TITLE=set_alarm1_clock() */
 /* ----------------------------------------------------------------- *\
                      Set alarm #1 in the RTC IC.
+        New alarm algorithm is used instead of function below.
 \* ----------------------------------------------------------------- */
 void set_alarm1_clock(uint8_t Mode, uint8_t Second, uint8_t Minute, uint8_t Hour, uint8_t Date)
 {
@@ -376,10 +383,11 @@ void set_alarm1_clock(uint8_t Mode, uint8_t Second, uint8_t Minute, uint8_t Hour
 
 
 
-/* $TITLE=set_alarm2_clock() */
 /* $PAGE */
+/* $TITLE=set_alarm2_clock() */
 /* ----------------------------------------------------------------- *\
                      Set alarm #2 in the RTC IC.
+        New alarm algorithm is used instead of function below.
 \* ----------------------------------------------------------------- */
 void set_alarm2_clock(uint8_t Minute, uint8_t Hour, uint8_t Date)
 {
@@ -409,10 +417,10 @@ void set_alarm2_clock(uint8_t Minute, uint8_t Hour, uint8_t Date)
 
 
 
-/* $TITLE=set_clock_mode() */
 /* $PAGE */
+/* $TITLE=set_clock_mode() */
 /* ----------------------------------------------------------------- *\
-                         Not used for now.
+                  Was in original code, but not used.
 \* ----------------------------------------------------------------- */
 /***
 void set_clock_mode(bool h12)
@@ -442,8 +450,8 @@ void set_clock_mode(bool h12)
 
 
 
-/* $TITLE=set_day_of_month() */
 /* $PAGE */
+/* $TITLE=set_day_of_month() */
 /* ----------------------------------------------------------------- *\
               Initialize the day-of-month in the RTC IC.
 \* ----------------------------------------------------------------- */
@@ -461,8 +469,8 @@ void set_day_of_month(uint8_t DayOfMonth)
 
 
 
-/* $TITLE=set_day_of_week() */
 /* $PAGE */
+/* $TITLE=set_day_of_week() */
 /* ----------------------------------------------------------------- *\
                Initialize the day-of-week in the RTC IC.
 \* ----------------------------------------------------------------- */
@@ -480,8 +488,8 @@ void set_day_of_week(uint8_t DayOfweek)
 
 
 
-/* $TITLE=set_hour() */
 /* $PAGE */
+/* $TITLE=set_hour() */
 /* ----------------------------------------------------------------- *\
                 Initialize the hour in the RTC IC.
 \* ----------------------------------------------------------------- */
@@ -499,8 +507,8 @@ void set_hour(uint8_t Hour)
 
 
 
-/* $TITLE=set_minute() */
 /* $PAGE */
+/* $TITLE=set_minute() */
 /* ----------------------------------------------------------------- *\
                Initialize the minute in the RTC IC.
 \* ----------------------------------------------------------------- */
@@ -509,7 +517,7 @@ void set_minute(uint8_t min)
   uint8_t setMin[3] = {0x00, 0x00, 0x00};
 
   /// Optionally set seconds to 50 to accelerate minute change when debugging specific sections of code.
-  setMin[1] = dec_to_bcd(00);  /// 50 may be put instead for quicker minute change while debugging.
+  setMin[1] = dec_to_bcd(50);  /// 50 may be put instead for quicker minute change while debugging.
   setMin[2] = dec_to_bcd(min);
 
   i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, setMin, 3, false);
@@ -521,8 +529,8 @@ void set_minute(uint8_t min)
 
 
 
-/* $TITLE=set_month() */
 /* $PAGE */
+/* $TITLE=set_month() */
 /* ----------------------------------------------------------------- *\
                Initialize the month in the RTC IC.
 \* ----------------------------------------------------------------- */
@@ -540,8 +548,8 @@ void set_month(uint8_t Month)
 
 
 
-/* $TITLE=set_time() */
 /* $PAGE */
+/* $TITLE=set_time() */
 /* ----------------------------------------------------------------- *\
           Initialize all time-related data in the RTC IC.
 \* ----------------------------------------------------------------- */
@@ -567,8 +575,8 @@ void set_time(uint8_t Second, uint8_t Minute, uint8_t Hour, uint8_t DayOfWeek, u
 
 
 
-/* $TITLE=set_year() */
 /* $PAGE */
+/* $TITLE=set_year() */
 /* ----------------------------------------------------------------- *\
                 Initialize the year in the RTC IC.
 \* ----------------------------------------------------------------- */
