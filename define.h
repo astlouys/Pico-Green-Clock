@@ -2,18 +2,19 @@
    define.h
    St-Louys Andre - February 2022
    astlouys@gmail.com
-   Revision 18-JUN-2022
+   Revision 23-DEC-2022
    Langage: GCC 7.3.1 arm-none-eabi
-   Version 1.01
+   Version 2.00
 
-   Raspberry Pi Pico firmware to drive the Waveshare green clock
+   Raspberry Pi Pico firmware to drive the Waveshare Pico-Green-Clock
    From an original software version by "Yufu" on 23-JAN-2021 and
-   given with the Waveshare clock by 2020 Raspberry Pi (Trading) Ltd.
+   given with the Waveshare's Green Clock by 2020 Raspberry Pi (Trading) Ltd.
 
    REVISION HISTORY:
    =================
-   07-FEB-2022 1.00 - Initial release
+   07-FEB-2022 1.00 - Initial release.
    02-MAR-2022 1.01 - Code reformatting.
+   23-DEC-2022 2.00 - General code cleanup.
 \* ======================================================================== */
 
 
@@ -40,15 +41,14 @@
 
 
 
-/* GPIO assignations. */
-#define UART_TX_PIN  1  // optional serial line to transmit data to an external VT101-type monitor.
-// #define UART_RX_PIN  2  // optional serial line to receive data from an external VT101-type monitor.
+/* GPIO definitions. */
+#define UART_TX_PIN  0  // optional serial line to transmit data to an external VT101-type monitor.
+#define UART_RX_PIN  1  // optional serial line to receive data from an external VT101-type monitor.
 #define SET_BUTTON   2  // "Set" top clock button. */
-#define SQW          3
+#define SQW          3  // DS3231 square wave (not used).
 #define SDA          6  // I2C data line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
 #define SCL          7  // I2C clock line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
 #define DHT22        8  // outside temperature & humidity sensor (must be added by user). Only one of DHT22 or BME280 must be defined.
-#define DHT22_RX     8  // outside temperature & humidity sensor (must be added by user). Only one of DHT22 or BME280 must be defined.
 #define IR_RX        9  // infrared sensor for remote control rx (must be added by user). */
 #define CLK         10  // clock for LED matrix controler IC (SM1606SC)
 #define SDI         11
@@ -83,21 +83,21 @@
 #define LE_LOW     gpio_put(LE, 0)
 #define LE_HIGH    gpio_put(LE, 1)
 
-#define OE_ENABLE  gpio_put(OE, 0)
-#define OE_DISABLE gpio_put(OE, 1)
+/// #define OE_ENABLE  gpio_put(OE, 0)
+/// #define OE_DISABLE gpio_put(OE, 1)
 
 #define SDI_LOW    gpio_put(SDI, 0)
 #define SDI_HIGH   gpio_put(SDI, 1)
 
 #define FLAG_UP         0xFF  // "Up"   (middle) button has been pressed.
-#define FLAG_LONG_UP    0x55  // long press on middle button
+#define FLAG_LONG_UP    0x55  // long press on "Up" (middle) button
 #define FLAG_DOWN       0x00  // "Down" (bottom) button has been pressed.
-#define FLAG_LONG_DOWN  0xAA  // long press on down button
+#define FLAG_LONG_DOWN  0xAA  // long press on "Down" (bottom) button
 
 /* Inter integrated circuit (I2C) protocol definitions. */
 #define I2C_PORT i2c1
 #define DS3231_ADDRESS  0x68
-/// #define Address_ADS 0x48
+//   #define Address_ADS 0x48
 
 
 /* Device address for the specific BME280 breakout used (from Waveshare) and BME280 internal register addresses. */
@@ -169,7 +169,7 @@
   #define BME280_REGISTER_HUM_MSB    0xFD
   #define BME280_REGISTER_HUM_LSB    0xFE
 
-#endif
+#endif  // BME280_SUPPORT
 
 /* First two bits of the display matrix are reserved for indicators. */
 #define DisplayOffset  2
@@ -248,4 +248,4 @@ typedef enum
 #define IndicatorButtonLightsOn   DisplayBuffer[0] |=   (1 << 2)|(1 << 5)   /* Two white LEDs inside the clock, near the buttons (undocumented feature of the clock) */
 #define IndicatorButtonLightsOff  DisplayBuffer[0] &= ~((1 << 2)|(1 << 5))
 
-#endif
+#endif  // DEFINE_H

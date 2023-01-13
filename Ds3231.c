@@ -33,6 +33,8 @@
 
 #include "Ds3231.h"
 
+extern uint8_t ResetSecond;
+
 /// bool HourMode;
 
 /// char Meridiem[2][3] = {"AM", "PM"};
@@ -516,8 +518,8 @@ void set_minute(uint8_t min)
 {
   uint8_t setMin[3] = {0x00, 0x00, 0x00};
 
-  /// Optionally set seconds to 50 to accelerate minute change when debugging specific sections of code.
-  setMin[1] = dec_to_bcd(50);  /// 50 may be put instead for quicker minute change while debugging.
+  /* When in development mode, set seconds to 50 to accelerate minute change when debugging specific sections of code. */
+  setMin[1] = dec_to_bcd(ResetSecond);
   setMin[2] = dec_to_bcd(min);
 
   i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, setMin, 3, false);

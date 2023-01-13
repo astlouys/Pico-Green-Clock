@@ -17,7 +17,7 @@ pico_enable_stdio_uart(Pico-Clock-Green 0)
 pico_enable_stdio_usb(Pico-Clock-Green 1)
 
 
-# Create map/bin/hex file etc.
+# Create map/bin/hex/uf2 files etc.
 pico_add_extra_outputs(Pico-Clock-Green)
 
 

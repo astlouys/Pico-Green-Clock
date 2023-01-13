@@ -19,10 +19,11 @@
 \* ------------------------------------------------------------------ */
 UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 {
-  UCHAR FlagError;    // indicate an error in remote control packet received.
   UCHAR String[128];
 
+  UINT8 BitNumber;
   UINT8 CommandSubSection;  // subcommand for Set and Display commands.
+  UINT8 FlagError;          // indicate an error in remote control packet received.
   
   UINT16 Loop1UInt16;
   UINT16 Loop2UInt16;
@@ -31,99 +32,141 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 
 
   /* Initialization. */
-  CommandSubSection = 0;  // used to jump directly to a specific "subsection" of commands "Set" or "Display".
-  DataBuffer        = 0;  // data stream received from IR remote control.
-  *IrCommand        = 0;  // initialize as zero on entry.
-  FlagError         = FLAG_OFF;
+  CommandSubSection = 0;         // used to jump directly to a specific "subsection" of commands "Set" or "Display".
+  DataBuffer        = 0;         // data stream received from IR remote control.
+  *IrCommand        = 0;         // initialize as zero on entry.
+  FlagError         = FLAG_OFF;  // assume no error on entry.
 
 
-  /* If number of state changes is not standard, display it when debug On. */
+  /* Optionaly display number of state changes. */
   if (DebugBitMask & DEBUG_IR_COMMAND)
   {
-    if (IrStepCount != 73)
-    {
-      sprintf(String, "1) [%u]", IrStepCount);
-      uart_send(__LINE__, String);
-    }
+    printf("\r");
+    sprintf(String, "Total number of logic level changes (Steps): %2u (should be 73)\r", IrStepCount);
+    uart_send(__LINE__, String);
   }
 
 
 
-  /* Analyse and process each step change in remote control burst. */
-  for (Loop1UInt16 = 0; Loop1UInt16 < IrStepCount; ++Loop1UInt16)
+  /* Analyze and process each step change in remote control burst. */
+  if (DebugBitMask & DEBUG_IR_COMMAND)
   {
-    if (DebugBitMask & DEBUG_IR_COMMAND)
+    /* Display debug header. */
+    sprintf(String, "Event   Bit   Level  Duration  Level  Duration  Result\r");
+    uart_send(__LINE__, String);
+
+    sprintf(String, "number number\r");
+    uart_send(__LINE__, String);
+  }
+
+  for (Loop1UInt16 = 0; Loop1UInt16 < IrStepCount; Loop1UInt16 += 2)
+  {
+    BitNumber = (((Loop1UInt16 - 2) / 2) + 1);
+
+    if (Loop1UInt16 < 2)
     {
-      sprintf(String, "2) [%2.2u] %c %u", Loop1UInt16, Level[Loop1UInt16], ResultValue[Loop1UInt16]);
-      uart_send(__LINE__, String);
-    }
-
-    /* Skip the two "Get ready" levels received from remote control
-       (first: low level, then high level, both 4500 micro-seconds). */
-    if (Loop1UInt16 < 2) continue;
-
-
-    /* When reading a value that makes no sense, assume that we passed the last valid value of the IR stream. */
-    if (ResultValue[Loop1UInt16] > 10000)
-    {
-      /* We reached end of data stream, get out of "for" loop. */
-      break;
-    
       if (DebugBitMask & DEBUG_IR_COMMAND)
       {
-        sprintf(String, "3) Result > 10000: %u", Loop1UInt16);
+        /* Display two <Get ready> levels from IR burst. */
+        sprintf(String, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
+        uart_send(__LINE__, String);
+      }
+      continue;
+    }
+          
+          
+    if ((BitNumber > 0) && (BitNumber <= 32))
+    {
+      DataBuffer <<= 1;
+      if (IrResultValue[Loop1UInt16 + 1] > 1400) ++DataBuffer;
+  
+      if (DebugBitMask & DEBUG_IR_COMMAND)
+      {
+        /* Display 32 data bits. */
+        sprintf(String, " [%2u]   %3u     %c     %5lu      %c     %5lu      Data: 0x%8.8X\r", Loop1UInt16, BitNumber, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1], DataBuffer);
         uart_send(__LINE__, String);
       }
     }
 
 
-    if (Level[Loop1UInt16] == 'L')
+    if (BitNumber > 32)
     {
-      /* Low level, it is a first half bit. Make a rough validation only. */
-      if ((ResultValue[Loop1UInt16] < 400) || (ResultValue[Loop1UInt16] > 650))
+      if (DebugBitMask & DEBUG_IR_COMMAND)
       {
-        FlagError = FLAG_ON;
+        /* Display extra bits. */
+        sprintf(String, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
+        uart_send(__LINE__, String);
+      }
+    }
+  
+  
+    /* When reading a value that makes no sense, assume that we passed the last valid value of the IR stream. */
+    if ((IrResultValue[Loop1UInt16] > 10000l) || (IrResultValue[Loop1UInt16 + 1] > 10000))
+    {
+      /* We reached end of IR burst, get out of "for" loop. */
+      /// break;
+    
+      if (DebugBitMask & DEBUG_IR_COMMAND)
+      {
+        sprintf(String, " Reaching end of IR burst > 10000 at IrStep %u\r", Loop1UInt16);
+        uart_send(__LINE__, String);
       }
     }
     else
     {
-      /* High level, it is a second half bit... assume it is a "zero" bit on entry. */
-      DataBuffer <<= 1;
-
-      /* Now check if our assumption was correct. */
-      if ((ResultValue[Loop1UInt16] > 1600) && (ResultValue[Loop1UInt16] < 1800))
+      for (Loop2UInt16 - 0; Loop2UInt16 < 2; ++Loop2UInt16)
       {
-        /* It was a "one" bit. DataBuffer has already been shifted left above, simply add 1 for current "one" bit. */
-        ++DataBuffer;
-      }
+        if (IrLevel[Loop1UInt16 + Loop2UInt16] == 'L')
+        {
+          /* Low level, it is a first half bit. Make a rough validation only. */
+          if ((IrResultValue[Loop1UInt16 + Loop2UInt16] < 400l) || (IrResultValue[Loop1UInt16 + Loop2UInt16] > 725l))
+          {
+            FlagError = FLAG_ON;
 
+            if (DebugBitMask & DEBUG_IR_COMMAND)
+            {
+              sprintf(String, "decode_ir_command() - Error IrLevel <L>   Event number: %u   IrResultValue: %lu\r", Loop1UInt16 + Loop2UInt16, IrResultValue[Loop1UInt16 + Loop2UInt16]);
+              uart_send(__LINE__, String);
+            }
+          }
+        }
+        else
+        {
+          /* High level, it is a second half bit... assume it is a "zero" bit on entry. */
+          DataBuffer <<= 1;
 
-      if (DebugBitMask & DEBUG_IR_COMMAND)
-      {
-        sprintf(String, "4) Data: 0x%X", DataBuffer);
-        uart_send(__LINE__, String);
+          /* Now check if our assumption was correct. */
+          if ((IrResultValue[Loop1UInt16 + Loop2UInt16] > 1500l) && (IrResultValue[Loop1UInt16 + Loop2UInt16] < 1800l))
+          {
+            /* It was a "one" bit. DataBuffer has already been shifted left above, simply add 1 for current "one" bit. */
+            ++DataBuffer;
+          }
+        }
       }
     }
   }
 
 
-  /* Now that the command has been decoded, initalize variables to get ready for next burst decoding. */
-  for (Loop1UInt16 = 0; Loop1UInt16 < MAX_READINGS; ++Loop1UInt16)
-  {
-    InitialValue[Loop1UInt16] = 0;
-    FinalValue[Loop1UInt16]   = 0;
-    ResultValue[Loop1UInt16]  = 0;
-    Level[Loop1UInt16]        = 'X';
-  }
-  IrStepCount = 0;  // reset IrStepCount.
-
 
   if (DebugBitMask & DEBUG_IR_COMMAND)
   {
-    sprintf(String, "5) Data: 0x%8.8X", DataBuffer);
+    sprintf(String, "Final data: 0x%8.8X\r", DataBuffer);
+    uart_send(__LINE__, String);
+  
+    sprintf(String, "Final step count: %2u (should be 73)\r\r", IrStepCount);
     uart_send(__LINE__, String);
   }
 
+
+  /* Now that the command has been decoded, initalize variables to get ready for next burst decoding. */
+  for (Loop1UInt16 = 0; Loop1UInt16 < MAX_IR_READINGS; ++Loop1UInt16)
+  {
+    IrInitialValue[Loop1UInt16] = 0ll;
+    IrFinalValue[Loop1UInt16]   = 0ll;
+    IrResultValue[Loop1UInt16]  = 0l;
+    IrLevel[Loop1UInt16]        = 'X';
+  }
+  IrStepCount = 0;  // reset IrStepCount.
 
 
 
@@ -134,6 +177,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
       /* Not used... as long as original Memorex equipment is Off, there
          is no chance that the remote used with the Green clock will interfere with it. */
       /// scroll_string(24, "Button <Power>");
+      *IrCommand = IR_POWER_ON_OFF;
     break;
 
     case (0x25257887):
@@ -296,7 +340,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
       /* Unrecognized. */
       if (DebugBitMask & DEBUG_IR_COMMAND)
       {
-        sprintf(String, "Unrecognized IR command: 0x%X\r", DataBuffer);
+        sprintf(String, "Unrecognized IR command: 0x%8.8X\r", DataBuffer);
         uart_send(__LINE__, String);
       }
       FlagError = FLAG_ON;
@@ -419,6 +463,11 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 
   if (FlagError == FLAG_ON)
   {
+    if (DebugBitMask & DEBUG_IR_COMMAND)
+    {
+      uart_send(__LINE__, "decode_ir_command(): Error\r");
+    }
+
     /***
     if (IrStepCount > 60)
     {
