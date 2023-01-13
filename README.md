@@ -1,32 +1,42 @@
 # Pico Green Clock
-Firmware Version 7.00 released 16-NOV-2022
+Firmware Version 8.00 released 13-JAN-2023
 
-Firmware Hilights
+Firmware Hilights:
 
-- Add UTC (Coordinated Universal Time) clock parameter allowing proper handling of DST for some countries and also as a requirement for future NTP implementation.
-- Improve algorithm for automatic handling of Daylight Saving Time / Summer Time - Winter Time / Spring Forward - Fall-Back. Now covers most (if not all) countries of the world.
-- Implement two circular buffers for inter-core communications.
+- Add auto detection of microcontroller type (Pico or Pico W).
+- Add an option so that Hourly Chime correspond to the 12-hour format current value (needs to be turned On in the code).
+- Change clock display brightness algorithm. It is now driven by a PWM signal from the Pico.
+- Auto Brightness is now smoother and provides hundreds of different levels (Note: if ambient light is dark, clock display becomes **VERY** dim).
+- Add a half-hour "Light Chime".
+- Add automatic detection of USB CDC connection with an external terminal emulator program (for developers' support).
+- Add "snowflakes pixel animation" (remote control required).
+- Add UTC (Universal Coordinated Time) clock parameter allowing proper handling of DST for some countries.
+- UTC will also be a requirement for future NTP implementation where the clock will be adjusted from a time reference on the Internet.
+- Automatic handling of Daylight Saving Time / Summer Time - Winter Time / Spring Forward - Fall-Back. Should cover most countries of the world.
+- Implement two circular buffers for inter-core communications (core 1 is used for DHT22 support).
 - Transfer code for DHT22 support to Pico's second core (core 1).
 - Green Clock configuration is now saved to Pico's flash memory and automatically retrieved after a reboot / power-up.
 - Nine (9) alarms are now supported with the possibility to configure each of them for as many days-of-week as desired.
 - Different sound for each alarm if a passive buzzer has been installed by user or different "train of sounds" if using the integrated active buzzer.
 - "QUICK-START" compile time option to skip some device tests during power-up sequence.
-- Add a "System Idle-Time Monitor" to get an idea of system load.
-- Add a sound queue for active buzzer (integrated in Green Clock) and also for an optional passive buzzer to optimize its support. Different sounds allows for "jingles" to be played if user installed a passive buzzer or different duration and different "trains of sounds" if using the integrated active buzzer.
-- On and Off time (run-time parameters) added for hourly chime to make the clock silent during the night.
+- Add a "System Idle-Time Monitor" to get an idea of current system load (remote control required).
+- Sound queue allows for different sounds to play "jingles" if user installed a passive buzzer.
+- Sound queue allows for easy support of different sound duration and different "trains of sounds" if using the integrated active buzzer.
+- Add a sound queue for active buzzer (integrated in Green Clock) and also for an optional passive buzzer to optimize its support. 
+- On and Off time (run-time parameters) added for Hourly Chime to make the clock silent during the night.
 - Double dots blinking in sequence on the display to know "how deep we are" in the current minute.
 - Support for English and French languages (as much as possible, since clock display limits accented letters).
 - DHT22 device support code (option that must be installed by user).
 - BME280 device support code (option that must be installed by user).
-- Infrared sensor support code (option that must be installed by user).
+- VS1838b infrared sensor support code (option that must be installed by user).
 - Passive buzzer support code (option that must be installed by user).
 - Add more levels of brightness (for display LEDs) with an hysteresis.
-- Add 5 X 7 character set with variable width to allow scrolling of text on clock display (date scrolling takes advantage of it for day-of-week and month).
+- Implement 5 X 7 character set with variable width to allow scrolling of text on clock display (date scrolling uses it for day-of-week and month).
 - "Calendar Events" may be configured at compile time. They will scroll on clock display every 30 minutes (for a 24-hour period) during the target date.
 - Sequential test of LED matrix (and optional devices if added by user) during power-up sequence.
-- User Guide updated to cover Firmware Version 7.00
+- User Guide updated to cover Firmware Version 8.00
 
-This project provides firmware for the "Pico Green Clock" product from Waveshare (available directly from Waveshare website, or from Amazon).
+This project provides Firmware for the "Pico Green Clock" product from Waveshare (The clock is available directly from Waveshare website, or from Amazon).
 It is based on a Raspberry Pi Pico microcontroller.
 
 Waveshare provides a basic Firmware (Version 1.00) for the Pico Green Clock. Current project provides many enhancements and functionalities to the clock.
@@ -59,4 +69,4 @@ CMakeFiles                      Pico-Clock-Green.elf            cmake_install.cm
 Makefile                        Pico-Clock-Green.elf.map        elf2uf2
 Pico-Clock-Green.bin            Pico-Clock-Green.hex            generated
 ```
-Perfect you have a built `uf2` binary you can copy over to the clock pico.
+You now have an executable "uf2" that you can transfer to the Pico`s flash memory to run the Pico-Green-Clock.
