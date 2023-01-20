@@ -2,9 +2,9 @@
    Pico-Clock-Green.c
    St-Louys Andre - February 2022
    astlouys@gmail.com
-   Revision 13-JAN-2023
+   Revision 19-JAN-2023
    Compiler: arm-none-eabi-gcc 7.3.1
-   Version 8.00
+   Version 8.01
 
    Raspberry Pi Pico firmware to drive the Waveshare Pico-Green-Clock.
    From an original software version 1.00 by Waveshare
@@ -193,6 +193,8 @@
                     - Modify checking of clock's flash configuration to prevent a glitch on clock display while disabling interrupts.
                     - Cleanup code for easier configuration and handling of temperature reading from either Pico, DS3231, DHT22 and / or BME280.
                     - Some general code cleanup and optimization.
+   19-JAN-2023 8.01 - Fix a bug with blinking days-of-week indicators in Alarm Setup.
+                    - Add get_pico_unique_id() function and use it only once before flash operations to prevent potential problems.
 
 \* ================================================================== */
 
@@ -267,7 +269,7 @@
                      "CalendarEventsGeneric.cpp".
 \* ================================================================== */
 /* Firmware version. */
-#define FIRMWARE_VERSION "8.00"
+#define FIRMWARE_VERSION "8.01"
 
 /* Select the language for data display. */
 #define DEFAULT_LANGUAGE ENGLISH // choices for now are FRENCH and ENGLISH.
@@ -1104,6 +1106,7 @@ UINT8  NightLightTimeOffDisplay;    // to adapt to 12 or 24-hours time format.
 UINT8  NightLightTimeOnDisplay;     // to adapt to 12 or 24-hours time format.
 
 UINT8  PicoType;                    // microcontroller type (Pico or Pico W).
+UCHAR  PicoUniqueId[40];            // Pico Unique ID read from flash IC.
 
 #ifdef RELEASE_VERSION
 /* Value assigned to CurrentSecond when changing the minutes in clock setup. */
@@ -1334,6 +1337,9 @@ UINT8 get_microcontroller_type(void);
 
 /* Return the number of days in a specific month (while checking if it is a leap year or not for February). */
 UINT8 get_month_days(UINT16 CurrentYear, UINT8 MonthNumber);
+
+/* Retrieve Pico's Unique ID from flash IC. */
+void get_pico_unique_id(void);
 
 /* Return the day-of-week, given the day-of-month, month and year. */
 UINT8 get_day_of_week(UINT16 year_cnt, UINT8 month_cnt, UINT8 date_cnt);
@@ -1613,6 +1619,13 @@ int main(void)
       Initialize all required GPIO ports of the Raspberry Pi Pico.
   \* ---------------------------------------------------------------- */
   init_gpio();
+
+
+
+  /* ---------------------------------------------------------------- *\
+                 Retrieve Pico's Unique ID from flash IC.
+  \* ---------------------------------------------------------------- */
+  get_pico_unique_id();
 
 
   
@@ -1911,7 +1924,7 @@ int main(void)
     sprintf(String, "GPIO for IR IRQ: %u\r", IR_RX);
     uart_send(__LINE__, String);
 
-    sprintf(String, "Events to reste / acknowledge: Edge rise event: %8X   Edge fall event: %8X\r", GPIO_IRQ_EDGE_RISE, GPIO_IRQ_EDGE_FALL);
+    sprintf(String, "Events to reset / acknowledge: Edge rise event: %8X   Edge fall event: %8X\r", GPIO_IRQ_EDGE_RISE, GPIO_IRQ_EDGE_FALL);
     uart_send(__LINE__, String);
   }
 
@@ -2213,7 +2226,8 @@ int main(void)
             Properly adjust most indicators on clock display.
   \* ---------------------------------------------------------------- */
   update_left_indicators();
-  update_top_indicators(CurrentDayOfWeek, FLAG_ON);
+  update_top_indicators(ALL, FLAG_OFF);              // turn them all Off first.
+  update_top_indicators(CurrentDayOfWeek, FLAG_ON);  // then turn On today's indocator.
 
 
 
@@ -3014,7 +3028,7 @@ void adc_read_pico_temp(float *DegreeC, float *DegreeF)
 
 
   /* Make Pico's internal temperature readable from ADC. */
-  adc_set_temp_sensor_enabled(1);
+  adc_set_temp_sensor_enabled(true);  ///
 
   /* Notes: 
      ADC 0 (gpio 26)  is for photo-resistor (ambient light level).
@@ -6294,6 +6308,38 @@ UINT8 get_month_days(UINT16 CurrentYear, UINT8 MonthNumber)
 
 
 /* $PAGE */
+/* $TITLE=get_pico_unique_id() */
+/* ------------------------------------------------------------------ *\
+              Retrieve Pico's Unique ID from the flash IC.
+        It's better to call this function during initialization
+                phase, before core 1 begins to run.
+\* ------------------------------------------------------------------ */
+void get_pico_unique_id(void)
+{
+  UINT8 Loop1UInt8;
+
+  pico_unique_board_id_t board_id;
+
+
+  pico_get_unique_board_id(&board_id);
+
+  PicoUniqueId[0] = 0x00;  // initialize as null string.
+
+  /* Build the Unique ID string in hex. */
+  for (Loop1UInt8 = 0; Loop1UInt8 < PICO_UNIQUE_BOARD_ID_SIZE_BYTES; ++Loop1UInt8)
+  {
+    sprintf(&PicoUniqueId[strlen(PicoUniqueId)], "%2.2X", board_id.id[Loop1UInt8]);
+    if ((Loop1UInt8 % 2) && (Loop1UInt8 != 7)) sprintf(&PicoUniqueId[strlen(PicoUniqueId)], "-");
+  }
+
+  return;
+}
+
+
+
+
+
+/* $PAGE */
 /* $TITLE=init_gpio() */
 /* ------------------------------------------------------------------ *\
               GPIO ports initialization / configuration
@@ -6345,8 +6391,6 @@ int init_gpio(void)
   gpio_init(LE);
   gpio_init(SDI);
   gpio_init(SQW);
-
-  gpio_init(IR_RX);
 
   gpio_init(SET_BUTTON);
   gpio_init(UP_BUTTON);
@@ -6414,7 +6458,7 @@ int init_gpio(void)
   /* Initialize Pico's analog-to-digital (ADC) converter. */
   adc_init();
 
-  /* Disable other functions for these gpio's since they will be used as ADC converter. */
+  /* Disable other functions for these gpio's since they will be used as ADC converter (make sure there is no pull-up either). */
   adc_gpio_init(ADC_LIGHT);  // ambient light.
   adc_gpio_init(ADC_VCC);    // power supply voltage.
 
@@ -7781,7 +7825,8 @@ void process_ir_command(UINT8 IrCommand)
     /* Pixel twinkling on clock display. */
     pixel_twinkling(10);
 
-    update_top_indicators(CurrentDayOfWeek, FLAG_ON);
+    update_top_indicators(ALL, FLAG_OFF);              // first, turn Off all days' indicators.
+    update_top_indicators(CurrentDayOfWeek, FLAG_ON);  // then, turn On today's indicator.
 
     update_left_indicators();
 
@@ -8462,8 +8507,6 @@ void process_scroll_queue(void)
   float TemperatureF;
   float Volts;
 
-  pico_unique_board_id_t board_id;
-
 
   /* Check if for any reason, the function has been called while the scroll queue is empty. */
   if (ScrollQueueHead == ScrollQueueTail) return;
@@ -9052,16 +9095,7 @@ void process_scroll_queue(void)
 
 
         case (TAG_PICO_UNIQUE_ID):
-          pico_get_unique_board_id(&board_id);
-
-          sprintf(String, "Pico ID: ");
-          for (Loop1UInt8 = 0; Loop1UInt8 < PICO_UNIQUE_BOARD_ID_SIZE_BYTES; ++Loop1UInt8)
-          {
-            sprintf(&String[strlen(String)], "%2.2X", board_id.id[Loop1UInt8]);
-            if (Loop1UInt8 % 2)
-              sprintf(&String[strlen(String)], " ");
-          }
-          sprintf(&String[strlen(String)], "   ");
+          sprintf(String, "Pico ID: %s   ", PicoUniqueId);
           scroll_string(24, String);
         break;
 
@@ -10194,6 +10228,7 @@ void set_mode_out(void)
   {
     set_month(CurrentMonth);
     set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
     update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
   }
 
@@ -10201,6 +10236,7 @@ void set_mode_out(void)
   {
     set_day_of_month(CurrentDayOfMonth);
     set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
     update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
   }
 
@@ -10208,6 +10244,7 @@ void set_mode_out(void)
   {
     set_year(CurrentYearLowPart);
     set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
     update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
   }
 
@@ -10324,7 +10361,7 @@ void set_pixel(UINT8 PixelRow, UINT8 PixelColumn, UINT8 Flag)
 /* $PAGE */
 /* $TITLE=setup_alarm_frame() */
 /* ------------------------------------------------------------------ *\
-                   Display current alarm parameters.
+               Display current alarm frame / parameters.
 \* ------------------------------------------------------------------ */
 void setup_alarm_frame(void)
 {
@@ -10338,8 +10375,9 @@ void setup_alarm_frame(void)
 
   CurrentClockMode = MODE_ALARM_SETUP;
 
+  
   /* Check if current alarm setup step is either alarm number or alarm ON / OFF toggle. */
-  if (SetupStep == SETUP_ALARM_NUMBER || SetupStep == SETUP_ALARM_ON_OFF)
+  if ((SetupStep == SETUP_ALARM_NUMBER) || (SetupStep == SETUP_ALARM_ON_OFF))
   {
     /* Check if current alarm setup step is alarm number select. */
     if (SetupStep == SETUP_ALARM_NUMBER)
@@ -10347,11 +10385,15 @@ void setup_alarm_frame(void)
       FlagSetupAlarm[SETUP_ALARM_NUMBER] = FLAG_ON;
     }
 
+
+
     /* Check if current alarm setup step is alarm On / Off toggling. */
     if (SetupStep == SETUP_ALARM_ON_OFF)
     {
       FlagSetupAlarm[SETUP_ALARM_ON_OFF] = FLAG_ON;
     }
+
+
 
     /* Display first digit on clock display ("A" for "Alarm").
        NOTE: Alarm number if 1 to 9 for user, but 0 to 8 for firmware. */
@@ -10377,6 +10419,8 @@ void setup_alarm_frame(void)
     clear_framebuffer(26);
   }
 
+
+
   /* Check if current alarm setup step is either alarm hour setup or alarm minute setup. */
   if (SetupStep == SETUP_ALARM_HOUR || SetupStep == SETUP_ALARM_MINUTE)
   {
@@ -10385,10 +10429,14 @@ void setup_alarm_frame(void)
       FlagSetupAlarm[SETUP_ALARM_HOUR] = FLAG_ON;
     }
 
+
+
     if (SetupStep == SETUP_ALARM_MINUTE)
     {
       FlagSetupAlarm[SETUP_ALARM_MINUTE] = FLAG_ON;
     }
+
+
 
     /* Display current alarm hour and minute on clock display. */
     if (FlashConfig.TimeDisplayMode == H12)
@@ -10402,6 +10450,7 @@ void setup_alarm_frame(void)
       /* We are in "24-hours" display mode. */
       AlarmHourDisplay = FlashConfig.Alarm[AlarmNumber].Hour;
     }
+
 
     /* When in 12-hour time display format, first digit is not displayed if it is zero. */
     if ((FlashConfig.TimeDisplayMode == H12) && (AlarmHourDisplay < 10))
@@ -10420,12 +10469,16 @@ void setup_alarm_frame(void)
     clear_framebuffer(26);
   }
 
+
+
   /* Check if current alarm setup step is alarm day-of-week setup. */
   if (SetupStep == SETUP_ALARM_DAY)
   {
     FlagSetupAlarm[SETUP_ALARM_DAY] = FLAG_ON; // flag indicating we are in "Alarm Day-of-week" setup step.
-    /* Note: day-of-week indicator for alarm setting will blink in the funtion "evaluate_blinking_time()". */
+    /* Note: day-of-week indicator for alarm setting will blink in the function "evaluate_blinking_time()". */
   }
+
+
 
   /* Check if we are done with all alarm setting. */
   if (SetupStep >= SETUP_ALARM_HI_LIMIT)
@@ -12152,6 +12205,7 @@ void show_time(void)
 
 
   /* Turn ON the weekday indicator. */
+  update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
   update_top_indicators(CurrentDayOfWeek, FLAG_ON);
 
   return;
@@ -17287,6 +17341,7 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
   if (Flag == FLAG_ON)
   {
     /* First, turn Off all day-of-week indicators. */
+    /*** Negative side effect in "days-of-week alarm setting". ***
     DisplayBuffer[16] &= ~((1 << 5) | (1 << 6));  // Sunday
     DisplayBuffer[0]  &= ~((1 << 3) | (1 << 4));  // Monday
     DisplayBuffer[0]  &= ~((1 << 6) | (1 << 7));  // Tuesday
@@ -17295,7 +17350,8 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
     DisplayBuffer[8]  &= ~(1 << 7);               // Friday - a
     DisplayBuffer[16] &= ~(1 << 0);               // Friday - b
     DisplayBuffer[16] &= ~((1 << 2) | (1 << 3));  // Saturday
-    
+    ***/
+
     /* Then, turn On specified DayOfWeek. */
     switch (DayOfWeek)
     {

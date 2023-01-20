@@ -44,26 +44,26 @@
 /* GPIO definitions. */
 #define UART_TX_PIN  0  // optional serial line to transmit data to an external VT101-type monitor.
 #define UART_RX_PIN  1  // optional serial line to receive data from an external VT101-type monitor.
-#define SET_BUTTON   2  // "Set" top clock button. */
+#define SET_BUTTON   2  // "Set" top clock button.
 #define SQW          3  // DS3231 square wave (not used).
 #define SDA          6  // I2C data line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
 #define SCL          7  // I2C clock line for DS3231 real time clock and optional BME280 temperature, humidity and barometric sensor.
 #define DHT22        8  // outside temperature & humidity sensor (must be added by user). Only one of DHT22 or BME280 must be defined.
-#define IR_RX        9  // infrared sensor for remote control rx (must be added by user). */
+#define IR_RX        9  // infrared sensor for remote control rx (must be added by user).
 #define CLK         10  // clock for LED matrix controler IC (SM1606SC)
 #define SDI         11
 #define LE          12
 #define OE          13
-#define BUZZ        14  // active piezo (integrated on Green clock PC board), and has its own integrated oscillator). */
-#define DOWN_BUTTON 15  // "Down" bottom clock button. */
+#define BUZZ        14  // active piezo (integrated on Green clock PC board), and has its own integrated oscillator).
+#define DOWN_BUTTON 15  // "Down" bottom clock button.
 #define A0          16
-#define UP_BUTTON   17  // "Up" middle clock button. */
+#define UP_BUTTON   17  // "Up" middle clock button.
 #define A1          18
-#define PPIEZO      19  // passive piezo / buzzer (must be added by user). */
+#define PPIEZO      19  // passive piezo / buzzer (must be added by user).
 #define A2          22
 #define PICO_LED    25  // Pico's integrated LED
-#define ADC_LIGHT   26  // analog-to-digital converter of the Pico: read ambient light. */
-#define ADC_VCC     29  // analog-to-digital converter of the Pico: read power supply voltage. */
+#define ADC_LIGHT   26  // analog-to-digital converter of the Pico: read ambient light.
+#define ADC_VCC     29  // analog-to-digital converter of the Pico: read power supply voltage.
 
 
 
