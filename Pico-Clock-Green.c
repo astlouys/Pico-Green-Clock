@@ -347,7 +347,7 @@
 #define CHIME_TIME_ON          9         // if "CHIME_DAY", "hourly chime" and "calendar event" will sound beginning at this time (in the morning).
 #define CHIME_TIME_OFF        21         // if "CHIME_DAY", "hourly chime" and "calendar event" will sound for the last time at this time (in the evening).
 #define CHIME_HALF_HOUR  FLAG_ON         // if "FLAG_ON", will sound a "double-beep" on half-hour (every xxh30), compliant to chime settings above.
-#define CHIME_HOUR_COUNT FLAG_OFF        // if "FLAG_ON", hourly chime will beep a number of times equivalent to the hour value in 12-hour format.
+#define CHIME_HOUR_COUNT FLAG_ON        // if "FLAG_ON", hourly chime will beep a number of times equivalent to the hour value in 12-hour format.
 /* NOTE: See also revision history above (or User guide) about "night time workers" support for hourly chime. */
 
 /* For active buzzer integrated in Pico Green Clock. Number of "tones" for each "sound pack" (first level of repetition). */
