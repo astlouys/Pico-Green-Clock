@@ -2,9 +2,9 @@
    Pico-Clock-Green.c
    St-Louys Andre - February 2022
    astlouys@gmail.com
-   Revision 19-JAN-2023
+   Revision 21-JAN-2023
    Compiler: arm-none-eabi-gcc 7.3.1
-   Version 8.01
+   Version 8.02
 
    Raspberry Pi Pico firmware to drive the Waveshare Pico-Green-Clock.
    From an original software version 1.00 by Waveshare
@@ -27,7 +27,7 @@
 
    10-FEB-2022 2.00 - Global code reformatting and rework.
                     - Fix a bug allowing "DayOfMonth" to be set to 0.
-                    - Fix a bug allowing "DayOfMonth" to go higher than the maximum of 28, 29, 30 or 31 (depending of the  month).
+                    - Fix a bug allowing "DayOfMonth" to go higher than the maximum of 28, 29, 30 or 31 (dependingget_day_of_week of the  month).
                     - Fix a bug and make sure the "count down" indicator is turned off when count-down timer reaches 00m00s.
                     - Fix a bug when the clock is set for 12-hours time display and is displaying 00h00 AM instead of 12h00 AM.
                     - Add a "test" section to put many chunks of code for testing and debugging purposes.
@@ -195,6 +195,7 @@
                     - Some general code cleanup and optimization.
    19-JAN-2023 8.01 - Fix a bug with blinking days-of-week indicators in Alarm Setup.
                     - Add get_pico_unique_id() function and use it only once before flash operations to prevent potential problems.
+   21-JAN-2023 8.02 - Fix a bug with the logic behind "days-of-week". Two different logics were used throughout the code.
 
 \* ================================================================== */
 
@@ -269,7 +270,7 @@
                      "CalendarEventsGeneric.cpp".
 \* ================================================================== */
 /* Firmware version. */
-#define FIRMWARE_VERSION "8.01"
+#define FIRMWARE_VERSION "8.02"
 
 /* Select the language for data display. */
 #define DEFAULT_LANGUAGE ENGLISH // choices for now are FRENCH and ENGLISH.
@@ -284,7 +285,14 @@
 /* Select only one of the two options below: Make selective choices of some options based on "Release version" or "Developer version". */
 /* NOTE: Developer version requires a CDC USB communication to start. Refer to user guide for details. */
 #define RELEASE_VERSION  ///
+#ifdef RELEASE_VERSION
+#warning Built as RELEASE_VERSION
+#endif  // RELEASE_VERSION
+
 // #define DEVELOPER_VERSION   ///
+#ifdef DEVELOPER_VERSION
+#warning Built as DEVELOPER_VERSION
+#endif  // DEVELOPER_VERSION
 
 
 
@@ -292,9 +300,15 @@
 /* If NO_SOUND is defined below (that is, if it is uncommented), it allows turning Off <<< ABSOLUTELY ALL SOUNDS >>>.
    (For example, during development phase, if your wife is sleeping while you work late in the night as was my case - smile). */
 // #define NO_SOUND  ///
+#ifdef NO_SOUND
+#warning Built with NO_SOUND
+#endif  // NO_SOUND
 
 /* Conditional compile to allow a quicker power-up sequence by-passing some device tests. */
-// #define QUICK_START  ///
+#define QUICK_START  ///
+#ifdef QUICK_START
+#warning Built with QUICK_START
+#endif  // QUICK_START
 
 /* Flag to include test code in the executable (conditional compile). Tests can be run before falling in normal clock ("time display") mode.
    Commenting out the #define below will exclude test code and make the executable smaller. */
@@ -303,6 +317,9 @@
 /* Loop at the beginning of the code until a USB CDC connection has been established. Quick beeps will be heard during waiting so that user
    is aware of what's going on. */
 #define USB_CONNECTION  ///
+#ifdef USB_CONNECTION
+#warning Built with USB_CONNECTION
+#endif  // USB_CONNECTION
 #endif  // DEVELOPER_VERSION
 
 
@@ -318,7 +335,7 @@
 #define SCROLL_DEFAULT FLAG_ON  // choices are FLAG_ON / FLAG_OFF
 
 /* Scroll one dot to the left every such milliseconds (80 is a good start point. lower = faster). */
-#define SCROLL_DOT_TIME 70      // this is a UINT8 (must be between 0 and 255).
+#define SCROLL_DOT_TIME 68      // this is a UINT8 (must be between 0 and 255).
 
 /* Date, temperature and other options will scroll at this frequency
    (in minutes - we must leave enough time for the previous scroll to complete). */
@@ -383,7 +400,10 @@
 /* Support for an optional passive piezo / buzzer. This buzzer must be provided by user and is not included with the Green Clock.
    It allows variable frequency sounds on the clock.
    If you did install one, remove the two surrounding lines: "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define PASSIVE_PIEZO_SUPPORT" even in release version. */
-#define PASSIVE_PIEZO_SUPPORT       // if a passive buzzer has been installed by user.
+// #define PASSIVE_PIEZO_SUPPORT       /// if a passive buzzer has been installed by user.
+#ifdef PASSIVE_PIEZO_SUPPORT
+#warning Built with PASSIVE_PIEZO support
+#endif  // PASSIVE_PIEZO_SUPPORT
 #endif  // DEVELOPER_VERSION
 
 
@@ -393,8 +413,15 @@
    to read and display those parameters. The sensors must be bought and installed by user. They are not included with the Pico Green Clock.
    If you did install one, remove the two surrounding lines: "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define DHT_SUPPORT and / or 
    "#define BME280_SUPPORT" even in release version. */
-#define DHT_SUPPORT     /// if a DHT22 outside temperature and humidity sensor has been installed by user.
-#define BME280_SUPPORT  /// if a BME280 outside temperature, humidity and barometric pressure sensor has been installed by user.
+// #define DHT_SUPPORT     /// if a DHT22 outside temperature and humidity sensor has been installed by user.
+#ifdef DHT_SUPPORT
+#warning Built with DHT22 support
+#endif  // DHT_SUPPORT
+
+// #define BME280_SUPPORT  /// if a BME280 outside temperature, humidity and barometric pressure sensor has been installed by user.
+#ifdef BME280_SUPPORT
+#warning Built with BME280 support
+#endif  // BME280_SUPPORT
 #endif  // DEVELOPER_VERSION
 
 
@@ -414,6 +441,9 @@
 
 /* Silence period request unit (in minutes). Needs remote control. */
 #define SILENCE_PERIOD_UNIT 30
+#ifdef IR_SUPPORT
+#warning Built with INFRARED support
+#endif  // IR_SUPPORT
 #endif  // DEVELOPER_VERSION
 
 /* ================================================================== *\
@@ -1111,7 +1141,7 @@ UCHAR  PicoUniqueId[40];            // Pico Unique ID read from flash IC.
 #ifdef RELEASE_VERSION
 /* Value assigned to CurrentSecond when changing the minutes in clock setup. */
 UINT8  ResetSecond = 0;
-#else
+#else  // RELEASE_VERSION
 UINT8  ResetSecond = 50;
 #endif // RELEASE_VERSION
 UINT8  RowScanNumber;
@@ -1130,15 +1160,15 @@ volatile UINT16 SoundActiveTail;         // tail of sound circular buffer for ac
 volatile UINT16 SoundPassiveHead;        // head of sound circular buffer for passive buzzer.
 volatile UINT16 SoundPassiveTail;        // tail of sound circular buffer for passive buzzer.
 
-UINT8  TimerMinutes = 0;
-UINT8  TimerMode = TIMER_OFF;     // timer mode (0 = Off / 1 = Count down / 2 = Count up).
-UINT8  TimerSeconds = 0;
-UINT8  TimerShowCount = 0;        // in case we want to refresh timer display less often than every second.
+UINT8  TimerMinutes    = 0;
+UINT8  TimerMode       = TIMER_OFF;  // timer mode (0 = Off / 1 = Count down / 2 = Count up).
+UINT8  TimerSeconds    = 0;
+UINT8  TimerShowCount  = 0;          // in case we want to refresh timer display less often than every second.
 UINT8  TimerShowSecond = 0;
-UINT8  ToneMSecCounter = 0;       // cumulate number of milliseconds for tone duration.
-UINT8  ToneRepeatCount = 0;       // number of "tones" to sound for different events.
-UINT8  ToneType;                  // determine the type of "tone" we are sounding.
-UINT16 TopKeyPressTime = 0;       // keep track of the time the Set ("Top") key is pressed.
+UINT8  ToneMSecCounter = 0;          // cumulate number of milliseconds for tone duration.
+UINT8  ToneRepeatCount = 0;          // number of "tones" to sound for different events.
+UINT8  ToneType;                     // determine the type of "tone" we are sounding.
+UINT16 TopKeyPressTime = 0;          // keep track of the time the Set ("Top") key is pressed.
 
 UINT8 UpId = 0;
 
@@ -1718,8 +1748,8 @@ int main(void)
            However, logging a flash update during a callback procedure takes a relatively long time and will generate a crash.
            So, it is possible to keep all logging information and use the debug before launching the callback, or it is required to trim down
            the logged information if there is a need to consult the logged information during the callback flash configuration update. */
-  DebugBitMask = DEBUG_NONE;
-  // DebugBitMask += DEBUG_ALARMS;
+  DebugBitMask  = DEBUG_NONE;
+  DebugBitMask += DEBUG_ALARMS;
   // DebugBitMask += DEBUG_BME280;
   // DebugBitMask += DEBUG_BRIGHTNESS;
   // DebugBitMask += DEBUG_CHIME;
@@ -1729,7 +1759,7 @@ int main(void)
   // DebugBitMask += DEBUG_DHT;
   // DebugBitMask += DEBUG_DST;
   // DebugBitMask += DEBUG_EVENT;
-  // DebugBitMask += DEBUG_FLASH;
+  DebugBitMask += DEBUG_FLASH;
   // DebugBitMask += DEBUG_IDLE_MONITOR;
   // DebugBitMask += DEBUG_INDICATORS;
   // DebugBitMask += DEBUG_IR_COMMAND;
@@ -1950,7 +1980,6 @@ int main(void)
   /*
   if (DebugBitMask & DEBUG_FLASH)
     uart_send(__LINE__, "Erasing configuration section of Pico's flash memory to force generating a new configuration.\r");
-
   flash_erase(0x1FF000);
   */
 
@@ -3028,7 +3057,7 @@ void adc_read_pico_temp(float *DegreeC, float *DegreeF)
 
 
   /* Make Pico's internal temperature readable from ADC. */
-  adc_set_temp_sensor_enabled(true);  ///
+  adc_set_temp_sensor_enabled(true);
 
   /* Notes: 
      ADC 0 (gpio 26)  is for photo-resistor (ambient light level).
@@ -4686,7 +4715,7 @@ void evaluate_blinking_time(void)
           /* Turn On day-of-week indicators for days already selected... */
           for (Loop1UInt8 = SUN; Loop1UInt8 <= SAT; ++Loop1UInt8)
           {
-            if (FlashConfig.Alarm[AlarmNumber].Day & (1 << (Loop1UInt8 - 1)))
+            if (FlashConfig.Alarm[AlarmNumber].Day & (1 << Loop1UInt8))
               update_top_indicators(Loop1UInt8, FLAG_ON);
             else
               update_top_indicators(Loop1UInt8, FLAG_OFF);
@@ -5182,10 +5211,10 @@ UINT8 flash_display_config(void)
 
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved1); ++Loop1UInt16)
   {
-    sprintf(String, "- 0x%2.2X", FlashConfig.Reserved1[Loop1UInt16]);
+    sprintf(String, "- 0x%2.2X ", FlashConfig.Reserved1[Loop1UInt16]);
     uart_send(__LINE__, String);
 
-    if (((Loop1UInt16 + 1) % 24) == 0)
+    if (((Loop1UInt16 + 1) % 10) == 0)
       uart_send(__LINE__, "\r  ");
   }
   uart_send(__LINE__, "\r");
@@ -5193,10 +5222,10 @@ UINT8 flash_display_config(void)
   sprintf(String, "Bit mask used for alarm DayOfWeek selection:\r");
   uart_send(__LINE__, String);
 
-  /* Display all 7 day-of-week. */
+  /* Display all 7 days-of-week. */
   for (Loop1UInt16 = 1; Loop1UInt16 < 8; ++Loop1UInt16)
   {
-    sprintf(String, "                                  ");
+    sprintf(String, "                                 ");
     /* Display binary bitmap. */
     for (Loop2UInt16 = 7; Loop2UInt16 > 0; --Loop2UInt16)
     {
@@ -5205,10 +5234,17 @@ UINT8 flash_display_config(void)
       else
         sprintf(&String[strlen(String)], "0");
     }
-    sprintf(&String[strlen(String)], "   %s\r", DayName[FlashConfig.Language][Loop1UInt16]);
+    sprintf(&String[strlen(String)], "0");  // add final "bit 0" since days-of-week go from 1 to 7 (1 being SUN and 7 being SAT).
+    
+    /* Force English if flash configuration has not already been read. */
+    if ((FlashConfig.Language > LANGUAGE_LO_LIMIT) && (FlashConfig.Language < LANGUAGE_HI_LIMIT))
+      sprintf(&String[strlen(String)], "   %s\r", DayName[FlashConfig.Language][Loop1UInt16]);
+    else
+      sprintf(&String[strlen(String)], "   %s\r", DayName[ENGLISH][Loop1UInt16]);
     uart_send(__LINE__, String);
   }
   uart_send(__LINE__, "\r");
+
 
   /* Scan all alarms (0 to 8). */
   for (Loop1UInt16 = 0; Loop1UInt16 < 9; ++Loop1UInt16)
@@ -5225,20 +5261,26 @@ UINT8 flash_display_config(void)
     sprintf(String, "[%X] Alarm[%2.2u].Second:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Second, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Second);
     uart_send(__LINE__, String);
 
-    /* Identify all day-of-week targets for each alarm. */
+    
+    /* Identify all target days-of-week for each alarm (convert to binary). */
     DayMask[0] = 0x00; // initialize string as null.
     for (Loop2UInt16 = 7; Loop2UInt16 > 0; --Loop2UInt16)
     {
-      if (FlashConfig.Alarm[Loop1UInt16].Day & (1 << (Loop2UInt16 - 1)))
+      if (FlashConfig.Alarm[Loop1UInt16].Day & (1 << (Loop2UInt16)))
         sprintf(&DayMask[strlen(DayMask)], "1");
       else
         sprintf(&DayMask[strlen(DayMask)], "0");
     }
-    sprintf(String, "[%X] Alarm[%2.2u].DayMask:     %s     (%X) ", &FlashConfig.Alarm[Loop1UInt16].Day, Loop1UInt16, DayMask, FlashConfig.Alarm[Loop1UInt16].Day);
+    /* Add final "bit 0" since days-of-week go from 1 to 7 (1 being SUN and 7 being SAT). */
+    if (FlashConfig.Alarm[Loop1UInt16].Day & 1)
+      sprintf(&DayMask[strlen(DayMask)], "1");
+    else
+      sprintf(&DayMask[strlen(DayMask)], "0");
+    sprintf(String, "[%8.8X] Alarm[%2.2u].DayMask:    %s     (0x%2X) ", &FlashConfig.Alarm[Loop1UInt16].Day, Loop1UInt16, DayMask, FlashConfig.Alarm[Loop1UInt16].Day);
 
     for (Loop2UInt16 = 1; Loop2UInt16 < 8; ++Loop2UInt16)
     {
-      if (FlashConfig.Alarm[Loop1UInt16].Day & (1 << (Loop2UInt16 - 1)))
+      if (FlashConfig.Alarm[Loop1UInt16].Day & (1 << Loop2UInt16))
       {
         Dum1UInt8 = strlen(String);
         sprintf(&String[strlen(String)], "%s", DayName[FlashConfig.Language][Loop2UInt16]);
@@ -5257,10 +5299,10 @@ UINT8 flash_display_config(void)
 
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved2); ++Loop1UInt16)
   {
-    sprintf(String, "- 0x%2.2X", FlashConfig.Reserved2[Loop1UInt16]);
+    sprintf(String, "- 0x%2.2X ", FlashConfig.Reserved2[Loop1UInt16]);
     uart_send(__LINE__, String);
 
-    if (((Loop1UInt16 + 1) % 24) == 0)
+    if (((Loop1UInt16 + 1) % 10) == 0)
       uart_send(__LINE__, "\r  ");
   }
   uart_send(__LINE__, "\r\r");
@@ -5271,7 +5313,7 @@ UINT8 flash_display_config(void)
   sprintf(String, "Size of data for Crc16:  %u -  %u     = %u\r", &FlashConfig.Crc16, &FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
   uart_send(__LINE__, String);
 
-  sprintf(String, "               (in hex: 0x%8.8X - 0x%8.8X     = 0x%8.8X)\r\r\r", &FlashConfig.Crc16, &FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
+  sprintf(String, "(in hex: 0x%8.8X - 0x%8.8X     = 0x%8.8X)\r\r\r", &FlashConfig.Crc16, &FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
   uart_send(__LINE__, String);
 
   return 0;
@@ -5463,64 +5505,64 @@ UINT8 flash_read_config(void)
   /* Default configuration for 9 alarms. Text may be changed for another 40-characters max string. */
 
   FlashConfig.Alarm[0].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[0].Day = (1 << (MON - 1)) + (1 << (TUE - 1)) + (1 << (WED - 1)) + (1 << (THU - 1)) + (1 << (FRI - 1));
-  FlashConfig.Alarm[0].Hour = 8;
+  FlashConfig.Alarm[0].Day    = (1 << MON) + (1 << TUE) + (1 << WED) + (1 << THU) + (1 << FRI);
+  FlashConfig.Alarm[0].Hour   = 8;
   FlashConfig.Alarm[0].Minute = 00;
   FlashConfig.Alarm[0].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[0].Text, "Alarm 1"); // string to be scrolled when alarm 1 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[1].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[1].Day = (1 << (SAT - 1)) + (1 << (SUN - 1));
-  FlashConfig.Alarm[1].Hour = 14;
+  FlashConfig.Alarm[1].Day    = (1 << SAT) + (1 << SUN);
+  FlashConfig.Alarm[1].Hour   = 14;
   FlashConfig.Alarm[1].Minute = 37;
   FlashConfig.Alarm[1].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[1].Text, "Alarm 2"); // string to be scrolled when alarm 2 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[2].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[2].Day = (1 << (MON - 1));
-  FlashConfig.Alarm[2].Hour = 14;
+  FlashConfig.Alarm[2].Day    = (1 << MON);
+  FlashConfig.Alarm[2].Hour   = 14;
   FlashConfig.Alarm[2].Minute = 36;
   FlashConfig.Alarm[2].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[2].Text, "Alarm 3"); // string to be scrolled when alarm 3 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[3].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[3].Day = (1 << (TUE - 1));
-  FlashConfig.Alarm[3].Hour = 14;
+  FlashConfig.Alarm[3].Day    = (1 << TUE);
+  FlashConfig.Alarm[3].Hour   = 14;
   FlashConfig.Alarm[3].Minute = 35;
   FlashConfig.Alarm[3].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[3].Text, "Alarm 4"); // string to be scrolled when alarm 4 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[4].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[4].Day = (1 << (WED - 1));
-  FlashConfig.Alarm[4].Hour = 14;
+  FlashConfig.Alarm[4].Day    = (1 << WED);
+  FlashConfig.Alarm[4].Hour   = 14;
   FlashConfig.Alarm[4].Minute = 34;
   FlashConfig.Alarm[4].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[4].Text, "Alarm 5"); // string to be scrolled when alarm 5 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[5].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[5].Day = (1 << (THU - 1));
-  FlashConfig.Alarm[5].Hour = 14;
+  FlashConfig.Alarm[5].Day    = (1 << THU);
+  FlashConfig.Alarm[5].Hour   = 14;
   FlashConfig.Alarm[5].Minute = 33;
   FlashConfig.Alarm[5].Second = 29;
   sprintf(FlashConfig.Alarm[5].Text, "Alarm 6"); // string to be scrolled when alarm 6 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[6].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[6].Day = (1 << (FRI - 1));
-  FlashConfig.Alarm[6].Hour = 14;
+  FlashConfig.Alarm[6].Day    = (1 << FRI);
+  FlashConfig.Alarm[6].Hour   = 14;
   FlashConfig.Alarm[6].Minute = 32;
   FlashConfig.Alarm[6].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[6].Text, "Alarm 7"); // string to be scrolled when alarm 7 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[7].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[7].Day = (1 << (SAT - 1));
-  FlashConfig.Alarm[7].Hour = 14;
+  FlashConfig.Alarm[7].Day    = (1 << SAT);
+  FlashConfig.Alarm[7].Hour   = 14;
   FlashConfig.Alarm[7].Minute = 31;
   FlashConfig.Alarm[7].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[7].Text, "Alarm 8"); // string to be scrolled when alarm 8 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[8].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
-  FlashConfig.Alarm[8].Day = (1 << (SUN - 1));
-  FlashConfig.Alarm[8].Hour = 14;
+  FlashConfig.Alarm[8].Day    = (1 << SUN);
+  FlashConfig.Alarm[8].Hour   = 14;
   FlashConfig.Alarm[8].Minute = 30;
   FlashConfig.Alarm[8].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[8].Text, "Alarm 9"); // string to be scrolled when alarm 9 is triggered (ALARM TEXT).
@@ -9020,16 +9062,18 @@ void process_scroll_queue(void)
               DayMask[0] = 0x00;  // initialize string as null.
               for (Loop2UInt8 = 7; Loop2UInt8 > 0; --Loop2UInt8)
               {
-                if (FlashConfig.Alarm[Loop1UInt8].Day & (1 << (Loop2UInt8 - 1)))
+                if (FlashConfig.Alarm[Loop1UInt8].Day & (1 << Loop2UInt8))
                   sprintf(&DayMask[strlen(DayMask)], "1");
                 else
                   sprintf(&DayMask[strlen(DayMask)], "0");
               }
+              sprintf(&DayMask[strlen(DayMask)], "0");  // add bit 0 since days-of-week go from 1 to 7 (1 being SUN and 7 being SAT)
               sprintf(String, "[%X] Alarm[%2.2u].DayMask:     %s     (%X) ", &FlashConfig.Alarm[Loop1UInt8].Day, Loop1UInt8, DayMask, FlashConfig.Alarm[Loop1UInt8].Day);
 
+              
               for (Loop2UInt8 = 1; Loop2UInt8 < 8; ++Loop2UInt8)
               {
-                if (FlashConfig.Alarm[Loop1UInt8].Day & (1 << (Loop2UInt8 - 1)))
+                if (FlashConfig.Alarm[Loop1UInt8].Day & (1 << Loop2UInt8))
                 {
                   Dum1UInt8 = strlen(String);
                   sprintf(&String[strlen(String)], "%s", DayName[FlashConfig.Language][Loop2UInt8]);
@@ -10628,7 +10672,7 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
 
       /* User pressed the "Up" (middle) button, increment potential alarm target day-of-week. */
       ++AlarmTargetDay;
-      if (AlarmTargetDay >= 8) AlarmTargetDay = 1; // when reaching out-of-bound, revert to 1.
+      if (AlarmTargetDay >= 8) AlarmTargetDay = 1;  // when reaching out-of-bound, revert to 1 (SUN).
     }
 
     if (FlagButtonSelect == FLAG_DOWN)
@@ -10640,12 +10684,12 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
 
       /* User presser the "Down" (bottom) button, proceed through all day-of-week. */
       --AlarmTargetDay;
-      if ((AlarmTargetDay == 0) || (AlarmTargetDay >= 8)) AlarmTargetDay = 7; // when reaching out-of-bound, revert to 7.
+      if ((AlarmTargetDay == 0) || (AlarmTargetDay >= 8)) AlarmTargetDay = 7;  // when reaching out-of-bound, revert to 7 (SAT).
     }
 
     if (FlagButtonSelect == FLAG_LONG_UP)
     {
-      FlashConfig.Alarm[AlarmNumber].Day |= (1 << (AlarmTargetDay - 1));
+      FlashConfig.Alarm[AlarmNumber].Day |= (1 << AlarmTargetDay);
 
       if (DebugBitMask & DEBUG_ALARMS)
       {
@@ -10655,7 +10699,7 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
 
     if (FlagButtonSelect == FLAG_LONG_DOWN)
     {
-      FlashConfig.Alarm[AlarmNumber].Day &= (~(1 << (AlarmTargetDay - 1)));
+      FlashConfig.Alarm[AlarmNumber].Day &= (~(1 << AlarmTargetDay));
 
       if (DebugBitMask & DEBUG_ALARMS)
       {
@@ -10669,20 +10713,21 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
     sprintf(String, "AlarmTargetDay = %u   (%s)\r", AlarmTargetDay, DayName[FlashConfig.Language][AlarmTargetDay]);
     uart_send(__LINE__, String);
 
-    /* Identify all day-of-week targets for current alarm. */
+    /* Identify all days-of-week targets for current alarm. */
     DayMask[0] = 0x00;  // initialize bitmask.
     for (Loop1UInt8 = 7; Loop1UInt8 > 0; --Loop1UInt8)
     {
-      if (FlashConfig.Alarm[AlarmNumber].Day & (1 << (Loop1UInt8 - 1)))
+      if (FlashConfig.Alarm[AlarmNumber].Day & (1 << Loop1UInt8))
         sprintf(&DayMask[strlen(DayMask)], "1");
       else
         sprintf(&DayMask[strlen(DayMask)], "0");
     }
+    sprintf(&DayMask[strlen(DayMask)], "0");  // add bit 0 since days-of-week go from 1 to 7 (1 being SUN and 7 being SAT)
     sprintf(String, "[%X] Alarm[%2.2u].DayMask:     %s     (%X) ", &FlashConfig.Alarm[AlarmNumber].Day, AlarmNumber, DayMask, FlashConfig.Alarm[AlarmNumber].Day);
 
     for (Loop1UInt8 = 1; Loop1UInt8 < 8; ++Loop1UInt8)
     {
-      if (FlashConfig.Alarm[AlarmNumber].Day & (1 << (Loop1UInt8 - 1)))
+      if (FlashConfig.Alarm[AlarmNumber].Day & (1 << Loop1UInt8))
       {
         Dum1UInt8 = strlen(String);
         sprintf(&String[strlen(String)], "%s", DayName[FlashConfig.Language][Loop1UInt8]);
@@ -16036,8 +16081,6 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   static UINT64 PreviousTimer;
 
 
-  
-  
   /* Indicate that we just entered callback_s. */
   /***
   if ((DebugBitMask & DEBUG_SOUND_QUEUE) || (DebugBitMask & DEBUG_TIMING))
@@ -16077,7 +16120,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     {
       FlagChimeHalfDone = FLAG_OFF;
 
-      if (DebugBitMask & DEBUG_TIMING)
+      if (DebugBitMask & DEBUG_CHIME)
       {
         sprintf(String, "Resetting FlagChimeHalfDone: 0x%2.2X   Hour: %2u   Minute: %2u   CurrentSecond: %2u\r", FlagChimeHalfDone, CurrentHour, CurrentMinute, CurrentSecond);
         uart_send(__LINE__, String);
@@ -16089,7 +16132,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     {
       FlagChimeDone = FLAG_OFF;
 
-      if (DebugBitMask & DEBUG_TIMING)
+      if (DebugBitMask & DEBUG_CHIME)
       {
         sprintf(String, "Resetting FlagChimeDone: 0x%2.2X   Hour: %2u   Minute: %2u   CurrentSecond: %2u\r", FlagChimeDone, CurrentHour, CurrentMinute, CurrentSecond);
         uart_send(__LINE__, String);
@@ -16255,7 +16298,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
           sound_queue_passive(SILENT, 150);  // separate the train of beeps of an alarm from each other.
           #else
           sound_queue_active(BeepLength, Loop1UInt8 + 1);
-          sound_queue_active(150, SILENT);   // separate the train of beeps of an alarm from each other.
+          sound_queue_active(500, SILENT);   // separate the train of beeps of an alarm from each other.
           #endif
         }
       }
@@ -17426,7 +17469,7 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
       break;
 
       case (FRI):
-        DisplayBuffer[8]  &= ~(1 << 7);   // turn OFF first  LED of Friday indicator
+        DisplayBuffer[8]  &= ~(1 << 7);  // turn OFF first  LED of Friday indicator
         DisplayBuffer[16] &= ~(1 << 0);  // turn OFF second LED of Friday indicator
       break;
 

@@ -1,9 +1,9 @@
 # Pico Green Clock
-Firmware Version 8.01 released 19-JAN-2023
+Firmware Version 8.02 released 21-JAN-2023
 
 Firmware Hilights:
 
-- Version 8.01 fix a bug when setting days-of-week in Alarm Setup.
+- Version 8.02 fix a bug with day-of-week logic.
 - Add auto detection of microcontroller type (Pico or Pico W).
 - Add an option so that Hourly Chime correspond to the 12-hour format current value (needs to be turned On in the code).
 - Change clock display brightness algorithm. It is now driven by a PWM signal from the Pico.
