@@ -5,14 +5,14 @@ Firmware Hilights:
 
 - Version 8.02 fix a bug with day-of-week logic.
 - Add auto detection of microcontroller type (Pico or Pico W).
-- Add an option so that Hourly Chime correspond to the 12-hour format current value (needs to be turned On in the code).
+- Add an option so that Hourly Chime corresponds to the 12-hour format current value (needs to be turned On in the code).
 - Change clock display brightness algorithm. It is now driven by a PWM signal from the Pico.
 - Auto Brightness is now smoother and provides hundreds of different levels (Note: if ambient light is dark, clock display becomes **VERY** dim).
 - Add a half-hour "Light Chime".
 - Add automatic detection of USB CDC connection with an external terminal emulator program (for developers' support).
 - Add "snowflakes pixel animation" (remote control required).
-- Add UTC (Universal Coordinated Time) clock parameter allowing proper handling of DST for some countries.
-- UTC will also be a requirement for future NTP implementation where the clock will be adjusted from a time reference on the Internet.
+- Add Timezone clock parameter allowing proper handling of Summer Time for some countries.
+- Timezone will also be a requirement for future NTP implementation where the clock will be adjusted from a time reference on the Internet.
 - Automatic handling of Daylight Saving Time / Summer Time - Winter Time / Spring Forward - Fall-Back. Should cover most countries of the world.
 - Implement two circular buffers for inter-core communications (core 1 is used for DHT22 support).
 - Transfer code for DHT22 support to Pico's second core (core 1).
