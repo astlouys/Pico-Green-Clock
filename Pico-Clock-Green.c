@@ -335,11 +335,12 @@
 #define NIGHT_LIGHT_TIME_OFF 8               // if "NIGHT_LIGHT_NIGHT", LEDs will turn Off at this time (in the morning).
 
 /* Hourly chime default values. */
-#define CHIME_DEFAULT CHIME_DAY  // choices are CHIME_OFF / CHIME_ON / CHIME_DAY
-#define CHIME_TIME_ON 9          // if "CHIME_DAY", "hourly chime" and "calendar event" will sound beginning at this time (in the morning).
-#define CHIME_TIME_OFF 21        // if "CHIME_DAY", "hourly chime" and "calendar event" will sound for the last time at this time (in the evening).
-#define CHIME_HALF_HOUR FLAG_ON  // if "FLAG_ON", will sound a "double-beep" on half-hour (every xxh30), compliant to chime settings above.
-#define CHIME_HOUR_COUNT FLAG_ON // if "FLAG_ON", hourly chime will beep a number of times equivalent to the hour value in 12-hour format.
+#define CHIME_DEFAULT CHIME_DAY      // choices are CHIME_OFF / CHIME_ON / CHIME_DAY
+#define CHIME_TIME_ON 9              // if "CHIME_DAY", "hourly chime" and "calendar event" will sound beginning at this time (in the morning).
+#define CHIME_TIME_OFF 21            // if "CHIME_DAY", "hourly chime" and "calendar event" will sound for the last time at this time (in the evening).
+#define CHIME_HALF_HOUR FLAG_ON      // if "FLAG_ON", will sound a "double-beep" on half-hour (every xxh30), compliant to chime settings above.
+#define CHIME_HOUR_COUNT FLAG_ON     // if "FLAG_ON", hourly chime will beep a number of times equivalent to the hour value in 12-hour format.
+#define CHIME_HOUR_BEEP_DURATION 300 // the duration in millis for a hourly cime beep
 /* NOTE: See also revision history above (or User guide) about "night time workers" support for hourly chime. */
 
 /* For active buzzer integrated in Pico Green Clock. Number of "tones" for each "sound pack" (first level of repetition). */
@@ -15424,7 +15425,11 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         Dum1UInt8 = CurrentHour;
         if (CurrentHour > 12)
           Dum1UInt8 -= 12;
-        sound_queue_active(1000, Dum1UInt8);
+        for (size_t i = 0; i < Dum1UInt8; i++)
+        {
+          sound_queue_active(CHIME_HOUR_BEEP_DURATION, 1);
+          sound_queue_active(CHIME_HOUR_BEEP_DURATION, SILENT);
+        }
       }
       else
       {
