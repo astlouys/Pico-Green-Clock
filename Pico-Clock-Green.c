@@ -16455,7 +16455,12 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         /* Number of "beeps" correspond to hour value in 12-hour format. */
         Dum1UInt8 = CurrentHour;
         if (CurrentHour > 12) Dum1UInt8 -= 12;
-        sound_queue_active(50, Dum1UInt8);
+        for (size_t i = 0; i < Dum1UInt8; i++)
+        {
+          sound_queue_active(300, 1);
+          sound_queue_active(300, SILENT);
+        }
+        
       }
       else
       {
