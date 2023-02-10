@@ -16458,7 +16458,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         for (size_t i = 0; i < Dum1UInt8; i++)
         {
           sound_queue_active(300, 1);
-          sound_queue_active(300, SILENT);
+          sound_queue_active(150, SILENT);
         }
         
       }
