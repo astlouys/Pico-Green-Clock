@@ -16457,7 +16457,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         if (CurrentHour > 12) Dum1UInt8 -= 12;
         for (size_t i = 0; i < Dum1UInt8; i++)
         {
-          sound_queue_active(300, 1);
+          sound_queue_active(500, 1);
           sound_queue_active(150, SILENT);
         }
         
