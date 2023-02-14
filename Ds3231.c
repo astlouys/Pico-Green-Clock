@@ -35,10 +35,6 @@
 
 extern uint8_t ResetSecond;
 
-/// bool HourMode;
-
-/// char Meridiem[2][3] = {"AM", "PM"};
-/// char StateOfTime[3] = "";
 
 uint8_t Ds3231ReadRegister[17];
 uint8_t ByteData[16];
@@ -459,10 +455,10 @@ void set_clock_mode(bool h12)
 \* ----------------------------------------------------------------- */
 void set_day_of_month(uint8_t DayOfMonth)
 {
-  uint8_t setDom[2] = {0x04, 0x00};
+  uint8_t DomToSet[2] = {0x04, 0x00};
 
-  setDom[1] = dec_to_bcd(DayOfMonth);
-  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, setDom, 2, false);
+  DomToSet[1] = dec_to_bcd(DayOfMonth);
+  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, DomToSet, 2, false);
   
   return;
 }
@@ -478,10 +474,10 @@ void set_day_of_month(uint8_t DayOfMonth)
 \* ----------------------------------------------------------------- */
 void set_day_of_week(uint8_t DayOfweek)
 {
-  uint8_t setDow[2] = {0x03, 0x00};
+  uint8_t DowToSet[2] = {0x03, 0x00};
 
-  setDow[1] = dec_to_bcd(DayOfweek);
-  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, setDow, 2, false);
+  DowToSet[1] = dec_to_bcd(DayOfweek);
+  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, DowToSet, 2, false);
   
   return;
 }
@@ -497,10 +493,10 @@ void set_day_of_week(uint8_t DayOfweek)
 \* ----------------------------------------------------------------- */
 void set_hour(uint8_t Hour)
 {
-  uint8_t setHour[2] = {0x02, 0x00};
+  uint8_t HourToSet[2] = {0x02, 0x00};
 
-  setHour[1] = dec_to_bcd(Hour);
-  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, setHour, 2, false);
+  HourToSet[1] = dec_to_bcd(Hour);
+  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, HourToSet, 2, false);
   
   return;
 }
@@ -514,15 +510,15 @@ void set_hour(uint8_t Hour)
 /* ----------------------------------------------------------------- *\
                Initialize the minute in the RTC IC.
 \* ----------------------------------------------------------------- */
-void set_minute(uint8_t min)
+void set_minute(uint8_t Minute)
 {
-  uint8_t setMin[3] = {0x00, 0x00, 0x00};
+  uint8_t MinuteToSet[3] = {0x00, 0x00, 0x00};
 
   /* When in development mode, set seconds to 50 to accelerate minute change when debugging specific sections of code. */
-  setMin[1] = dec_to_bcd(ResetSecond);
-  setMin[2] = dec_to_bcd(min);
+  MinuteToSet[1] = dec_to_bcd(ResetSecond);
+  MinuteToSet[2] = dec_to_bcd(Minute);
 
-  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, setMin, 3, false);
+  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, MinuteToSet, 3, false);
   
   return;
 }
@@ -538,10 +534,10 @@ void set_minute(uint8_t min)
 \* ----------------------------------------------------------------- */
 void set_month(uint8_t Month)
 {
-  uint8_t setMouth[2] = {0x05, 0x00};
+  uint8_t MonthToSet[2] = {0x05, 0x00};
 
-  setMouth[1] = dec_to_bcd(Month);
-  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, setMouth, 2, false);
+  MonthToSet[1] = dec_to_bcd(Month);
+  i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, MonthToSet, 2, false);
   
   return;
 }
@@ -559,14 +555,14 @@ void set_time(uint8_t Second, uint8_t Minute, uint8_t Hour, uint8_t DayOfWeek, u
 {
   uint8_t TimeToSet[8];
 
-  TimeToSet[0]=0x00;
-  TimeToSet[1]=dec_to_bcd(Second);
-  TimeToSet[2]=dec_to_bcd(Minute);
-  TimeToSet[3]=dec_to_bcd(Hour);
-  TimeToSet[4]=dec_to_bcd(DayOfWeek);
-  TimeToSet[5]=dec_to_bcd(DayOfMonth);
-  TimeToSet[6]=dec_to_bcd(Month);
-  TimeToSet[7]=dec_to_bcd(Year);
+  TimeToSet[0] = 0x00;
+  TimeToSet[1] = dec_to_bcd(Second);
+  TimeToSet[2] = dec_to_bcd(Minute);
+  TimeToSet[3] = dec_to_bcd(Hour);
+  TimeToSet[4] = dec_to_bcd(DayOfWeek);
+  TimeToSet[5] = dec_to_bcd(DayOfMonth);
+  TimeToSet[6] = dec_to_bcd(Month);
+  TimeToSet[7] = dec_to_bcd(Year);
 
   i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, TimeToSet, 8, false);
   

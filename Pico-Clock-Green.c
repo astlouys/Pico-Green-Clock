@@ -1,10 +1,10 @@
 /* ================================================================== *\
    Pico-Clock-Green.c
-   St-Louys Andre - February 2022
+   St-Louys, Andre - February 2022
    astlouys@gmail.com
-   Revision 21-JAN-2023
+   Revision 14-FEV-2023
    Compiler: arm-none-eabi-gcc 7.3.1
-   Version 8.02
+   Version 9.00
 
    Raspberry Pi Pico firmware to drive the Waveshare Pico-Green-Clock.
    From an original software version 1.00 by Waveshare
@@ -196,6 +196,11 @@
    19-JAN-2023 8.01 - Fix a bug with blinking days-of-week indicators in Alarm Setup.
                     - Add get_pico_unique_id() function and use it only once before flash operations to prevent potential problems.
    21-JAN-2023 8.02 - Fix a bug with the logic behind "days-of-week". Two different logics were used throughout the code.
+   26-JAN-2023 9.00 - Change count-down timer alarm algorithm. Will now ring until reset by user or when reaching maximum ringing duration.
+                    - Implement NTP (Network Time Protocol). Green Clock will now resync its time periodically from Internet. (Requires Pico W).
+                    - Improve clock precision independantly of real-time IC by better synchronization of callback period time.
+                    - Add a function to "set-and-save" Wi-Fi credentials to flash.
+
 
 \* ================================================================== */
 
@@ -216,10 +221,6 @@
       the list of clock setup steps longer. Some options currently
       "compile-time" only could be added to the list of "run-time" options
       (for example: sound On/Off, scroll period, etc...).
-    - Replace the Pico with a Pico W and use WiFi to set clock time by
-      reading it from a time reference source on the Internet (NTP).
-      (RTC IC is said to be very accurate, but I haven't tested it over
-      a long period of time. Not sure what is the long-term precision).
     - Use a PIO to support IR burst decoding and / or DHT22 data decoding.
     - If a new version / update of the hardware is ever made, here are a
       few suggestions for improvements:
@@ -270,72 +271,136 @@
                      "CalendarEventsGeneric.cpp".
 \* ================================================================== */
 /* Firmware version. */
-#define FIRMWARE_VERSION "8.02"
+#define FIRMWARE_VERSION "9.00"
 
 /* Select the language for data display. */
 #define DEFAULT_LANGUAGE ENGLISH // choices for now are FRENCH and ENGLISH.
 
-/* Flag to handle automatically the daylight saving time.
-   Since the moment to change from Summer Time to Winter Time and vice-versa may be different depending in which country we are,
-   more options / countries could be added without disrupting algorithms already implemented. */
-#define DAYLIGHT_SAVING_TIME DST_NORTH_AMERICA  // there are too many choices to describe here... please refer to User Guide.
+/* While in development mode, we may want to disable NTP update, for example while testing Summer Time handling algorithm. */
+// #define NTP_ENABLE  /// WARNING: This #define is not supported for now. Use "#define PICO_W" below instead to enable NTP for now.
+#define NETWORK_NAME     "MyNetworkName"  /// for those with a development environment, you can enter your SSID and password below, run the Firmware until the
+#define NETWORK_PASSWORD "MyPassword"     /// first date scrolling (credentials will be saved to flash), then erase the credentials and put comment on both lines.
 
+/* If a Pico W is used, librairies for Wi-Fi and NTP synchronization will be merged in the executable. If PICO_W is not defined, NTP is automatically disabled. */
+// #define PICO_W  ///
 
+/* Flag to handle automatically the daylight saving time. List of countries are given in the User Guide. */
+#define DST_COUNTRY DST_NORTH_AMERICA
 
-/* Select only one of the two options below: Make selective choices of some options based on "Release version" or "Developer version". */
-/* NOTE: Developer version requires a CDC USB communication to start. Refer to user guide for details. */
+/* Release or Developer Version: Make selective choices or options. */
 #define RELEASE_VERSION  ///
+
+
+
+/* ----------------------------------------------------------------------------------------------------------------------- *\
+                                             Setup specific to RELEASE version.
+\* ----------------------------------------------------------------------------------------------------------------------- */
 #ifdef RELEASE_VERSION
 #warning Built as RELEASE_VERSION
+/* Specify the filename of calendar events to merge with this version of firmware. */
+#define CALENDAR_FILENAME "CalendarEventsGeneric.cpp"
 #endif  // RELEASE_VERSION
+/* ----------------------------------------------------------------------------------------------------------------------- *\
+                                           End of setup specific to RELEASE version.
+\* ----------------------------------------------------------------------------------------------------------------------- */
 
-// #define DEVELOPER_VERSION   ///
-#ifdef DEVELOPER_VERSION
+
+
+
+
+/* ----------------------------------------------------------------------------------------------------------------------- *\
+                                               Setup specific to DEVELOPER version.
+   NOTE: Developer version requires a USB CDC communication to start. Refer to User Guide for details.
+\* ----------------------------------------------------------------------------------------------------------------------- */
+#ifndef RELEASE_VERSION
+#define DEVELOPER_VERSION
 #warning Built as DEVELOPER_VERSION
-#endif  // DEVELOPER_VERSION
 
-
-
-#ifdef DEVELOPER_VERSION
-/* If NO_SOUND is defined below (that is, if it is uncommented), it allows turning Off <<< ABSOLUTELY ALL SOUNDS >>>.
-   (For example, during development phase, if your wife is sleeping while you work late in the night as was my case - smile). */
-// #define NO_SOUND  ///
-#ifdef NO_SOUND
-#warning Built with NO_SOUND
-#endif  // NO_SOUND
+/* Specify the filename of calendar events to merge with this version of firmware. */
+#define CALENDAR_FILENAME "CalendarEventsAndre.cpp"
 
 /* Conditional compile to allow a quicker power-up sequence by-passing some device tests. */
-#define QUICK_START  ///
+// #define QUICK_START  ///
 #ifdef QUICK_START
 #warning Built with QUICK_START
 #endif  // QUICK_START
 
+/* If SOUND_DISABLED is commented out below, it allows turning Off <<< ABSOLUTELY ALL SOUNDS >>> from the Green Clock.
+   (For example, during development phase, if your wife is sleeping while you work late in the night as was my case - smile). */
+// #define SOUND_DISABLED  ///
+#ifdef SOUND_DISABLED
+#warning Built with SOUND DISABLED
+#endif  // SOUND_DISABLED
+
 /* Flag to include test code in the executable (conditional compile). Tests can be run before falling in normal clock ("time display") mode.
-   Commenting out the #define below will exclude test code and make the executable smaller. */
-// #define TEST_CODE
+   Keeping the comment sign on the #define below will exclude test code and make the executable smaller. */
+#define TEST_CODE
 
 /* Loop at the beginning of the code until a USB CDC connection has been established. Quick beeps will be heard during waiting so that user
    is aware of what's going on. */
-#define USB_CONNECTION  ///
+// #define USB_CONNECTION  ///
 #ifdef USB_CONNECTION
 #warning Built with USB_CONNECTION
 #endif  // USB_CONNECTION
+
+/* ---------------------------------------------------------------------------------- *\
+                          Options that can be installed by user.
+\* ---------------------------------------------------------------------------------- */
+/* Support for an optional passive buzzer. This buzzer must be provided by user and is not included with the Green Clock. 
+   It allows variable frequency sounds on the clock.
+   If you did install one, cut this block and paste is outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define PASSIVE_PIEZO_SUPPORT". */
+// #define PASSIVE_PIEZO_SUPPORT  /// if a passive buzzer has been installed by user.
+#ifdef PASSIVE_PIEZO_SUPPORT
+#warning Built with PASSIVE_PIEZO support
+#endif  // PASSIVE_PIEZO_SUPPORT
+
+
+/* Support of an optional (external) temperature and humidity sensor (DHT22) or temperature, humidity and atmospheric pressure sensor (BME280)
+   to read and display those parameters. The sensors must be bought and installed by user. They are not included with the Pico Green Clock.
+   If you did install one, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define DHT_SUPPORT and / or 
+   "#define BME280_SUPPORT". */
+#define DHT_SUPPORT  /// if a DHT22 outside temperature and humidity sensor has been installed by user.
+#ifdef DHT_SUPPORT
+#warning Built with DHT22 support
+#endif  // DHT_SUPPORT
+
+#define BME280_SUPPORT  /// if a BME280 outside temperature, humidity and barometric pressure sensor has been installed by user.
+#ifdef BME280_SUPPORT
+#warning Built with BME280 support
+#endif  // BME280_SUPPORT
+
+
+/* Support of an optional remote control to interact with the clock remotely, for example when the clock is installed
+   too high and is out of reach. There is no remote control provided with the clock. It must be bought by the user.
+   Current support is for a Memorex remote control, model MCR 5221 that I had readily available. If another brand of
+   remote control is to be used, user will have to decode its protocol and implement it in the Green Clock firmware.
+   (a file similar to "memorex.cpp" must be created to support the new remote control).
+   If you did install an infrared sensor, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define IR_SUPPORT".
+   You also need to replace the default "REMOTE_FILENAME" by the filename you created containing the infrared timing / codes corresponding to your remote control.
+   You may want to check the Pico-Remote-Analyzer utility in one of my repositories. */
+#define IR_SUPPORT // if an infrared sensor (VS1838B-type) has been installed by the user and IR protocol of the remote control has been analyzed and implemented.
+
+/* Specify the file containing the remote control protocol to be used. */
+#define REMOTE_FILENAME "memorex.cpp"
+
+/* Silence period request unit (in minutes). Needs remote control. */
+#define SILENCE_PERIOD_UNIT 30
+#ifdef IR_SUPPORT
+#warning Built with INFRARED support
+#endif  // IR_SUPPORT
 #endif  // DEVELOPER_VERSION
 
+/* ----------------------------------------------------------------------------------------------------------------------- *\
+                                            End of setup specific to DEVELOPER version
+\* ----------------------------------------------------------------------------------------------------------------------- */
 
 
-/* Specify the filename of calendar events to merge with this version of firmware. */
-#ifdef DEVELOPER_VERSION
-#define CALENDAR_FILENAME "CalendarEventsAndre.cpp"
-#else
-#define CALENDAR_FILENAME "CalendarEventsGeneric.cpp"
-#endif
 
 /* Determine if date scrolling will be enable by default when the clock starts. */
 #define SCROLL_DEFAULT FLAG_ON  // choices are FLAG_ON / FLAG_OFF
 
 /* Scroll one dot to the left every such milliseconds (80 is a good start point. lower = faster). */
-#define SCROLL_DOT_TIME 68      // this is a UINT8 (must be between 0 and 255).
+#define SCROLL_DOT_TIME 66      // this is a UINT8 (must be between 0 and 255).
 
 /* Date, temperature and other options will scroll at this frequency
    (in minutes - we must leave enough time for the previous scroll to complete). */
@@ -365,13 +430,14 @@
 #define CHIME_TIME_OFF        21         // if "CHIME_DAY", "hourly chime" and "calendar event" will sound for the last time at this time (in the evening).
 #define CHIME_HALF_HOUR  FLAG_ON         // if "FLAG_ON", will sound a "double-beep" on half-hour (every xxh30), compliant to chime settings above.
 #define CHIME_HOUR_COUNT FLAG_OFF        // if "FLAG_ON", hourly chime will beep a number of times equivalent to the hour value in 12-hour format.
+#define CHIME_HOUR_COUNT_BEEP_DURATION 300  // duration of "hour count" beeps (in msec) when flag above is On.
 /* NOTE: See also revision history above (or User guide) about "night time workers" support for hourly chime. */
 
 /* For active buzzer integrated in Pico Green Clock. Number of "tones" for each "sound pack" (first level of repetition). */
 #define TONE_CHIME_REPEAT1     2
 #define TONE_EVENT_REPEAT1     5
 #define TONE_KEYCLICK_REPEAT1  1
-#define TONE_TIMER_REPEAT1    10
+#define TONE_TIMER_REPEAT1     4
 
 /* For active buzzer integrated in Pico Green Clock.
    Number of times the "sound pack" above will repeat itself for each tone type (second level of repetition).
@@ -384,67 +450,12 @@
 
 /* For active buzzer integrated in Pico Green Clock.
    Time duration for different tone types (in milliseconds). This is the time of each sound inside one "sound pack".
-   Will be rounded-up by the clock to the next 50 milliseconds multiple.
+   will be rounded-up by the clock to the next 50 milliseconds multiple.
    We can separate sounds - or group of sound - by adding a silence (for example: "sound_queue_active(50, SILENT);"). */
 #define TONE_CHIME_DURATION     50   // when sounding an hourly chime.
 #define TONE_EVENT_DURATION    200   // when scrolling a calendar event.
 #define TONE_KEYCLICK_DURATION  50   // when pressing a button ("keyclick").
 #define TONE_TIMER_DURATION    100   // when count-down timer reaches 00m00s.
-
-
-
-/* ---------------------------------------------------------------------------------- *\
-                          Options that can be installed by user.
-\* ---------------------------------------------------------------------------------- */
-#ifdef DEVELOPER_VERSION
-/* Support for an optional passive piezo / buzzer. This buzzer must be provided by user and is not included with the Green Clock.
-   It allows variable frequency sounds on the clock.
-   If you did install one, remove the two surrounding lines: "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define PASSIVE_PIEZO_SUPPORT" even in release version. */
-// #define PASSIVE_PIEZO_SUPPORT       /// if a passive buzzer has been installed by user.
-#ifdef PASSIVE_PIEZO_SUPPORT
-#warning Built with PASSIVE_PIEZO support
-#endif  // PASSIVE_PIEZO_SUPPORT
-#endif  // DEVELOPER_VERSION
-
-
-
-#ifdef DEVELOPER_VERSION
-/* Support of an optional (external) temperature and humidity sensor (DHT22) or temperature, humidity and barometric pressure sensor (BME280)
-   to read and display those parameters. The sensors must be bought and installed by user. They are not included with the Pico Green Clock.
-   If you did install one, remove the two surrounding lines: "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define DHT_SUPPORT and / or 
-   "#define BME280_SUPPORT" even in release version. */
-// #define DHT_SUPPORT     /// if a DHT22 outside temperature and humidity sensor has been installed by user.
-#ifdef DHT_SUPPORT
-#warning Built with DHT22 support
-#endif  // DHT_SUPPORT
-
-// #define BME280_SUPPORT  /// if a BME280 outside temperature, humidity and barometric pressure sensor has been installed by user.
-#ifdef BME280_SUPPORT
-#warning Built with BME280 support
-#endif  // BME280_SUPPORT
-#endif  // DEVELOPER_VERSION
-
-
-
-#ifdef DEVELOPER_VERSION
-/* Support of an optional remote control to interact with the clock remotely, for example when the clock is installed
-   too high and is out of reach. There is no remote control provided with the clock. It must be bought by the user.
-   Current support is for a Memorex remote control, model MCR 5221 that I had readily available. If another brand of
-   remote control is to be used, user will have to decode its protocol and implement it in the Green Clock firmware.
-   (a file similar to "memorex.cpp" must be created to support the new remote control).
-   If you did install an infrared sensor, remove the two surrounding lines: "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define IR_SUPPORT" and also
-   replace the default "REMOTE_FILENAME" by the new filename you created containing the infrared timing and codes corresponding to your remote control. */
-#define IR_SUPPORT // if an infrared sensor (VS1838B-type) has been installed by the user and IR protocol of the remote control has been analyzed and implemented.
-
-/* Specify the file containing the remote control protocol to be used. */
-#define REMOTE_FILENAME "memorex.cpp"
-
-/* Silence period request unit (in minutes). Needs remote control. */
-#define SILENCE_PERIOD_UNIT 30
-#ifdef IR_SUPPORT
-#warning Built with INFRARED support
-#endif  // IR_SUPPORT
-#endif  // DEVELOPER_VERSION
 
 /* ================================================================== *\
             ===== END OF CLOCK CONFIGURATION OR OPTIONS =====
@@ -466,16 +477,19 @@
 #define CHIME_DAY                 0x02      // hourly chime is ON during defined daily hours (between CHIME_TIME_ON and CHIME_TIME_OFF).
 #define CHIME_OFF                 0x00      // hourly chime is OFF.
 #define CHIME_ON                  0x01      // hourly chime is ON.
+#define COUNT_DOWN_DELAY          7         // number of seconds between each count-down alarm sound burst.
 #define CRC16_POLYNOM             0x1021    // different polynom values are used by different authorities. (0x8005, 0x1021, 0x1DCF, 0x755B, 0x5935, 0x3D65, 0x8BB7, 0x0589, 0xC867, 0xA02B, 0x2F15, 0x6815, 0xC599, 0x202D, 0x0805, 0x1CF5)
 #define DEFAULT_YEAR_CENTILE      20        // to be used as a default before flash configuration is read (to be displayed in debug log).
+#define DELTA_TIME                60000000ll
 #define DISPLAY_BUFFER_SIZE       248       // size of framebuffer.
 #define EVENT_MINUTE1             14        // (Must be between 0 and 57) Calendar Events will checked when minutes reach this number (should preferably be selected out of peak periods).
 #define EVENT_MINUTE2             44        // (Must be between 0 and 57) Calendar Events will checked when minutes reach this number (should preferably be selected out of peak periods).
 #define FAHRENHEIT                !CELSIUS  // temperature unit to display.
 #define FALSE                     0x00
 #define FLAG_OFF                  0x00      // flag is OFF.
-#define FLAG_ON                   0xFF      // flag is ON.
-#define FLAG_WAIT                 0x01      // special flag asking passive sound queue to wait for active sound queue to complete.
+#define FLAG_ON                   0x01      // flag is ON.
+#define FLAG_POLL                 0x02
+#define FLAG_WAIT                 0x03      // special flag asking passive sound queue to wait for active sound queue to complete.
 #define FLASH_CONFIG_OFFSET       0x1FF000  // offset in the Pico's 2 MB where to save data. Starting at 2.00MB - 4096 bytes (very end of flash).
 #define H12                       FLAG_OFF  // 12-hours time format.
 #define H24                       FLAG_ON   // 24-hours time format.
@@ -484,6 +498,7 @@
 #define MAX_LIGHT_SLOTS           24        // number of slots for ambient light level hysteresis.
 #define MAX_COMMAND_QUEUE         25        // maximim number of active commands in command queue.
 #define MAX_CORE_QUEUE            25        // maximum number of active commands in each circular buffers for inter-core communication (core0-to-core1 and core1-to-core0).
+#define MAX_COUNT_DOWN_ALARM_DURATION 30    // maximum period of time (in minutes) during which count-down alarm will ring if not reset by user (quick press on "Set" button).
 #define MAX_DHT_READINGS          100       // maximum number of "logic level changes" while reading DHT22 data stream.
 #define MAX_EVENTS                50        // maximum number of "calendar events" that can be programmed in the source code.
 #define MAX_IR_READINGS           500       // maximum number of "logic level changes" while receiving data from IR remote control.
@@ -548,46 +563,6 @@
 #define CORE1_READ_DHT            0x01
 
 
-/* BitMask for sections of code to be debugged through UART display (values can be or'ed together). */
-#define DEBUG_NONE          0x0000000000000000
-#define DEBUG_ALARMS        0x0000000000000001
-#define DEBUG_BME280        0x0000000000000002
-#define DEBUG_BRIGHTNESS    0x0000000000000004
-#define DEBUG_CHIME         0x0000000000000008
-#define DEBUG_COMMAND_QUEUE 0x0000000000000010
-#define DEBUG_CORE          0x0000000000000020
-#define DEBUG_CRC16         0x0000000000000040
-#define DEBUG_DHT           0x0000000000000080
-#define DEBUG_DST           0x0000000000000100
-#define DEBUG_EVENT         0x0000000000000200
-#define DEBUG_FLASH         0x0000000000000400
-#define DEBUG_IDLE_MONITOR  0x0000000000000800
-#define DEBUG_INDICATORS    0x0000000000001000
-#define DEBUG_IR_COMMAND    0x0000000000002000
-#define DEBUG_PICO_W        0x0000000000004000
-#define DEBUG_PWM           0x0000000000008000
-#define DEBUG_RTC           0x0000000000010000
-#define DEBUG_SCROLL        0x0000000000020000
-#define DEBUG_SOUND_QUEUE   0x0000000000040000
-#define DEBUG_TEMP          0x0000000000080000
-#define DEBUG_TEST          0x0000000000100000
-#define DEBUG_TIMING        0x0000000000200000
-#define DEBUG_WATCHDOG      0x0000000000400000
-// #define DEBUG_?????            0x0000000000800000
-// #define DEBUG_?????            0x0000000001000000
-// #define DEBUG_?????            0x0000000002000000
-// #define DEBUG_?????            0x0000000004000000
-// #define DEBUG_?????            0x0000000008000000
-// #define DEBUG_?????            0x0000000010000000
-// #define DEBUG_?????            0x0000000020000000
-// #define DEBUG_?????            0x0000000040000000
-// #define DEBUG_?????            0x0000000080000000
-// #define DEBUG_?????            0x0000000100000000
-// #define DEBUG_?????            0x0000000200000000
-// #define DEBUG_?????            0x0000000400080000
-// etc...
-
-
 /* "Display modes" used with remote control while in "Generic display mode". */
 #define DISPLAY_LO_LIMIT     0x00
 #define DISPLAY_TIME         0x01
@@ -604,8 +579,8 @@
 #define DISPLAY_HI_LIMIT     0x0C
 
 
-/* DAYLIGHT_SAVING_TIME per countries. */
-// #define DST_DEBUG                    /// this define to be used only for intensive debugging purposes.
+/* DST_COUNTRY valid choices (see details in User Guide). */
+// #define DST_DEBUG                    /// this define to be used only for intensive DST debugging purposes.
 #define DST_LO_LIMIT        0           // this specific define only to make the logic easier in the code.
 #define DST_NONE            0           // there is no "Daylight Saving Time" in user's country.
 #define DST_AUSTRALIA       1           // daylight saving time for most of Australia.
@@ -652,13 +627,14 @@
 #define MODE_UNDEFINED     0x00  // mode is currently undefined.
 #define MODE_ALARM_SETUP   0x01  // user is setting up one or more alarms.
 #define MODE_CLOCK_SETUP   0x02  // user is setting up clock parameters.
-#define MODE_SCROLLING     0x03  // clock is scrolling data on the display.
-#define MODE_SHOW_TIME     0x04  // clock is displaying time ("normal" mode).
-#define MODE_SHOW_VOLTAGE  0x05  // clock is displaying power supply voltage.
-#define MODE_TEST          0x06  // clock is in test mode (to disable automatic clock behaviors on the display).
-#define MODE_TIMER_SETUP   0x07  // user is setting up a timer.
-#define MODE_DISPLAY       0x08  // generic display mode used with IR remote control.
-#define MODE_HI_LIMIT      0x09
+#define MODE_DISPLAY       0x03  // generic display mode used with IR remote control.
+#define MODE_POWER_UP      0x04  // clock has just been powered-up.
+#define MODE_SCROLLING     0x05  // clock is scrolling data on the display.
+#define MODE_SHOW_TIME     0x06  // clock is displaying time ("normal" mode).
+#define MODE_SHOW_VOLTAGE  0x07  // clock is displaying power supply voltage.
+#define MODE_TEST          0x08  // clock is in test mode (to disable automatic clock behaviors on the display).
+#define MODE_TIMER_SETUP   0x09  // user is setting up a timer.
+#define MODE_HI_LIMIT      0x10
 
 
 /* PWM - "Pulse Wide Modulation" is currently used to control sound on passive buzzer and clock display brightness. */
@@ -699,20 +675,23 @@
 #define TAG_AMBIENT_LIGHT      0xFF   // tag used to scroll current ambient light information.
 #define TAG_BME280_DEVICE_ID   0xFE   // tag used to scroll the BME280 device id (should be 0x60 for a "real" BME280).
 #define TAG_BME280_TEMP        0xFD   // tag used to display temperature, relative humidity and atmospheric pressure read from an optional BME280 sensor.
-#define TAG_DATE               0xFC   // tag used to scroll current date, temperature and power supply voltage.
-#define TAG_DEBUG              0xFB   // tag used to scroll variables for debug purposes, while in main() context.
-#define TAG_DHT22_TEMP         0xFA   // tag used to display temperature read from an optional DHT22 temperature and humidity sensor.
-#define TAG_DS3231_TEMP        0xF9   // tag used to display ambient temperature read from DS3231 real-time IC in the Green Clock.
-#define TAG_DST                0xF8   // tag used to scroll daylight saving time ("DST") information and status on clock display.
-#define TAG_FIRMWARE_VERSION   0xF7   // tag used to display Pico Green Clock firmware version.
-#define TAG_IDLE_MONITOR       0xF6   // tag used to scroll current System Idle Monitor on clock display.
-#define TAG_INFO               0xF5   // tag used to display information while in "main()" context.
-#define TAG_PICO_TEMP          0xF3   // tag used to display Pico internal temperature.
-#define TAG_PICO_TYPE          0xF2   // tag used to display the type of microcontroller installed (Pico or Pico W).
-#define TAG_PICO_UNIQUE_ID     0xF1   // tag used to display Pico (flash) unique ID.
-#define TAG_QUEUE              0xF0   // tag used to display "Head", "Tail", and "Tag" of currently used scroll queue (for debugging purposes).
-#define TAG_TIMEZONE           0xEF   // tag used to display Universal Coordinated Time information.
-#define TAG_VOLTAGE            0xEE   // tag used to display power supply voltage.
+#define TAG_WIFI_CREDENTIALS   0xFC
+#define TAG_DATE               0xFB   // tag used to scroll current date, temperature and power supply voltage.
+#define TAG_DEBUG              0xFA   // tag used to scroll variables for debug purposes, while in main() context.
+#define TAG_DHT22_TEMP         0xF9   // tag used to display temperature read from an optional DHT22 temperature and humidity sensor.
+#define TAG_DS3231_TEMP        0xF8   // tag used to display ambient temperature read from DS3231 real-time IC in the Green Clock.
+#define TAG_DST                0xF7   // tag used to scroll daylight saving time ("DST") information and status on clock display.
+#define TAG_FIRMWARE_VERSION   0xF6   // tag used to display Pico Green Clock firmware version.
+#define TAG_IDLE_MONITOR       0xF5   // tag used to scroll current System Idle Monitor on clock display.
+#define TAG_INFO               0xF4   // tag used to display information while in "main()" context.
+#define TAG_NTP_ERRORS         0xF3   // tag used to scroll cumulative number of errors in NTP requests.
+#define TAG_NTP_STATUS         0xF2   // tag used to scroll cumulative number of errors in NTP requests.
+#define TAG_PICO_TEMP          0xF1   // tag used to display Pico internal temperature.
+#define TAG_PICO_TYPE          0xF0   // tag used to display the type of microcontroller installed (Pico or Pico W).
+#define TAG_PICO_UNIQUE_ID     0xEF   // tag used to display Pico (flash) unique ID.
+#define TAG_QUEUE              0xEE   // tag used to display "Head", "Tail", and "Tag" of currently used scroll queue (for debugging purposes).
+#define TAG_TIMEZONE           0xED   // tag used to display Universal Coordinated Time information.
+#define TAG_VOLTAGE            0xEC   // tag used to display power supply voltage.
 
 
 #define SILENT        0
@@ -780,6 +759,7 @@
 /* Include files. */
 #include "bitmap.h"
 #include "ctype.h"
+#include "debug.h"
 #include "Ds3231.h"
 #include "errno.h"
 #include "fcntl.h"
@@ -790,7 +770,7 @@
 #include "hardware/i2c.h"
 #include "hardware/irq.h"
 #include "hardware/pwm.h"
-#include "hardware/structs/watchdog.h"
+#include "hardware/watchdog.h"
 #include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "math.h"
@@ -798,9 +778,14 @@
 #include "pico/platform.h"
 #include "pico/sync.h"
 #include "pico/unique_id.h"
+#include "stdarg.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
+
+#ifdef PICO_W
+#include "picow_ntp_client.h"
+#endif  // PICO_W
 
 
 typedef unsigned int  UINT;   // processor-optimized.
@@ -877,7 +862,6 @@ struct event
 #include CALENDAR_FILENAME
 
 
-
 /* Alarm definitions. */
 struct alarm
 {
@@ -907,16 +891,39 @@ struct dst_parameters
   int8_t StartDayOfMonthHigh;
   UINT8  StartHour;
   UINT16 StartDayOfYear;
-  UINT8  StartFlag;
   UINT8  EndMonth;
   UINT8  EndDayOfWeek;
   int8_t EndDayOfMonthLow;
   int8_t EndDayOfMonthHigh;
   UINT8  EndHour;
   UINT16 EndDayOfYear;
-  UINT8  EndFlag;
   UINT8  ShiftMinutes;
 };
+
+
+/* NTP data structure. */
+struct ntp_data
+{
+  /* Time-related data. */
+  UINT8  CurrentDayOfWeek;
+  UINT8  CurrentDayOfMonth;
+  UINT8  CurrentMonth;
+  UINT16 CurrentYear; 
+  UINT8  CurrentYearLowPart;
+  UINT8  CurrentHour;
+  UINT8  CurrentMinute;
+  UINT8  CurrentSecond;
+
+  /* Generic data. */
+  time_t Epoch;
+  UINT8  FlagNTPResync;   // flag set to On if there is a specific reason to request an NTP update without delay.
+  UINT8  FlagNTPSuccess;  // flag indicating that NTP date and time request has succeeded.
+  UINT64 NTPDelta;
+  UINT32 NTPErrors;       // cumulative number of errors while trying to re-sync with NTP.
+  UINT64 NTPGetTime;
+  UINT64 NTPLastUpdate;
+  UINT32 NTPReadCycles;   // total number of re-sync cycles through NTP.
+}NTPData;
 
 
 /* Clock display pixel definitions. */
@@ -965,34 +972,39 @@ struct sound_passive
               CRC16   must always be the  last element of the structure. */
 struct flash_config
 {
-  UCHAR  Version[6];         // firmware version number (format: "06.00" - including end-of-string).
-  UINT8  CurrentYearCentile; // assume we are in years 20xx on power-up but is adjusted when configuration is read (will your clock live long enough for a "21" ?!).
-  UINT8  Language;           // language used for data display (including date scrolling).
-  UCHAR  DaylightSavingTime; // specifies how to handle the daylight saving time (see User Guide and / or clock options above).
-  UINT8  TemperatureUnit;    // CELSIUS or FAHRENHEIT default value (see clock options above).
-  UINT8  TimeDisplayMode;    // H24 or H12 default value (see clock options above).
-  UINT8  ChimeMode;          // chime mode (Off / On / Day).
-  UINT8  ChimeTimeOn;        // hourly chime will begin at this hour.
-  UINT8  ChimeTimeOff;       // hourly chime will stop after this hour.
-  UINT8  NightLightMode;     // night light mode (On / Off / Auto / Night).
-  UINT8  NightLightTimeOn;   // default night light time On.
-  UINT8  NightLightTimeOff;  // default night light time Off.
-  UINT8  FlagAutoBrightness; // flag indicating we are in "Auto Brightness" mode.
-  UINT8  FlagKeyclick;       // flag for keyclick ("button-press" tone)
-  UINT8  FlagScrollEnable;   // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
-  UINT8  FlagSummerTime;     // flag indicating the current status of Daylight Saving Time / Summer Time.
-  int8_t Timezone;           // value to add to local time to reach UTC (Universal Time Coordinate).
-  UINT8  Reserved1[48];      // reserved for future use.
-  struct alarm Alarm[9];     // alarms 1 to 9 parameters. Day is a bit mask.
-  UCHAR  Reserved2[158];     // reserved for future use.
-  UINT16 Crc16;              // crc16 of previous data to validate configuration.
+  UCHAR  Version[6];          // firmware version number (format: "06.00" - including end-of-string).
+  UINT8  CurrentYearCentile;  // assume we are in years 20xx on power-up but is adjusted when configuration is read (will your clock live long enough for a "21" ?!).
+  UINT8  Language;            // language used for data display (including date scrolling).
+  UCHAR  DSTCountry;  // specifies how to handle the daylight saving time (see User Guide and / or clock options above).
+  UINT8  TemperatureUnit;     // CELSIUS or FAHRENHEIT default value (see clock options above).
+  UINT8  TimeDisplayMode;     // H24 or H12 default value (see clock options above).
+  UINT8  ChimeMode;           // chime mode (Off / On / Day).
+  UINT8  ChimeTimeOn;         // hourly chime will begin at this hour.
+  UINT8  ChimeTimeOff;        // hourly chime will stop after this hour.
+  UINT8  NightLightMode;      // night light mode (On / Off / Auto / Night).
+  UINT8  NightLightTimeOn;    // default night light time On.
+  UINT8  NightLightTimeOff;   // default night light time Off.
+  UINT8  FlagAutoBrightness;  // flag indicating we are in "Auto Brightness" mode.
+  UINT8  FlagKeyclick;        // flag for keyclick ("button-press" tone)
+  UINT8  FlagScrollEnable;    // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
+  UINT8  FlagSummerTime;      // flag indicating the current status (On or Off) of Daylight Saving Time / Summer Time.
+  int8_t Timezone;            // (in hours) value to add to UTC time (Universal Time Coordinate) to get the local time.
+  UINT8  Reserved1[48];       // reserved for future use.
+  struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask.
+  UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
+  UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5 of the variable string, for the same reason as SSID above.
+  UCHAR  Reserved2[48];       // reserved for future use.
+  UINT16 Crc16;               // crc16 of all data above to validate configuration.
 } FlashConfig;
 
 
 #ifdef BME280_SUPPORT
 /* BME280 calibration parameters computed from data written in the device. */
-struct bme280_calib_param
+struct bme280_data
 {
+  /* Calibration data for the specific BME280 used (stored in BME280's non-volatile memory). */
+  UINT8  Bme280CalibData[42];
+  
   /* Temperature-related parameters. */
   UINT16  DigT1;
   int16_t DigT2;
@@ -1024,6 +1036,10 @@ struct bme280_calib_param
   float Pressure;
   float Altitude; // not trusted value.
   float Humidex;  // wrong value for now.
+
+  /* Generic parameters. */
+  UINT32 Bme280Errors;      // cumulative number of errors while trying to read BME280 sensor.
+  UINT32 Bme280ReadCycles;  // cumulative number of read cycles from BME280.
 };
 #endif  // BME280_SUPPORT
 
@@ -1031,9 +1047,11 @@ struct bme280_calib_param
 #ifdef DHT_SUPPORT
 struct dht_data
 {
-  UINT64 TimeStamp;
-  float  Temperature;
-  float  Humidity;
+  UINT64 TimeStamp;      // time stamp of last reading cycle from DHT sensor.
+  float  Temperature;    // temperature reading from DHT.
+  float  Humidity;       // relative humidity reading from DHT sensor.
+  UINT32 DhtErrors;      // cumulative number of errors while receiving DHT packets (for statistic purposes).
+  UINT32 DhtReadCycles;  // cumulative number of DHT read cycles. 
 };
 #endif  // DHT_SUPPORT
 
@@ -1042,9 +1060,6 @@ struct dht_data
 /* $TITLE=Global variables declaration / definition. */
 /* $PAGE */
 /* ------------------------------------------------------------------ *\
-               Global variables declaration / definition.
-   NOTE: There was a huge amount of global variables in the original
-         code. It is a good practice to limit the use of global
          variables whenever possible. This could be a way to improve
          the code in future releases...
 \* ------------------------------------------------------------------ */
@@ -1053,9 +1068,6 @@ UINT8  AlarmNumber                = 0;         // since Version 6.00, there are 
 UINT8  AlarmTargetDay             = MON;       // blinking day-of-week to be selected or unselected for current alarm setting.
 volatile UINT16 AverageLightLevel = 550;       // relative ambient light value (for clock display auto-brightness feature). Assume average light level on entry.
 
-UINT8  Bme280CalibData[42];                    // calibration data for the specific BME280 used (stored in BME280's non-volatile memory).
-UINT64 Bme280Errors               = 0;         // cumulative number of errors while trying to read BME280 sensor.
-UINT64 Bme280Readings             = 0;         // cumulative number of reads from BME280.
 UINT16 BottomKeyPressTime         = 0;         // keep track of the time the Down ("Bottom") key is pressed.
 
 UINT8  ChimeTimeOffDisplay        = CHIME_TIME_OFF;  // variable formatted to display in 12-hours or 24-hours format.
@@ -1068,7 +1080,7 @@ UINT8  Core0QueueTail;                         // tail of circular buffer for in
 UINT8  Core1Queue[MAX_CORE_QUEUE];             // circular buffer for inter-core communication.
 UINT8  Core1QueueHead;                         // head of circular buffer for inter-core communication.
 UINT8  Core1QueueTail;                         // tail of circular buffer for inter-core communication.
-UINT8  CurrentClockMode           = MODE_UNDEFINED;  // current clock mode.
+UINT8  CurrentClockMode = MODE_POWER_UP;       // current clock mode.
 UINT8  CurrentDayOfMonth;
 UINT8  CurrentDayOfWeek;
 UINT16 CurrentDayOfYear;
@@ -1082,8 +1094,6 @@ UINT16 CurrentYear;                            // current year (4 digits).
 UINT8  CurrentYearLowPart;                     // lowest two digits of the year (battery backed-up).
 
 UINT64 DebugBitMask;                           // bitmask of code sections to be debugged through UART (see definitions of DEBUG sections above).
-UINT16 DhtErrors                  = 0;         // cumulate number of errors while receiving DHT packets (for statistic purposes).
-UINT16 DhtReadings                = 0;         // cumulate total number of reads cycles from DHT22.
 UCHAR  DisplayBuffer[DISPLAY_BUFFER_SIZE];     // framebuffer containing the bitmap of the string to be displayed / scrolled on clock display.
 UINT16 DotBlinkCount;                          // cumulate milliseconds to blink the two "middle dots" on clock display.
 
@@ -1199,27 +1209,35 @@ UCHAR DayName[3][8][10] =
   {{}, {"Dimanche"}, {"Lundi"}, {"Mardi"}, {"Mercredi"}, {"Jeudi"}, {"Vendredi"}, {"Samedi"}}
 };
 
-
-
-struct dst_parameters DstParameters[25]=
+UCHAR ShortDay[3][8][10] =
 {
-  { 0,  0,  0,  0,  0,  0,  0x00,  0,  0,  0,  0,  0,  0,  0x00,  0},  // Dummy
-  {10,  1,  1,  7,  2,  0,  0x00,  4,  1,  1,  7,  3,  0,  0x00, 60},  // Australia
-  {10,  1,  1,  7,  2,  0,  0x00,  4,  1,  1,  7,  2,  0,  0x00, 30},  // Australia-Howe
-  { 9,  7,  8, 14, 24,  0,  0x00,  4,  7,  1,  7, 24,  0,  0x00, 60},  // Chile           (StartHour and EndHour changes at 24h00, will change at 00h00 the day after)
-  { 3,  1,  8, 14,  0,  0,  0x00, 11,  1,  1,  7,  1,  0,  0x00, 60},  // Cuba
-  { 3,  1, 25, 31,  1,  0,  0x00, 10,  1, 25, 31,  1,  0,  0x00, 60},  // European Union  (StartHour and EndHour are based on UTC time)
-  { 3,  6, 23, 29,  2,  0,  0x00, 10,  1, 25, 31,  2,  0,  0x00, 60},  // Israel
-  { 3,  1, 25, 31,  0,  0,  0x00, 10,  1, 25, 31,  0,  0,  0x00, 60},  // Lebanon
-  { 3,  1, 25, 31,  2,  0,  0x00, 10,  1, 25, 31,  3,  0,  0x00, 60},  // Moldova
-  { 9,  1, 24, 30,  2,  0,  0x00,  4,  1,  1,  7,  2,  0,  0x00, 60},  // New-Zealand     (StartHour and EndHour are based on UTC time)
-  { 3,  1,  8, 14,  2,  0,  0x00, 11,  1,  1,  7,  2,  0,  0x00, 60},  // North America
-  { 3,  7, 24, 30,  2,  0,  0x00, 10,  7, 24, 30,  2,  0,  0x00, 60},  // Palestine
-  {10,  1,  1,  7,  0,  0,  0x00,  3,  1, 22, 28,  0,  0,  0x00, 60},  // Paraguay
+  {{}, {}, {}, {}, {}, {}, {}, {}},
+  {{}, {"SUN"}, {"MON"}, {"TUE"}, {"WED"}, {"THU"}, {"FRI"}, {"SAT"}},
+  {{}, {"DIM"}, {"LUN"}, {"MAR"}, {"MER"}, {"JEU"}, {"VEN"}, {"SAM"}}
+};
+
+
+
+struct dst_parameters DstParameters[25] =
+{
+  { 0,  0,  0,  0, 24,  0,  0,  0,  0,  0,  0,  0, 60},  // Dummy
+  {10,  1,  1,  7,  2,  0,  4,  1,  1,  7,  3,  0, 60},  // Australia
+  {10,  1,  1,  7,  2,  0,  4,  1,  1,  7,  2,  0, 30},  // Australia-Howe
+  { 9,  7,  1,  7, 24,  0,  4,  7,  1,  7, 24,  0, 60},  // Chile           (StartHour and EndHour changes at 24h00, will change at 00h00 the day after)
+  { 3,  1,  8, 14,  0,  0, 11,  1,  1,  7,  1,  0, 60},  // Cuba
+  { 3,  1, 25, 31,  1,  0, 10,  1, 25, 31,  1,  0, 60},  // European Union  (StartHour and EndHour are based on UTC time)
+  { 3,  6, 23, 29,  2,  0, 10,  1, 25, 31,  2,  0, 60},  // Israel
+  { 3,  1, 25, 31,  0,  0, 10,  1, 25, 31,  0,  0, 60},  // Lebanon
+  { 3,  1, 25, 31,  2,  0, 10,  1, 25, 31,  3,  0, 60},  // Moldova
+  { 9,  1, 24, 30,  2,  0,  4,  1,  1,  7,  2,  0, 60},  // New-Zealand     (StartHour and EndHour are based on UTC time)
+  { 3,  1,  8, 14,  2,  0, 11,  1,  1,  7,  2,  0, 60},  // North America
+  { 3,  7, 24, 30,  2,  0, 10,  7, 24, 30,  2,  0, 60},  // Palestine
+  {10,  1,  1,  7,  0,  0,  3,  1, 22, 28,  0,  0, 60},  // Paraguay
  };
-// StartMonth, StartDayOfWeek, StartDayOfMonthLow, StartDayOfMonthHigh, StartHour, StartDayOfYear, StartFlag,
-// EndMonth,   EndDayOfWeek,   EndDayOfMonthLow,   EndDayOfMonthHigh,   EndHour,   EndDayOfYear,   EndFlag,
+// StartMonth, StartDayOfWeek, StartDayOfMonthLow, StartDayOfMonthHigh, StartHour, StartDayOfYear,
+// EndMonth,   EndDayOfWeek,   EndDayOfMonthLow,   EndDayOfMonthHigh,   EndHour,   EndDayOfYear,
 // ShiftMinutes
+// NOTE: StartDayOfYear and EndDayOfYear will assigned to local DST parameters in "update_dst_ststus()" function.
 
 
 
@@ -1247,7 +1265,7 @@ struct sound_passive   SoundQueuePassive[MAX_PASSIVE_SOUND_QUEUE];
 
 
 #ifdef BME280_SUPPORT
-struct bme280_calib_param Bme280CalibParam;
+struct bme280_data Bme280Data;
 #endif  // BME280_SUPPORT
 
 
@@ -1260,7 +1278,7 @@ struct dht_data DhtData;
 
 /* Uncomment and modify value below until you get (or you remove) the error message to get an idea of approximate remaining RAM available. */
 /* NOTE: Keep in mind that the "malloc()" is not calculated when doing so and must be added to the total RAM required by the firmware. */
-/// UINT8 RemainingRam[231050];  // this value was near RAM limit, as of Version 8.00
+// UINT8 RemainingRam[231050];  /// this value was near RAM limit, as of Version 8.00
 
 
 
@@ -1432,6 +1450,9 @@ UINT8 scroll_unqueue(void);
 /* Send data to the matrix controller IC. */
 void send_data(UINT8 data);
 
+/* Request Wi-Fi SSID and password from user and save them to Pico's flash. */
+void set_and_save_credentials(void);
+
 /* Exit current setup mode step. */
 void set_mode_out(void);
 
@@ -1489,10 +1510,13 @@ void tone(UINT16 MilliSeconds);
 /* Return total number of "one" bits in the given integer. */
 uint8_t total_one_bits(UINT32 Data, UINT8 Size);
 
-/* Send a string to a VT101 monitor or PC screen through Pico's UART (for debugging purposes). */
-void uart_send(UINT LineNumber, UCHAR *String);
+/* Send a string to an external terminal emulator program through Pico's UART (or serial port). */
+void uart_send(UINT LineNumber, UCHAR *Format, ...);
 
-/* Set DST parameters (FlagSummerTime and Timezone) according to current DST setting and current date and time. */
+/* Return the string representing the uint64_t parameter in binary. */
+void uint64_to_binary_string(UINT64 Value, UINT8 StringLength, UCHAR *BinaryString);
+
+/* Set DST parameters (FlagSummerTime and Timezone) according to current DST country code and current date and time. */
 void update_dst_status();
 
 /* Update indicators at the left of the clock display. */
@@ -1565,12 +1589,12 @@ void process_ir_command(UINT8 IrCommand);
 
 
 
-/* ------------------------------------------------------------------ *\
-  Area of Green Clock source code containing many chunks of test code
-           that have been used during firmware development.
-      Keep in mind that this code has not been updated during code
-     evolution and is provided only to help as a basis to help user.
-\* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------- *\
+    Area of Green Clock source code containing many chunks of test code
+              that have been used during firmware development.
+        Keep in mind that this code has not been updated during code
+       evolution and is provided only to help as a basis to help user.
+\* --------------------------------------------------------------------- */
 #ifdef TEST_CODE
 /* Perform different tests on Pico Green Clock (to be used for testing and / or debugging). */
 void test_zone(UINT8 TestNumber);
@@ -1616,15 +1640,23 @@ int main(void)
   UINT16 Loop1UInt16;
   UINT16 Loop2UInt16;
 
-  UINT32 CounterHiLimit;
+  int16_t ReturnCode;
+
   UINT32 Bme280UniqueId;
+  UINT32 CounterHiLimit;
 
   UINT64 ArchiveIdleMonitor[14][120];  // keep an history of idle monitorfor reference purposes (outside monitor is required).
+  UINT64 CurrentTimerValue;
+  UINT64 CurrentWatchDogReset;
   UINT64 DataBuffer;
-  UINT64 TimeStamp;
+  UINT64 LastWatchDogReset;
 
+  float Duration;
   float Humidity;       // for BME280 or DHT22.
   float Temperature;    // for BME280 or DHT22.
+
+
+  time_t TimeStamp;
 
 
   /* Add accents to some French characters. */
@@ -1691,13 +1723,19 @@ int main(void)
 
 
 
-  /* While in development environment, wait for the developer to connect the PC with terminal emulator software. */
+  /* ---------------------------------------------------------------- *\
+                       Wait for CDC USB connection.
+  \* ---------------------------------------------------------------- */
+  /* Wait for the developer to connect the PC with terminal emulator software. */
   #ifdef USB_CONNECTION
-  /* Wait for CDC USB connection or for user to press the "SET button". */
-  while (!stdio_usb_connected() && gpio_get(SET_BUTTON) != 0)
+  printf("Waiting for a USB connection... Press the <Set> button on the Green Clock to start.\r");
+  
+  /* Wait for CDC USB connection or for user to press the "SET" button. */
+  while (!stdio_usb_connected() && gpio_get(SET_BUTTON))
   {
     tone(5);
     sleep_ms(2500);
+    printf("USB connection not established yet (press <Set> button to bypass USB connection).\r");
   }
   
   /* If a press on the "Set" button has been done, make sure it has been released before continuing. */
@@ -1705,17 +1743,23 @@ int main(void)
   {
     while (gpio_get(SET_BUTTON) == 0)
     {
+      printf("<Set> button has been pressed... waiting for <SET> button to be released.\r");
       tone(10);
       sleep_ms(50);
       tone(10);
-      sleep_ms(200);
+      sleep_ms(2000);
     }
   }
   #endif  // USB_CONNECTION
 
 
 
-  /* Read the real-time clock IC. */
+  /* ---------------------------------------------------------------- *\
+                Read real-time clock IC for a first time.
+  \* ---------------------------------------------------------------- */
+  /* Get a first value from the real-time clock IC for debug time-stamping purposes.
+     However, callback function to update time will be initialized 8 seconds later.
+     So, we will re-read the RTC IC later to resync. */
   Time_RTC = Read_RTC();
 
   CurrentHour        = bcd_to_byte(Time_RTC.hour);
@@ -1726,6 +1770,8 @@ int main(void)
   CurrentYearLowPart = bcd_to_byte(Time_RTC.year);
   CurrentYear        = 2000 + CurrentYearLowPart;  // assume "20" as year centile until it is retrieved from flash.
   CurrentDayOfWeek   = get_day_of_week(((FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart), CurrentMonth, CurrentDayOfMonth);
+
+
 
   /* ----------------------------------------------------------------------------------------------------- *\
     WARNINGS: Settings below are for debugging purposes only. Be aware that turning On a debug option may
@@ -1749,7 +1795,7 @@ int main(void)
            So, it is possible to keep all logging information and use the debug before launching the callback, or it is required to trim down
            the logged information if there is a need to consult the logged information during the callback flash configuration update. */
   DebugBitMask  = DEBUG_NONE;
-  DebugBitMask += DEBUG_ALARMS;
+  // DebugBitMask += DEBUG_ALARMS;
   // DebugBitMask += DEBUG_BME280;
   // DebugBitMask += DEBUG_BRIGHTNESS;
   // DebugBitMask += DEBUG_CHIME;
@@ -1757,12 +1803,13 @@ int main(void)
   // DebugBitMask += DEBUG_CORE;
   // DebugBitMask += DEBUG_CRC16;
   // DebugBitMask += DEBUG_DHT;
-  // DebugBitMask += DEBUG_DST;
+  DebugBitMask += DEBUG_DST;
   // DebugBitMask += DEBUG_EVENT;
-  DebugBitMask += DEBUG_FLASH;
+  // DebugBitMask += DEBUG_FLASH;
   // DebugBitMask += DEBUG_IDLE_MONITOR;
   // DebugBitMask += DEBUG_INDICATORS;
   // DebugBitMask += DEBUG_IR_COMMAND;
+  DebugBitMask += DEBUG_NTP;
   // DebugBitMask += DEBUG_PICO_W;
   // DebugBitMask += DEBUG_PWM;
   // DebugBitMask += DEBUG_RTC;
@@ -1770,23 +1817,19 @@ int main(void)
   // DebugBitMask += DEBUG_SCROLL;
   // DebugBitMask += DEBUG_TEMP;
   // DebugBitMask += DEBUG_TEST;
+  // DebugBitMask += DEBUG_TIMER;
   // DebugBitMask += DEBUG_TIMING;
-  #endif  // RELEASE_VERSION
+  // DebugBitMask += DEBUG_WATCHDOG;
+   #endif  // RELEASE_VERSION
 
   /* If user requested any section to be debugged through Pico's UART (or USB), send a power-up time stamp to log screen. */
   if (DebugBitMask)
   {
-    /* First, insert a blank separation zone on the external monitor from previous eventual log sessions. */
-    for (Loop1UInt8 = 0; Loop1UInt8 < 15; ++Loop1UInt8)
-      uart_send(__LINE__, "\r");
-
     /* Clear screen. */
-    sprintf(String, "cls");
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "cls");
 
     /* "Home" cursor. */
-    sprintf(String, "home");
-    uart_send(__LINE__, String);
+     uart_send(__LINE__, "home");
 
     /* French accents don't show up on external monitor, so temporarily put back non-accented characters. */
     MonthName[FRENCH][FEB][1] = 'e';  // accent aigu sur fevrier.
@@ -1797,14 +1840,9 @@ int main(void)
     FlashConfig.CurrentYearCentile = DEFAULT_YEAR_CENTILE;
     FlashConfig.Language           = DEFAULT_LANGUAGE;
 
-    sprintf(String, "\r\r\r\r- - - - - = = = = = %2.2u-%s-%4.4u %2.2u:%2.2u GREEN CLOCK LOG INFO = = = = = - - - - -\r\r", CurrentDayOfMonth, MonthName[FlashConfig.Language][CurrentMonth], CurrentYear, CurrentHour, CurrentMinute);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "NOTE: Parts of the time stamps below may be wrong until flash configuration has been\r");
-    uart_send(__LINE__, String);
-
-    sprintf(String, "      read and validated and callback to read real-time clock has been triggered.\r\r");
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "\r\r\r\r- - - - - = = = = = %2.2u-%s-%4.4u %2.2u:%2.2u GREEN CLOCK LOG INFO = = = = = - - - - -\r\r", CurrentDayOfMonth, MonthName[FlashConfig.Language][CurrentMonth], CurrentYear, CurrentHour, CurrentMinute);
+    uart_send(__LINE__, "NOTE: Parts of the time stamps below may be wrong until flash configuration has been\r");
+    uart_send(__LINE__, "      read and validated, and callback to read real-time clock has been triggered.\r\r");
 
     /* Put back French accents when done. */
     MonthName[FRENCH][FEB][1] = (UCHAR)31; // accent aigu sur fevrier.
@@ -1861,6 +1899,7 @@ int main(void)
           break;
 
           case DEBUG_FLASH:
+            /* NOTE: To be used only before starting the callback functions, otherwise, flash_write will crash the Firmware.*/
             uart_send(__LINE__, "-> Flash read / write\r");
           break;
 
@@ -1876,6 +1915,10 @@ int main(void)
             uart_send(__LINE__, "-> IR commands\r");
           break;
 
+          case DEBUG_NTP:
+            uart_send(__LINE__, "-> Network Time Protocol\r");
+          break;
+
           case DEBUG_PICO_W:
             uart_send(__LINE__, "-> Pico W\r");
           break;
@@ -1888,12 +1931,12 @@ int main(void)
             uart_send(__LINE__, "-> Real-time clock\r");
           break;
 
-          case DEBUG_SOUND_QUEUE:
-            uart_send(__LINE__, "-> Sound queue\r");
-          break;
-
           case DEBUG_SCROLL:
             uart_send(__LINE__, "-> Scroll mechanism and timing\r");
+          break;
+
+          case DEBUG_SOUND_QUEUE:
+            uart_send(__LINE__, "-> Sound queue\r");
           break;
 
           case DEBUG_TEMP:
@@ -1902,6 +1945,10 @@ int main(void)
 
           case DEBUG_TEST:
             uart_send(__LINE__, "-> Test zone\r");
+          break;
+
+          case DEBUG_TIMER:
+            uart_send(__LINE__, "-> Timer\r");
           break;
 
           case DEBUG_TIMING:
@@ -1920,49 +1967,64 @@ int main(void)
 
 
 
+  /* ---------------------------------------------------------------- *\
+                       Real-time clock IC reporting.
+  \* ---------------------------------------------------------------- */
   if (DebugBitMask & DEBUG_RTC)
   {
     uart_send(__LINE__, "Values read from real-time clock IC on entry:\r");
+    uart_send(__LINE__, "  Before syncing with NTP if using a Pico W\r");
     uart_send(__LINE__, "---------------------------------------------\r");
 
-    sprintf(String, "CurrentHour:         %2u\r", CurrentHour);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "CurrentMinute:       %2u\r", CurrentMinute);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "CurrentSecond:       %2u\r", CurrentSecond);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "CurrentDayOfWeek:    %2u   (1=Sun  2=Mon  3=Tue  4=Wed  5=Thu  6=Fri  7=Sat)\r", CurrentDayOfWeek);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "CurrentDayOfMonth:   %2u\r", CurrentDayOfMonth);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "CurrentMonth:        %2u\r", CurrentMonth);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "CurrentYear:       %4u\r\r\r", CurrentYear);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "CurrentHour:         %2u\r", CurrentHour);
+    uart_send(__LINE__, "CurrentMinute:       %2u\r", CurrentMinute);
+    uart_send(__LINE__, "CurrentSecond:       %2u\r", CurrentSecond);
+    uart_send(__LINE__, "CurrentDayOfWeek:    %2u   (1=Sun  2=Mon  3=Tue  4=Wed  5=Thu  6=Fri  7=Sat)\r", CurrentDayOfWeek);
+    uart_send(__LINE__, "CurrentDayOfMonth:   %2u\r", CurrentDayOfMonth);
+    uart_send(__LINE__, "CurrentMonth:        %2u\r", CurrentMonth);
+    uart_send(__LINE__, "CurrentYear:       %4u\r\r\r", CurrentYear);
   }
 
 
-
-  if (DebugBitMask & DEBUG_RTC)
+  
+  /* ---------------------------------------------------------------- *\
+           Infrared GPIO seems to receive spurious interrupts...
+                            to be checked.
+  \* ---------------------------------------------------------------- */
+  if (DebugBitMask & DEBUG_IR_COMMAND)
   {
-    sprintf(String, "GPIO for IR IRQ: %u\r", IR_RX);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "Events to reset / acknowledge: Edge rise event: %8X   Edge fall event: %8X\r", GPIO_IRQ_EDGE_RISE, GPIO_IRQ_EDGE_FALL);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "GPIO for IR IRQ: %u\r", IR_RX);
+    uart_send(__LINE__, "Events to reset / acknowledge: Edge rise event: %8X   Edge fall event: %8X\r", GPIO_IRQ_EDGE_RISE, GPIO_IRQ_EDGE_FALL);
   }
+
 
 
   /* ---------------------------------------------------------------- *\
           Determine the type of microcontroller (Pico or PicoW).
+     NOTE: There is a #define PICO_W to conditional compile functions
+           and libraries required for NTP support (see below).
   \* ---------------------------------------------------------------- */
   PicoType = get_microcontroller_type();
+
+  #ifdef PICO_W
+  /* ---------------------------------------------------------------- *\
+      If microcontroller is a Pico W, Green Clock real-time clock IC
+     will be synchronized periodically through network time protocol.
+        User must have encoded credentials to Pico's flash before.
+                   (Refer to User Guide for details).
+  \* ---------------------------------------------------------------- */
+  /* Initialize NTP-related variables on entry. */
+  NTPData.NTPErrors      = 0l;        // reset number of NTP errors on entry.
+  NTPData.NTPGetTime     = 0ll;
+  NTPData.NTPLastUpdate  = 0ll;
+  NTPData.NTPReadCycles  = 0l;        // reset number of NTP read cycles on entry.
+  NTPData.NTPDelta       = DstParameters[0].StartHour * DstParameters[0].ShiftMinutes * DELTA_TIME;
+  NTPData.FlagNTPResync  = FLAG_ON;   // force NTP re-sync on power-up.
+  NTPData.FlagNTPSuccess = FLAG_OFF;  // will be turned On after successful NTP answer.
+
+  /* Initialize the CYW43 architecture (CYW43 driver and lwIP stack). */
+  init_cyw43(CYW43_COUNTRY_WORLDWIDE);
+  #endif  // PICO_W
 
 
 
@@ -1985,22 +2047,26 @@ int main(void)
 
   flash_read_config();
 
-
-  
   /* Now that "real" year centile has been read back from flash, update current year value and overwrite default value. */
   CurrentYear = (FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart;
 
   
   
-  /* Update configuration version from what it is in flash to current version. Proceed step-by-step for each new version. */
-  /* ---------- UPDATE VERSION 6.00 TO VERSION 7.00 ---------- */
+  /* ------------------------------------------------------------------------ *\
+      Update flash configuration incrementally for each new Firmware version.
+      NOTE: As explained in the User Guide, Flash configuration will
+            be automatically updated just before the next data
+            scrolling, as long as the clock remains in normal
+            "show time" mode.
+  \* ------------------------------------------------------------------------ */
+  /* Proceed step-by-step for each new version. */
+  /* -------------------- UPDATE VERSION 6.00 TO VERSION 7.00 -------------------- */
   if (strcmp(FlashConfig.Version, "6.00") == 0)
   {
     /* Convert flash configuration from Version 6.00 to Version 7.00. */
     if (DebugBitMask & DEBUG_FLASH)
     {
-      sprintf(String, "Display Flash configuration before conversion from Version 6.00 to Version 7.00.\r");
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "Display Flash configuration before conversion from Version 6.00 to Version 7.00.\r");
       flash_display_config();
     }
 
@@ -2010,16 +2076,64 @@ int main(void)
   
     if (DebugBitMask & DEBUG_FLASH)
     {
-      sprintf(String, "Display Flash configuration after conversion from Version 6.00 to Version 7.00.\r");
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "Display Flash configuration after conversion from Version 6.00 to Version 7.00.\r");
       flash_display_config();
     }
   }
 
-  /* ---------- UPDATE VERSION 7.00 TO VERSION 8.00 ---------- */
-  sprintf(FlashConfig.Version, "8.00");   // convert to Version 8.00.
-  /* No other change required from 7.00 to 8.00. */
-  /* NOTE: Flash configuration will be automatically updated in the next minutes, as long as the clock remains in normal "show time" mode. */
+
+  /* -------------------- UPDATE VERSION 7.00 TO VERSION 8.00 -------------------- */
+  if (strcmp(FlashConfig.Version, "7.00") == 0)
+  {
+    sprintf(FlashConfig.Version, "8.00");   // convert to Version 8.00.
+    /* No other change required from 7.00 to 8.00. */
+  }
+
+
+  /* -------------------- UPDATE VERSION 8.00 TO VERSION 9.00 -------------------- */
+  if (strcmp(FlashConfig.Version, "8.00") == 0)
+  {
+    /* Convert flash configuration from Version 8.00 to Version 9.00. */
+    if (DebugBitMask & DEBUG_FLASH)
+    {
+      uart_send(__LINE__, "Display Flash configuration before conversion from Version 8.00 to Version 9.00.\r");
+      flash_display_config();
+    }
+
+    sprintf(FlashConfig.Version, "9.00");   // convert to Version 9.00.
+    FlashConfig.FlagAutoBrightness = FLAG_ON;
+    FlashConfig.FlagKeyclick       = FLAG_ON;
+    FlashConfig.FlagScrollEnable   = FLAG_ON;
+    FlashConfig.FlagSummerTime     = FLAG_OFF;
+    FlashConfig.TimeDisplayMode    = H24;
+    for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
+      FlashConfig.Alarm[Loop1UInt8].FlagStatus = FLAG_OFF;
+    sprintf(FlashConfig.SSID,     ".;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.");                                // write specific footprint to flash memory.
+    sprintf(FlashConfig.Password, ".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");  // write specific footprint to flash memory.
+    sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
+    sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
+
+
+    if (DebugBitMask & DEBUG_FLASH)
+    {
+      uart_send(__LINE__, "Display Flash configuration after conversion from Version 8.00 to Version 9.00.\r");
+      flash_display_config();
+    }
+  }
+  /*** One-time FlashConfig writes may be inserted below... ***/
+  /***/
+
+
+
+  /* ---------------------------------------------------------------- *\
+                        Initialize NTP connection.
+  \* ---------------------------------------------------------------- */
+  #ifdef PICO_W
+  ReturnCode = ntp_init();
+
+  if (DebugBitMask & DEBUG_NTP)
+    uart_send(__LINE__, "main() - ntp_init() return code: %d\r", ReturnCode);
+  #endif // PICO_W
 
 
 
@@ -2074,12 +2188,12 @@ int main(void)
 
 
 
-  #ifdef DHT_SUPPORT
   /* ---------------------------------------------------------------- *\
        Initialize communication queues for inter-core communication.
               DHT22 communication is done by Pico's core 1
               (DHT22 must be bought and installed by user)
   \* ---------------------------------------------------------------- */
+  #ifdef DHT_SUPPORT
   for (Loop1UInt16 = 0; Loop1UInt16 < MAX_CORE_QUEUE; ++Loop1UInt16)
   {
     Core0Queue[Loop1UInt16] = 0;  // queue for core 0 commands / responses.
@@ -2094,7 +2208,7 @@ int main(void)
 
 
   /* ---------------------------------------------------------------- *\
-                  Initialize FlagSetupXxx[] on entry.
+                     Initialize setup flags on entry.
   \* ---------------------------------------------------------------- */
   for (Loop1UInt8 = SETUP_NONE; Loop1UInt8 < SETUP_ALARM_HI_LIMIT; ++Loop1UInt8)
     FlagSetupAlarm[Loop1UInt8] = FLAG_OFF;
@@ -2108,7 +2222,7 @@ int main(void)
 
 
   /* ---------------------------------------------------------------- *\
-           "Setup order" in French (for month and DayOfMonth)
+           "Setup order" in French (for Month and DayOfMonth)
                    is different than it is in English.
   \* ---------------------------------------------------------------- */
   if (FlashConfig.Language == FRENCH)
@@ -2140,13 +2254,30 @@ int main(void)
                      Initialize callback functions.
   \* ---------------------------------------------------------------- */
   /* Initialize callback function for 1 millisecond timer (mainly for clock's button press). */
-  add_repeating_timer_ms(1, timer_callback_ms, NULL, &TimerMSec);
+  add_repeating_timer_ms(-1, timer_callback_ms, NULL, &TimerMSec);
 
   /* Initialize callback function for 1 second timer (for hour change and many actions based on current time). */
-  add_repeating_timer_ms(1000, timer_callback_s, NULL, &TimerSec);
+  add_repeating_timer_ms(-1000, timer_callback_s, NULL, &TimerSec);
 
   /* Initialize sound callback function for 50 milliseconds timer (for both active and passive buzzers). */
-  add_repeating_timer_ms(50, sound_callback_ms, NULL, &Timer50MSec);
+  add_repeating_timer_ms(-50, sound_callback_ms, NULL, &Timer50MSec);
+
+
+
+  /* ---------------------------------------------------------------- *\
+      Now that the callback in charge of keeping the real time clock
+          updated is started, resync the clock with the RTC IC.
+  \* ---------------------------------------------------------------- */
+  Time_RTC = Read_RTC();
+
+  CurrentHour        = bcd_to_byte(Time_RTC.hour);
+  CurrentMinute      = bcd_to_byte(Time_RTC.minutes);
+  CurrentSecond      = bcd_to_byte(Time_RTC.seconds);
+  CurrentDayOfMonth  = bcd_to_byte(Time_RTC.dayofmonth);
+  CurrentMonth       = bcd_to_byte(Time_RTC.month);
+  CurrentYearLowPart = bcd_to_byte(Time_RTC.year);
+  CurrentYear        = (FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart;
+  CurrentDayOfWeek   = get_day_of_week(((FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart), CurrentMonth, CurrentDayOfMonth);
 
 
 
@@ -2164,6 +2295,36 @@ int main(void)
 
 
 
+
+
+  /* ---------------------------------------------------------------- *\
+          Check if user wants to set and save Wi-Fi credentials.
+  \* ---------------------------------------------------------------- */
+  /* If user pressed on the "Up" (middle) button for at least 5 seconds during power-up, set and save Wi-Fi credentials. */
+  if (gpio_get(UP_BUTTON) == 0)
+  {
+    TimeStamp = time_us_32();  // keep track of timer value when entering the button-press delay.
+    while (gpio_get(UP_BUTTON) == 0)
+    {
+      sleep_ms(1000);
+      tone(50);
+    }
+  
+  
+    Duration = (time_us_32() - (float)TimeStamp);  // evaluate the time the butotn has been pressed.
+    if (Duration > 5.0)
+    {
+      if (DebugBitMask & DEBUG_NTP)
+        uart_send(__LINE__, "<Up> (middle) button pressed for more than 5 seconds (%3.2 sec) during power-up.\r", Duration / 1000000.0);
+    
+      for (Loop1UInt8 = 0; Loop1UInt8 < 3; ++Loop1UInt8)
+      {
+        tone(30);
+        sleep_ms(40);
+      }
+      set_and_save_credentials();
+    }
+  }
 
 
   #ifdef TEST_CODE
@@ -2261,69 +2422,70 @@ int main(void)
 
 
   /***
+  #ifdef DEVELOPER_VERSION
   pwm_on_off(PWM_SOUND, FLAG_ON);
   Loop1UInt16 = 400;
   pwm_set_frequency(Loop1UInt16);
-  sleep_ms(50);
+  sleep_ms(100);
 
   Loop1UInt16 = 800;
   pwm_set_frequency(Loop1UInt16);
-  sleep_ms(50);
+  sleep_ms(100);
 
   Loop1UInt16 = 1200;
   pwm_set_frequency(Loop1UInt16);
-  sleep_ms(50);
+  sleep_ms(100);
 
   Loop1UInt16 = 1500;
   pwm_set_frequency(Loop1UInt16);
-  sleep_ms(50);
+  sleep_ms(100);
 
   Loop1UInt16 = 1800;
   pwm_set_frequency(Loop1UInt16);
-  sleep_ms(50);
+  sleep_ms(100);
 
   Loop1UInt16 = 2400;
   pwm_set_frequency(Loop1UInt16);
-  sleep_ms(50);
+  sleep_ms(100);
   pwm_on_off(PWM_SOUND, FLAG_OFF);
   ***/
 
   /***
   // Sound test.
   pwm_on_off(PWM_SOUND, FLAG_ON);
-  for (Loop1UInt8 = 0; Loop1UInt8 < 4; ++Loop1UInt8)
+  for (Loop1UInt8 = 0; Loop1UInt8 < 2; ++Loop1UInt8)
   {
-    for (Loop2UInt16 = 400; Loop2UInt16 < 8000; Loop2UInt16 += 2)
+    for (Loop2UInt16 = 500; Loop2UInt16 < 3000; Loop2UInt16 += 25)
     {
       pwm_set_frequency(Loop2UInt16);
-      sleep_ms(30);
+      sleep_ms(10);
     }
 
-    for (Loop2UInt16 = 8000; Loop2UInt16 > 400; Loop2UInt16 -= 2)
+    for (Loop2UInt16 = 3000; Loop2UInt16 > 500; Loop2UInt16 -= 25)
     {
       pwm_set_frequency(Loop2UInt16);
-      sleep_ms(30);
+      sleep_ms(10);
     }
 
-    for (Loop2UInt16 = 400; Loop2UInt16 < 8000; Loop2UInt16 += 2)
-    {
+    for (Loop2UInt16 = 400; Loop2UInt16 < 8000; Loop2UInt16 += 4)
       pwm_set_frequency(Loop2UInt16);
-      sleep_ms(30);
+      sleep_ms(15);
     }
 
-    for (Loop2UInt16 = 8000; Loop2UInt16 > 400; Loop2UInt16 -= 2)
+    for (Loop2UInt16 = 8000; Loop2UInt16 > 400; Loop2UInt16 -= 4)
     {
       pwm_set_frequency(Loop2UInt16);
-      sleep_ms(30);
+      sleep_ms(15);
     }
 
-    for (Loop2UInt16 = 400; Loop2UInt16 < 8000; Loop2UInt16 += 2)
+    for (Loop2UInt16 = 400; Loop2UInt16 < 8000; Loop2UInt16 += 4)
     {
       pwm_set_frequency(Loop2UInt16);
-      sleep_ms(30);
+      sleep_ms(15);
     }
   }
   pwm_on_off(PWM_SOUND, FLAG_OFF);
+  #endif  // DEVELOPER_VERSION
   ***/
 
 
@@ -2336,15 +2498,13 @@ int main(void)
   \* ------------------------------------------------------------------------------------------------------------------------ */
   if (DebugBitMask & DEBUG_DST)
   {
-    uart_send(__LINE__, "---------------------------------------------------------------------------------------------\r");
-    uart_send(__LINE__, "Flash configuration before checking DST time status:\r\r");
+    uart_send(__LINE__, "=========================================================================================================\r");
+    uart_send(__LINE__, " Green-Clock power-up phase. Flash configuration before checking Summer Time status:\r");
     flash_display_config();
-    
-    uart_send(__LINE__, "---------------------------------------------------------------------------------------------\r");
-    sprintf(String, "Current Daylight Saving Time country setting: %2u ", FlashConfig.DaylightSavingTime);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "=========================================================================================================\r");
+    uart_send(__LINE__, " Current Daylight Saving Time country setting: %2u ", FlashConfig.DSTCountry);
 
-    switch(FlashConfig.DaylightSavingTime)
+    switch(FlashConfig.DSTCountry)
     {
       case (DST_AUSTRALIA):
         uart_send(__LINE__, "- Australia\r");
@@ -2394,39 +2554,35 @@ int main(void)
         uart_send(__LINE__, "- Paraguay\r");
       break;
     }
-    uart_send(__LINE__, "---------------------------------------------------------------------------------------------\r");
+    uart_send(__LINE__, "=========================================================================================================\r");
 
 
     /* Indicate if DST parameters being analyzed are for a northern or a southern country. */
-    if (DstParameters[FlashConfig.DaylightSavingTime].StartMonth < DstParameters[FlashConfig.DaylightSavingTime].EndMonth)  // northern countries.
-      uart_send(__LINE__, "Daylight Saving Time for a northern country\r\r");
+    if (DstParameters[FlashConfig.DSTCountry].StartMonth < DstParameters[FlashConfig.DSTCountry].EndMonth)  // northern countries.
+      uart_send(__LINE__, " Daylight Saving Time for a northern country\r\r");
     else
-      uart_send(__LINE__, "Daylight Saving Time for a southern country\r\r");
+      uart_send(__LINE__, " Daylight Saving Time for a southern country\r\r");
  
 
     /* Display all DST parameters for current DST setting . */
-    sprintf(String, "     - StartDayOfMonthLow: %2u       EndDayOfMonthLow: %2u\r", DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthLow, DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthLow);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "     - StartDayOfMonthLow: %2u       EndDayOfMonthLow: %2u\r", DstParameters[FlashConfig.DSTCountry].StartDayOfMonthLow, DstParameters[FlashConfig.DSTCountry].EndDayOfMonthLow);
     
-    sprintf(String, "    - StartDayOfMonthHigh: %2u      EndDayOfMonthHigh: %2u\r", DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthHigh, DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthHigh);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "    - StartDayOfMonthHigh: %2u      EndDayOfMonthHigh: %2u\r", DstParameters[FlashConfig.DSTCountry].StartDayOfMonthHigh, DstParameters[FlashConfig.DSTCountry].EndDayOfMonthHigh);
     
-    sprintf(String, "         - StartDayOfWeek: %2u           EndDayOfWeek: %2u      (%2u to %2u)     (%2u to %2u)\r", 
-            DstParameters[FlashConfig.DaylightSavingTime].StartDayOfWeek, DstParameters[FlashConfig.DaylightSavingTime].EndDayOfWeek,
-            DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthLow, DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthHigh,
-            DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthLow,   DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthHigh );
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "         - StartDayOfWeek: %2u           EndDayOfWeek: %2u      %3.3s (%2u to %2u)    %3.3s (%2u to %2u)\r", 
+            DstParameters[FlashConfig.DSTCountry].StartDayOfWeek, DstParameters[FlashConfig.DSTCountry].EndDayOfWeek,
+            ShortDay[FlashConfig.Language][DstParameters[FlashConfig.DSTCountry].StartDayOfWeek],
+            DstParameters[FlashConfig.DSTCountry].StartDayOfMonthLow, DstParameters[FlashConfig.DSTCountry].StartDayOfMonthHigh,
+            ShortDay[FlashConfig.Language][DstParameters[FlashConfig.DSTCountry].EndDayOfWeek],
+            DstParameters[FlashConfig.DSTCountry].EndDayOfMonthLow,   DstParameters[FlashConfig.DSTCountry].EndDayOfMonthHigh );
   
-    sprintf(String, "             - StartMonth: %2u               EndMonth: %2u         [%s]          [%s]\r", 
-            DstParameters[FlashConfig.DaylightSavingTime].StartMonth, DstParameters[FlashConfig.DaylightSavingTime].EndMonth, 
-            ShortMonth[ENGLISH][DstParameters[FlashConfig.DaylightSavingTime].StartMonth], ShortMonth[ENGLISH][DstParameters[FlashConfig.DaylightSavingTime].EndMonth]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "             - StartMonth: %2u               EndMonth: %2u          %9s         %9s\r", 
+            DstParameters[FlashConfig.DSTCountry].StartMonth, DstParameters[FlashConfig.DSTCountry].EndMonth, 
+            MonthName[ENGLISH][DstParameters[FlashConfig.DSTCountry].StartMonth], MonthName[ENGLISH][DstParameters[FlashConfig.DSTCountry].EndMonth]);
     
-    sprintf(String, "              - StartHour: %2u                EndHour: %2u\r\r", DstParameters[FlashConfig.DaylightSavingTime].StartHour, DstParameters[FlashConfig.DaylightSavingTime].EndHour);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "              - StartHour: %2u                EndHour: %2u\r\r", DstParameters[FlashConfig.DSTCountry].StartHour, DstParameters[FlashConfig.DSTCountry].EndHour);
 
-    sprintf(String, "          - Shift minutes: %2u\r\r\r", DstParameters[FlashConfig.DaylightSavingTime].ShiftMinutes);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "          - Shift minutes: %2u\r\r\r", DstParameters[FlashConfig.DSTCountry].ShiftMinutes);
   }
 
 
@@ -2441,7 +2597,7 @@ int main(void)
   
   /* ---------------------------------------------------------------- *\
       Set DST parameters (FlagSummerTime and Timezone) according to
-          current country DST setting and current date and time.
+       current DST country code setting and current date and time.
   \* ---------------------------------------------------------------- */
   update_dst_status();
 
@@ -2463,11 +2619,10 @@ int main(void)
   scroll_string(24, String);
 
  
-  #ifdef DEVELOPER_VERSION
   /* ---------------------------------------------------------------- *\
         Special message if sound has been cut-off at compile-time.
   \* ---------------------------------------------------------------- */
-  #ifdef NO_SOUND
+  #ifdef SOUND_DISABLED
   /* Special warning if sound has been cut-off in source code. */
   switch (FlashConfig.Language)
   {
@@ -2479,7 +2634,7 @@ int main(void)
       scroll_string(24, "ATTENTION - PAS DE SON    ");
     break;
   }
-  #endif  // NO_SOUND
+  #endif  // SOUND_DISABLED
 
 
   /* ---------------------------------------------------------------- *\
@@ -2498,7 +2653,6 @@ int main(void)
       break;
     }
   }
-  #endif  // DEVELOPER_VERSION
 
 
 
@@ -2507,6 +2661,8 @@ int main(void)
                         Initialize BME280 sensor.
                  (must be bought and installed by user).
   \* ---------------------------------------------------------------- */
+  Bme280Data.Bme280Errors     = 0l;  // reset number of read errors on entry.
+  Bme280Data.Bme280ReadCycles = 0l;  // reset number of read cycles on entry.
   if (bme280_init())
   {
     switch (FlashConfig.Language)
@@ -2646,23 +2802,12 @@ int main(void)
     if (DebugBitMask & DEBUG_CORE)
     {
       TimeStamp = time_us_64();
-
       uart_send(__LINE__, "DHT22 read successful\r");
-
-      sprintf(String, "Current TimeStamp: %llu\r", TimeStamp);
-      uart_send(__LINE__, String);
-      
-      sprintf(String, "DHT22 TimeStamp:   %llu\r", DhtData.TimeStamp);
-      uart_send(__LINE__, String);
-      
-      sprintf(String, "TimeStamp difference: %2.2f milliseconds\r", ((TimeStamp - DhtData.TimeStamp) / 1000.0));
-      uart_send(__LINE__, String);
-      
-      sprintf(String, "Temperature: %2.2f\r", DhtData.Temperature);
-      uart_send(__LINE__, String);
-
-      sprintf(String, "Humidity:    %2.2f\r", DhtData.Humidity);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "Current TimeStamp: %llu\r", TimeStamp);
+      uart_send(__LINE__, "DHT22 TimeStamp:   %llu\r", DhtData.TimeStamp);
+      uart_send(__LINE__, "TimeStamp difference: %2.2f milliseconds\r", ((TimeStamp - DhtData.TimeStamp) / 1000.0));
+      uart_send(__LINE__, "Temperature: %2.2f\r", DhtData.Temperature);
+      uart_send(__LINE__, "Humidity:    %2.2f\r", DhtData.Humidity);
     }
   }
   #endif  // DHT_SUPPORT
@@ -2675,11 +2820,15 @@ int main(void)
     uart_send(__LINE__, "number\r");
 
     for (Loop1UInt8 = 0; Loop1UInt8 < MAX_EVENTS; ++Loop1UInt8)
-    {
-      sprintf(String, "  %2u      %2llu %10s (%2.2u)   [%s]\r", Loop1UInt8, CalendarEvent[Loop1UInt8].Day, MonthName[ENGLISH][CalendarEvent[Loop1UInt8].Month], CalendarEvent[Loop1UInt8].Month, CalendarEvent[Loop1UInt8].Description);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "  %2u      %2llu %10s (%2.2u)   [%s]\r", Loop1UInt8, CalendarEvent[Loop1UInt8].Day, MonthName[ENGLISH][CalendarEvent[Loop1UInt8].Month], CalendarEvent[Loop1UInt8].Month, CalendarEvent[Loop1UInt8].Description);
   }
+
+
+  /*** Enable a watchdog in the main program loop. If the loop gets stuck (and the watchdog timer is not refreshed, 
+     the watchdog will reset the Pico.
+     NOT IMPLEMENTED YET. Watchdog maximum time is 8.3 seconds...***/
+  /// watchdog_enable(0x7FFFFF, true);  // about 8.3 seconds watchdog, pause it when debugging the Pico.
+
 
 
   /* ======================================================================================= *\
@@ -2700,37 +2849,148 @@ int main(void)
 
         if (SoundActiveHead != SoundActiveTail)
         {
-          sprintf(String, "ACTIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_ACTIVE_SOUND_QUEUE, SoundActiveHead, SoundActiveTail);
-          uart_send(__LINE__, String);
-
+          uart_send(__LINE__, "ACTIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_ACTIVE_SOUND_QUEUE, SoundActiveHead, SoundActiveTail);
           uart_send(__LINE__, "          MSec    Repeat\r");
 
           for (Loop1UInt16 = 0; Loop1UInt16 < MAX_ACTIVE_SOUND_QUEUE; ++Loop1UInt16)
-          {
-            sprintf(String, "(%4u)   %5u     %5u\r", Loop1UInt16, SoundQueueActive[Loop1UInt16].MSec, SoundQueueActive[Loop1UInt16].RepeatCount);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, "(%4u)   %5u     %5u\r", Loop1UInt16, SoundQueueActive[Loop1UInt16].MSec, SoundQueueActive[Loop1UInt16].RepeatCount);
         }
 
 
         if (SoundPassiveHead != SoundPassiveTail)
         {
-          sprintf(String, "PASSIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_PASSIVE_SOUND_QUEUE, SoundPassiveHead, SoundPassiveTail);
-          uart_send(__LINE__, String);
-
+          uart_send(__LINE__, "PASSIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_PASSIVE_SOUND_QUEUE, SoundPassiveHead, SoundPassiveTail);
           uart_send(__LINE__, "        Freq   MSec\r");
 
           for (Loop1UInt16 = 0; Loop1UInt16 < MAX_PASSIVE_SOUND_QUEUE; ++Loop1UInt16)
-          {
-            sprintf(String, "(%4u) %5u  %5u\r", Loop1UInt16, SoundQueuePassive[Loop1UInt16].Freq, SoundQueuePassive[Loop1UInt16].MSec);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, "(%4u) %5u  %5u\r", Loop1UInt16, SoundQueuePassive[Loop1UInt16].Freq, SoundQueuePassive[Loop1UInt16].MSec);
         }
 
         FlagUpdate = FLAG_ON;
       }
     }
     ***/
+
+
+    /*** Reset watchdog. ***  NOT IMPLEMENTED YET ***
+    watchdog_update();
+    if (DebugBitMask & DEBUG_CORE)
+    {
+      CurrentWatchDogReset = time_us_64();
+      uart_send(__LINE__, "Reset watchdog: %llu - %llu = %llu", CurrentWatchDogReset, LastWatchDogReset, (CurrentWatchDogReset - LastWatchDogReset));
+      LastWatchDogReset = CurrentWatchDogReset;
+    }
+
+    sleep_ms(10000);  // force watchdog trigger.
+    if (DebugBitMask & DEBUG_WATCHDOG)
+      uart_send(__LINE__, String);
+    ***/
+
+
+    #ifdef PICO_W
+    /* Manage NTP resync. */
+    CurrentTimerValue = time_us_64();
+    if ((NTPData.FlagNTPResync) || (CurrentTimerValue >= (NTPData.NTPLastUpdate + DELTA_TIME)))
+    {
+      if (DebugBitMask & DEBUG_NTP)
+        uart_send(__LINE__, "Requesting Green Clock synchronization through NTP  (FlagNTPResync: %2.2u)\r", NTPData.FlagNTPResync);
+
+      /* Retrieve local time from NTP. */
+      ntp_get_time();
+
+      /* Wait for NTP result. */
+      for (Loop1UInt8 = 0; Loop1UInt8 < 10; ++Loop1UInt8)
+      {
+        if (NTPData.FlagNTPSuccess == FLAG_ON)
+        {
+          if (DebugBitMask & DEBUG_NTP)
+          {
+            uart_send(__LINE__, "Green Clock time:\r");
+            uart_send(__LINE__, "DoW: %s   Date: %2.2u/%2.2u/%4.4u   Time: %2.2u:%2.2u:%2.2u\r", DayName[FlashConfig.Language][CurrentDayOfWeek], CurrentDayOfMonth, CurrentMonth, CurrentYear, CurrentHour, CurrentMinute, CurrentSecond);
+
+
+            /* Display DS3231 current time (real-time clock IC) to visualize time drift since last NTP re-sync. */
+            Time_RTC = Read_RTC();
+
+            CurrentHour        = bcd_to_byte(Time_RTC.hour);
+            CurrentMinute      = bcd_to_byte(Time_RTC.minutes);
+            CurrentSecond      = bcd_to_byte(Time_RTC.seconds);
+            CurrentDayOfMonth  = bcd_to_byte(Time_RTC.dayofmonth);
+            CurrentMonth       = bcd_to_byte(Time_RTC.month);
+            CurrentYearLowPart = bcd_to_byte(Time_RTC.year);
+            CurrentYear        = (FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart;
+            CurrentDayOfWeek   = get_day_of_week(((FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart), CurrentMonth, CurrentDayOfMonth);
+
+            uart_send(__LINE__, "DS3231, real-time clock IC current time:\r");
+            uart_send(__LINE__, "DoW: %s   Date: %2.2u/%2.2u/%4.4u   Time: %2.2u:%2.2u:%2.2u\r\r", DayName[FlashConfig.Language][CurrentDayOfWeek], CurrentDayOfMonth, CurrentMonth, CurrentYear, CurrentHour, CurrentMinute, CurrentSecond);
+            uart_send(__LINE__, "Synchronizing clock with those values (delay: %u milliseconds).\r", 50 * Loop1UInt8);
+            uart_send(__LINE__, "DoW: %s   Date: %2.2u/%2.2u/%4.4u   Time: %2.2u:%2.2u:%2.2u\r", DayName[FlashConfig.Language][NTPData.CurrentDayOfWeek], NTPData.CurrentDayOfMonth, NTPData.CurrentMonth, NTPData.CurrentYear, NTPData.CurrentHour, NTPData.CurrentMinute, NTPData.CurrentSecond);
+          }
+
+          NTPData.FlagNTPSuccess = FLAG_OFF;
+          sprintf(String, "%4.4u", CurrentYear);
+          CurrentYearLowPart = atoi(&String[2]);
+          
+          set_time(NTPData.CurrentSecond, NTPData.CurrentMinute, NTPData.CurrentHour, NTPData.CurrentDayOfWeek, NTPData.CurrentDayOfMonth, NTPData.CurrentMonth, CurrentYearLowPart);
+          show_time();  // update time display as soon as possible.
+
+          /* Read back the real-time clock IC. */
+          Time_RTC = Read_RTC();
+
+          CurrentHour        = bcd_to_byte(Time_RTC.hour);
+          CurrentMinute      = bcd_to_byte(Time_RTC.minutes);
+          CurrentSecond      = bcd_to_byte(Time_RTC.seconds);
+          CurrentDayOfMonth  = bcd_to_byte(Time_RTC.dayofmonth);
+          CurrentMonth       = bcd_to_byte(Time_RTC.month);
+          CurrentYearLowPart = bcd_to_byte(Time_RTC.year);
+          CurrentYear        = (FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart;
+          CurrentDayOfWeek   = get_day_of_week(((FlashConfig.CurrentYearCentile * 100) + CurrentYearLowPart), CurrentMonth, CurrentDayOfMonth);
+
+          if (DebugBitMask & DEBUG_NTP)
+          {
+            uart_send(__LINE__, "Real time clock, as read-back from DS3231.\r");
+            uart_send(__LINE__, "DoW: %s   Date: %2.2u/%2.2u/%4.4u   Time: %2.2u:%2.2u:%2.2u\r", DayName[FlashConfig.Language][CurrentDayOfWeek], CurrentDayOfMonth, CurrentMonth, CurrentYear, CurrentHour, CurrentMinute, CurrentSecond);
+            uart_send(__LINE__, "NTPData.NTPGetTime: 0x%10.10llX\r", NTPData.NTPGetTime);
+            if (NTPData.NTPGetTime)
+              uart_send(__LINE__, "Time elapsed since last poll: %10lld usec.   %10lld usec.\r\r", (time_us_64() - NTPData.NTPLastUpdate), (time_us_64() - NTPData.NTPGetTime));
+          }
+
+          NTPData.FlagNTPResync = FLAG_OFF;
+          NTPData.NTPGetTime    = time_us_64();
+          NTPData.NTPLastUpdate = time_us_64();
+
+          break;  // get out of "for" loop.
+        }
+
+
+        if (NTPData.FlagNTPSuccess == FLAG_POLL)
+        {
+          if (DebugBitMask & DEBUG_NTP)
+            uart_send(__LINE__, "NTP poll succeeded\r\r");
+
+          NTPData.FlagNTPSuccess = FLAG_OFF;
+          NTPData.NTPLastUpdate  = time_us_64();
+
+          break;  // get out of "for" loop.
+        }
+
+        sleep_ms(50);
+      }
+
+
+      /* If current NTP update request failed, add one minute to update delay and retry. */
+      if (Loop1UInt8 >= 10)
+      {
+        NTPData.FlagNTPResync = FLAG_OFF;  // NTP resync error... postpone re-sync.
+        ++NTPData.NTPErrors;
+        if (DebugBitMask & DEBUG_NTP)
+          uart_send(__LINE__, "Failed to synchronize clock with NTP.\r\r");
+        
+        NTPData.NTPLastUpdate += 60000000;   // simulate that last update occured later than reality to postpone next retry.
+      }
+    }
+    #endif  // PICO_W
+
 
 
     /* If user pressed the "Set" (top) button (detected in the callback msec function), proceed with clock setup. */
@@ -2768,22 +3028,15 @@ int main(void)
     }
 
 
-    if (CurrentClockMode == MODE_SHOW_TIME)
-      show_time;
+    if (CurrentClockMode == MODE_SHOW_TIME) show_time;
 
 
     /* If a command has been inserted in the command queue, process it. */
-    if (CommandQueueHead != CommandQueueTail)
-    {
-      process_command_queue();
-    }
+    if (CommandQueueHead != CommandQueueTail) process_command_queue();
 
 
     /* If a tag has been inserted in the scroll queue, process it. */
-    if (ScrollQueueHead != ScrollQueueTail)
-    {
-      process_scroll_queue();
-    }
+    if (ScrollQueueHead != ScrollQueueTail) process_scroll_queue();
 
 
     #ifdef IR_SUPPORT
@@ -2793,36 +3046,28 @@ int main(void)
       if (DebugBitMask & DEBUG_IR_COMMAND)
       {
         printf("\r\r");
-        sprintf(String, "Received IR data - IrStepCount: %u\r", IrStepCount);
-        uart_send(__LINE__, String);
+        uart_send(__LINE__, "Received IR data - IrStepCount: %u\r", IrStepCount);
       }
       
       sleep_ms(250);  // make sure all IR burst has been received.
 
       if (DebugBitMask & DEBUG_IR_COMMAND)
       {
-        sprintf(String, "Received IR data after wait time - IrStepCount: %u\r", IrStepCount);
-        uart_send(__LINE__, String);
+        uart_send(__LINE__, "Received IR data after wait time - IrStepCount: %u\r", IrStepCount);
 
         /***/
         // Optionally display timing for every logic level change of last received infrared burst.
         for (Loop1UInt16 = 0; Loop1UInt16 < IrStepCount; ++Loop1UInt16)
-        {
-          sprintf(String, "IR event number: %3u    IrLevel: %c   IrInitialValue: %10llu    IrFinalValue: %10llu    IrResultValue: %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrInitialValue[Loop1UInt16], IrFinalValue[Loop1UInt16], IrResultValue[Loop1UInt16], IrFinalValue[Loop1UInt16] - IrInitialValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
-        }
-        sprintf(String, "Total number of logic level changes (IrStepCount): %u (0 to %u)\r", IrStepCount, (IrStepCount - 1));
-        uart_send(__LINE__, String);
-        printf("\r\r");
+          uart_send(__LINE__, "IR event number: %3u    IrLevel: %c   IrInitialValue: %10llu    IrFinalValue: %10llu    IrResultValue: %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrInitialValue[Loop1UInt16], IrFinalValue[Loop1UInt16], IrResultValue[Loop1UInt16], IrFinalValue[Loop1UInt16] - IrInitialValue[Loop1UInt16]);
+
+        uart_send(__LINE__, "Total number of logic level changes (IrStepCount): %u (0 to %u)\r", IrStepCount, (IrStepCount - 1));
+         printf("\r\r");
         /***/
 
         
         /* Display debug header of last infrared burst decoded. */
-        sprintf(String, "Event   Bit   Level  Duration  Level  Duration            Result\r");
-        uart_send(__LINE__, String);
-
-        sprintf(String, "number number\r");
-        uart_send(__LINE__, String);
+        uart_send(__LINE__, "Event   Bit   Level  Duration  Level  Duration            Result\r");
+        uart_send(__LINE__, "number number\r");
    
         DataBuffer = 0ll;
         for (Loop1UInt16 = 0; Loop1UInt16 < IrStepCount; Loop1UInt16 += 2)
@@ -2831,10 +3076,7 @@ int main(void)
 
           /* Display two <Get ready> levels from IR burst. */
           if (Loop1UInt16 < 2)
-          {
-            sprintf(String, " [%2u]    --     %c     %5lu      %c     %5lu           <get ready>\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, " [%2u]    --     %c     %5lu      %c     %5lu           <get ready>\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
           
           
           /* Display 32 data bits. */
@@ -2842,17 +3084,13 @@ int main(void)
           {
             DataBuffer <<= 1;
             if (IrResultValue[Loop1UInt16 + 1] > 1400) ++DataBuffer;
-            sprintf(String, " [%2u]   %3u     %c     %5lu      %c     %5lu      Data: 0x%8.8X\r", Loop1UInt16, BitNumber, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1], DataBuffer);
-            uart_send(__LINE__, String);
+            uart_send(__LINE__, " [%2u]   %3u     %c     %5lu      %c     %5lu      Data: 0x%8.8X\r", Loop1UInt16, BitNumber, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1], DataBuffer);
           }
 
 
           /* Display extra bits. */
           if (BitNumber > 32)
-          {
-            sprintf(String, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
         }
         printf("\r\r");
       }
@@ -2860,10 +3098,7 @@ int main(void)
       if ((decode_ir_command(FLAG_OFF, &IrCommand) == 0) && (IrCommand != IR_LO_LIMIT) && (IrCommand < IR_HI_LIMIT))
       {
         if (DebugBitMask & DEBUG_IR_COMMAND)
-        {
-          sprintf(String, "Going to process_ir_command(%u)\r", IrCommand);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "Going to process_ir_command(%u)\r", IrCommand);
       
         /* Process IR command only if it has been received / decoded without error. */
         IdleNumberOfSeconds = 0; // reset the number of seconds the system has been idle.
@@ -2873,10 +3108,7 @@ int main(void)
       else
       {
         if (DebugBitMask & DEBUG_IR_COMMAND)
-        {
-          sprintf(String, "Error in decoding IR command\r");
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "Error in decoding IR command\r");
       }
     }
     #endif  // IR_SUPPORT
@@ -2912,10 +3144,7 @@ int main(void)
       LastIdleMonitorPacket = IdleMonitorPacket;
 
       if (DebugBitMask & DEBUG_IDLE_MONITOR)
-      {
-        sprintf(String, "IdleMonitorPacket = %2u\r", IdleMonitorPacket);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "IdleMonitorPacket = %2u\r", IdleMonitorPacket);
     }
 
     /* One more system loop executed. */
@@ -2945,16 +3174,10 @@ int main(void)
       if (DebugBitMask & DEBUG_IDLE_MONITOR)
       {
         for (Loop1UInt8 = 0; Loop1UInt8 < 12; ++Loop1UInt8)
-        {
-          sprintf(String, "IdleMonitor[%2.2u] = %8llu  (%2.2u to %2.2u))\r", Loop1UInt8, IdleMonitor[Loop1UInt8], (Loop1UInt8 * 5), ((Loop1UInt8 * 5) + 5));
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "IdleMonitor[%2.2u] = %8llu  (%2.2u to %2.2u))\r", Loop1UInt8, IdleMonitor[Loop1UInt8], (Loop1UInt8 * 5), ((Loop1UInt8 * 5) + 5));
 
-        sprintf(String, "Current period: IdleMonitor[12] = %llu\r", IdleMonitor[12]);
-        uart_send(__LINE__, String);
-
-        sprintf(String, "Resulting system idle monitor   = %llu\r\r\r", IdleMonitor[13]);
-        uart_send(__LINE__, String);
+        uart_send(__LINE__, "Current period: IdleMonitor[12] = %llu\r", IdleMonitor[12]);
+        uart_send(__LINE__, "Resulting system idle monitor   = %llu\r\r\r", IdleMonitor[13]);
       }
 
       FlagIdleMonitor = FLAG_ON; // only one calculation per 5-seconds period.
@@ -2971,17 +3194,11 @@ int main(void)
         for (IdleArchivePacket = 0; IdleArchivePacket < IdleTimeSamples; ++IdleArchivePacket)
         {
           for (Loop1UInt8 = 0; Loop1UInt8 < 12; ++Loop1UInt8)
-          {
-            sprintf(String, "ArchiveIdleMonitor[%2.2u][%3.3u] = %8llu)\r", Loop1UInt8, IdleArchivePacket, ArchiveIdleMonitor[Loop1UInt8][IdleArchivePacket]);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, "ArchiveIdleMonitor[%2.2u][%3.3u] = %8llu)\r", Loop1UInt8, IdleArchivePacket, ArchiveIdleMonitor[Loop1UInt8][IdleArchivePacket]);
 
           uart_send(__LINE__, "\r");
-          sprintf(String, "ArchiveIdleMonitor[12][%3.3u] = %8llu (current period)\r\r", IdleArchivePacket, ArchiveIdleMonitor[12][IdleArchivePacket]);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "System idle monitor   [%3.3u] = %8llu\r\r\r", IdleArchivePacket, ArchiveIdleMonitor[13][IdleArchivePacket]);
-          uart_send(__LINE__, String);
+          uart_send(__LINE__, "ArchiveIdleMonitor[12][%3.3u] = %8llu (current period)\r\r", IdleArchivePacket, ArchiveIdleMonitor[12][IdleArchivePacket]);
+          uart_send(__LINE__, "System idle monitor   [%3.3u] = %8llu\r\r\r", IdleArchivePacket, ArchiveIdleMonitor[13][IdleArchivePacket]);
         }
         IdleArchivePacket = 0;
       }
@@ -3000,8 +3217,6 @@ int main(void)
 \* ------------------------------------------------------------------ */
 UINT16 adc_read_light(void)
 {
-  UCHAR String[128];
-
   static UINT16 Count;
   UINT16 LightValue;
 
@@ -3023,9 +3238,7 @@ UINT16 adc_read_light(void)
     if (Count == 2500)
     {
       /* Print an update every 2.5 seconds. */
-      sprintf(String, "Raw reading adc_read_light(): %u   (4095 - %u) = %u\r", LightValue, LightValue, 4095 - LightValue);
-      uart_send(__LINE__, String);
-
+      uart_send(__LINE__, "Raw reading adc_read_light(): %u   (4095 - %u) = %u\r", LightValue, LightValue, 4095 - LightValue);
       Count = 0;
     }
   }
@@ -3105,6 +3318,9 @@ float adc_read_voltage(void)
   float Volts;
 
 
+  /*** Strangely, voltage reading doesn't seem to work on the Pico W as it does on the Pico... ***/
+  /*** I'll have to investigate this later... ***/
+
   /* Notes: 
      ADC 0 (gpio 26)  is for photo-resistor (ambient light level).
      ADC 1 (gpio 27)  not used
@@ -3113,11 +3329,35 @@ float adc_read_voltage(void)
      ADC 4 (internal) is internally connected to read Pico's temperature. */
   adc_select_input(3);
 
+  /* For Pico W, it is important that GPIO 25 be high to read the power supply voltage. */
+  if (PicoType == TYPE_PICO_W) gpio_put(PICO_LED, 1);
+
   /* Read ADC converter raw value. */
   AdcValue = adc_read();
 
   /* Convert raw value to voltage value. */
-  Volts = (3 * (AdcValue * 3.28f / 4096));
+  Volts = AdcValue * (3.3 / (1 << 12));
+
+  if (DebugBitMask & DEBUG_PICO_W)
+  {
+    uart_send(__LINE__, "Reading when level high: %u\r", AdcValue);
+    uart_send(__LINE__, "Converted to volts: %2.2f\r", Volts);
+  }
+
+  /* Reset output to low level. */
+  if (PicoType == TYPE_PICO_W) gpio_put(PICO_LED, 0);
+
+  /* Read ADC converter raw value. */
+  AdcValue = adc_read();
+
+  /* Convert raw value to voltage value. */
+  Volts = AdcValue * (3.3 / (1 << 12));
+
+  if (DebugBitMask & DEBUG_PICO_W)
+  {
+    uart_send(__LINE__, "Reading when level low: %u\r", AdcValue);
+    uart_send(__LINE__, "Converted to volts: %2.2f\r", Volts);
+  }
 
   return Volts;
 }
@@ -3195,11 +3435,8 @@ void adjust_clock_brightness(void)
 
       if (DebugBitMask & DEBUG_BRIGHTNESS)
       {
-        sprintf(String, "Instant level: %4u   Av1: %4u   Av2: %4u   (Av2 - 200): %3u\r", adc_read_light(), AverageLightLevel, AverageLevel, (AverageLevel - 225));
-        uart_send(__LINE__, String);
-
-        sprintf(String, "((Av2 - 225) / 3.0): %3.2f   (UINT16)((Av2 - 225) / 3.0): %3u   Duty cycle: %3u\r\r", ((AverageLevel - 225) / 3.0), (UINT16)((AverageLevel - 225) / 3.0), DutyCycle);
-        uart_send(__LINE__, String);
+        uart_send(__LINE__, "Instant level: %4u   Av1: %4u   Av2: %4u   (Av2 - 200): %3u\r", adc_read_light(), AverageLightLevel, AverageLevel, (AverageLevel - 225));
+        uart_send(__LINE__, "((Av2 - 225) / 3.0): %3.2f   (UINT16)((Av2 - 225) / 3.0): %3u   Duty cycle: %3u\r\r", ((AverageLevel - 225) / 3.0), (UINT16)((AverageLevel - 225) / 3.0), DutyCycle);
       }
     }
   }
@@ -3226,106 +3463,72 @@ UINT8 bme280_compute_calib_param()
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_compute_calib_param(Entering)\r\r");
-  }
+
 
   /* Compute calibration parameters for temperature. */
-  Bme280CalibParam.DigT1 = (UINT16)(Bme280CalibData[0] + (Bme280CalibData[1] << 8));
-  Bme280CalibParam.DigT2 = (int16_t)(Bme280CalibData[2] + (Bme280CalibData[3] << 8));
-  Bme280CalibParam.DigT3 = (int16_t)(Bme280CalibData[4] + (Bme280CalibData[5] << 8));
+  Bme280Data.DigT1 =  (UINT16)(Bme280Data.Bme280CalibData[0] + (Bme280Data.Bme280CalibData[1] << 8));
+  Bme280Data.DigT2 = (int16_t)(Bme280Data.Bme280CalibData[2] + (Bme280Data.Bme280CalibData[3] << 8));
+  Bme280Data.DigT3 = (int16_t)(Bme280Data.Bme280CalibData[4] + (Bme280Data.Bme280CalibData[5] << 8));
 
   /* Compute calibration parameters for pressure. */
-  Bme280CalibParam.DigP1 = (UINT16)(Bme280CalibData[6] + (Bme280CalibData[7] << 8));
-  Bme280CalibParam.DigP2 = (int16_t)((Bme280CalibData[8] + (Bme280CalibData[9] << 8)) & 0xFFFF);
+  Bme280Data.DigP1 =   (UINT16)(Bme280Data.Bme280CalibData[6] + (Bme280Data.Bme280CalibData[7] << 8));
+  Bme280Data.DigP2 = (int16_t)((Bme280Data.Bme280CalibData[8] + (Bme280Data.Bme280CalibData[9] << 8)) & 0xFFFF);
 
-  Dum1UInt16 = (((Bme280CalibData[11] << 8) & 0xFF00) + Bme280CalibData[10]);
-  Bme280CalibParam.DigP3 = (int16_t)Dum1UInt16;
+  Dum1UInt16 = (((Bme280Data.Bme280CalibData[11] << 8) & 0xFF00) + Bme280Data.Bme280CalibData[10]);
+  Bme280Data.DigP3 = (int16_t)Dum1UInt16;
 
-  Dum1UInt16 = (((Bme280CalibData[13] << 8) & 0xFF00) + Bme280CalibData[12]);
-  Bme280CalibParam.DigP4 = (int16_t)Dum1UInt16;
+  Dum1UInt16 = (((Bme280Data.Bme280CalibData[13] << 8) & 0xFF00) + Bme280Data.Bme280CalibData[12]);
+  Bme280Data.DigP4 = (int16_t)Dum1UInt16;
 
-  Dum1UInt16 = (((Bme280CalibData[15] << 8) & 0xFF00) + Bme280CalibData[14]);
-  Bme280CalibParam.DigP5 = (int16_t)Dum1UInt16;
+  Dum1UInt16 = (((Bme280Data.Bme280CalibData[15] << 8) & 0xFF00) + Bme280Data.Bme280CalibData[14]);
+  Bme280Data.DigP5 = (int16_t)Dum1UInt16;
 
-  Dum1UInt16 = (((Bme280CalibData[17] << 8) & 0xFF00) + Bme280CalibData[16]);
-  Bme280CalibParam.DigP6 = (int16_t)Dum1UInt16;
+  Dum1UInt16 = (((Bme280Data.Bme280CalibData[17] << 8) & 0xFF00) + Bme280Data.Bme280CalibData[16]);
+  Bme280Data.DigP6 = (int16_t)Dum1UInt16;
 
-  Dum1UInt16 = (((Bme280CalibData[19] << 8) & 0xFF00) + Bme280CalibData[18]);
-  Bme280CalibParam.DigP7 = (int16_t)Dum1UInt16;
+  Dum1UInt16 = (((Bme280Data.Bme280CalibData[19] << 8) & 0xFF00) + Bme280Data.Bme280CalibData[18]);
+  Bme280Data.DigP7 = (int16_t)Dum1UInt16;
 
-  Dum1UInt16 = (((Bme280CalibData[21] << 8) & 0xFF00) + Bme280CalibData[20]);
-  Bme280CalibParam.DigP8 = (int16_t)Dum1UInt16;
+  Dum1UInt16 = (((Bme280Data.Bme280CalibData[21] << 8) & 0xFF00) + Bme280Data.Bme280CalibData[20]);
+  Bme280Data.DigP8 = (int16_t)Dum1UInt16;
 
-  Dum1UInt16 = (((Bme280CalibData[23] << 8) & 0xFF00) + Bme280CalibData[22]);
-  Bme280CalibParam.DigP9 = (int16_t)Dum1UInt16;
+  Dum1UInt16 = (((Bme280Data.Bme280CalibData[23] << 8) & 0xFF00) + Bme280Data.Bme280CalibData[22]);
+  Bme280Data.DigP9 = (int16_t)Dum1UInt16;
 
   /* Compute calibration parameters for humidity. */
-  Bme280CalibParam.DigH1 = (UCHAR)Bme280CalibData[25];
-  Bme280CalibParam.DigH2 = (int16_t)(Bme280CalibData[26] + (Bme280CalibData[27] << 8));
-  Bme280CalibParam.DigH3 = (UCHAR)Bme280CalibData[28];
-  Bme280CalibParam.DigH4 = (int16_t)((Bme280CalibData[29] << 4) + (Bme280CalibData[30] & 0x0F));
-  Bme280CalibParam.DigH5 = (int16_t)((Bme280CalibData[31] << 4) + ((Bme280CalibData[30] & 0xF0) >> 4));
-  Bme280CalibParam.DigH6 = (char)Bme280CalibData[32];
+  Bme280Data.DigH1 =     (UCHAR)Bme280Data.Bme280CalibData[25];
+  Bme280Data.DigH2 =  (int16_t)(Bme280Data.Bme280CalibData[26] + (Bme280Data.Bme280CalibData[27] << 8));
+  Bme280Data.DigH3 =     (UCHAR)Bme280Data.Bme280CalibData[28];
+  Bme280Data.DigH4 = (int16_t)((Bme280Data.Bme280CalibData[29] << 4) +  (Bme280Data.Bme280CalibData[30] & 0x0F));
+  Bme280Data.DigH5 = (int16_t)((Bme280Data.Bme280CalibData[31] << 4) + ((Bme280Data.Bme280CalibData[30] & 0xF0) >> 4));
+  Bme280Data.DigH6 =      (char)Bme280Data.Bme280CalibData[32];
 
   if (DebugBitMask & DEBUG_BME280)
   {
     uart_send(__LINE__, "Temperature:\r");
-    sprintf(String, "DigT1: 0x%8.8X   %7u (UINT16)\r",     Bme280CalibParam.DigT1, Bme280CalibParam.DigT1);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigT2: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigT2, Bme280CalibParam.DigT2);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigT3: 0x%8.8X   %7d (INT16)\r\r\r", Bme280CalibParam.DigT3, Bme280CalibParam.DigT3);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "DigT1: 0x%8.8X   %7u (UINT16)\r",    Bme280Data.DigT1, Bme280Data.DigT1);
+    uart_send(__LINE__, "DigT2: 0x%8.8X   %7d (INT16)\r",     Bme280Data.DigT2, Bme280Data.DigT2);
+    uart_send(__LINE__, "DigT3: 0x%8.8X   %7d (INT16)\r\r\r", Bme280Data.DigT3, Bme280Data.DigT3);
 
     uart_send(__LINE__, "Pressure:\r");
-    sprintf(String, "DigP1: 0x%8.8X   %7u (UINT16)\r",     Bme280CalibParam.DigP1, Bme280CalibParam.DigP1);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP2: 0x%8.8X   %7d (INT16)\r",    (Bme280CalibParam.DigP2 & 0xFFFF), Bme280CalibParam.DigP2);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP3: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigP3, Bme280CalibParam.DigP3);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP4: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigP4, Bme280CalibParam.DigP4);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP5: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigP5, Bme280CalibParam.DigP5);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP6: 0x%8.8X   %7d (INT16)\r",    (Bme280CalibParam.DigP6 & 0xFFFF), Bme280CalibParam.DigP6);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP7: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigP7, Bme280CalibParam.DigP7);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP8: 0x%8.8X   %7d (INT16)\r",    (Bme280CalibParam.DigP8 & 0xFFFF), Bme280CalibParam.DigP8);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigP9: 0x%8.8X   %7d (INT16)\r\r\r", Bme280CalibParam.DigP9, Bme280CalibParam.DigP9);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "DigP1: 0x%8.8X   %7u (UINT16)\r",    Bme280Data.DigP1,           Bme280Data.DigP1);
+    uart_send(__LINE__, "DigP2: 0x%8.8X   %7d (INT16)\r",    (Bme280Data.DigP2 & 0xFFFF), Bme280Data.DigP2);
+    uart_send(__LINE__, "DigP3: 0x%8.8X   %7d (INT16)\r",     Bme280Data.DigP3,           Bme280Data.DigP3);
+    uart_send(__LINE__, "DigP4: 0x%8.8X   %7d (INT16)\r",     Bme280Data.DigP4,           Bme280Data.DigP4);
+    uart_send(__LINE__, "DigP5: 0x%8.8X   %7d (INT16)\r",     Bme280Data.DigP5,           Bme280Data.DigP5);
+    uart_send(__LINE__, "DigP6: 0x%8.8X   %7d (INT16)\r",    (Bme280Data.DigP6 & 0xFFFF), Bme280Data.DigP6);
+    uart_send(__LINE__, "DigP7: 0x%8.8X   %7d (INT16)\r",     Bme280Data.DigP7,           Bme280Data.DigP7);
+    uart_send(__LINE__, "DigP8: 0x%8.8X   %7d (INT16)\r",    (Bme280Data.DigP8 & 0xFFFF), Bme280Data.DigP8);
+    uart_send(__LINE__, "DigP9: 0x%8.8X   %7d (INT16)\r\r\r", Bme280Data.DigP9,           Bme280Data.DigP9);
 
     uart_send(__LINE__, "Humidity:\r");
-    sprintf(String, "DigH1: 0x%8.8X   %7u (UCHAR)\r",   Bme280CalibParam.DigH1, Bme280CalibParam.DigH1);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigH2: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigH2, Bme280CalibParam.DigH2);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigH3: 0x%8.8X   %7u (UCHAR)\r",   Bme280CalibParam.DigH3, Bme280CalibParam.DigH3);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigH4: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigH4, Bme280CalibParam.DigH4);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigH5: 0x%8.8X   %7d (INT16)\r",     Bme280CalibParam.DigH5, Bme280CalibParam.DigH5);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "DigH6: 0x%8.8X   %7d (CHAR)\r\r\r\r", Bme280CalibParam.DigH6, Bme280CalibParam.DigH6);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "DigH1: 0x%8.8X   %7u (UCHAR)\r",      Bme280Data.DigH1, Bme280Data.DigH1);
+    uart_send(__LINE__, "DigH2: 0x%8.8X   %7d (INT16)\r",      Bme280Data.DigH2, Bme280Data.DigH2);
+    uart_send(__LINE__, "DigH3: 0x%8.8X   %7u (UCHAR)\r",      Bme280Data.DigH3, Bme280Data.DigH3);
+    uart_send(__LINE__, "DigH4: 0x%8.8X   %7d (INT16)\r",      Bme280Data.DigH4, Bme280Data.DigH4);
+    uart_send(__LINE__, "DigH5: 0x%8.8X   %7d (INT16)\r",      Bme280Data.DigH5, Bme280Data.DigH5);
+    uart_send(__LINE__, "DigH6: 0x%8.8X   %7d (CHAR)\r\r\r\r", Bme280Data.DigH6, Bme280Data.DigH6);
   }
 
   return 0;
@@ -3374,12 +3577,11 @@ UINT8 bme280_get_temp(void)
 
 
   /* One more temperature reading from BME280. */
-  ++Bme280Readings;
+  ++Bme280Data.Bme280ReadCycles;
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_get_temp(Entering)\r\r");
-  }
+
 
   /* -------------------- Force a BME280 reading -------------------- */
   /* --- and oversampling for temperature and barometric pressure --- */
@@ -3408,8 +3610,7 @@ UINT8 bme280_get_temp(void)
   sleep_ms(300);
   if (ReturnCode == PICO_ERROR_GENERIC)
   {
-    ++Bme280Errors;
-
+    ++Bme280Data.Bme280Errors;
     return 0xFF;
   }
 
@@ -3421,88 +3622,67 @@ UINT8 bme280_get_temp(void)
   /* Compute raw values. */
   RawPress = ((Buffer[0] << 12) + (Buffer[1] << 4) + ((Buffer[2] & 0xF0) >> 4));
   RawTemp  = ((Buffer[3] << 12) + (Buffer[4] << 4) + ((Buffer[5] & 0xF0) >> 4));
-  RawHum   = ((Buffer[6] <<  8) + Buffer[7]);
+  RawHum   = ((Buffer[6] <<  8) +  Buffer[7]);
 
   if (DebugBitMask & DEBUG_BME280)
   {
-    sprintf(String, "RawPress: %5.5X      ", RawPress);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "- RawTemp:  %5.5X      ", RawTemp);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "- RawHum:   %5.4X\r\r\r", RawHum);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "RawPress: %5.5X      ", RawPress);
+    uart_send(__LINE__, "- RawTemp:  %5.5X      ", RawTemp);
+    uart_send(__LINE__, "- RawHum:   %5.4X\r\r\r", RawHum);
   }
 
   /* Compute actual temperature. */
-  Dum1Int32 = ((((RawTemp >> 3) - ((int32_t)Bme280CalibParam.DigT1 << 1))) * ((int32_t)Bme280CalibParam.DigT2)) >> 11;
-  Dum2Int32 = (((((RawTemp >> 4) - ((int32_t)Bme280CalibParam.DigT1)) * ((RawTemp >> 4) - ((int32_t)Bme280CalibParam.DigT1))) >> 12) * ((int32_t)Bme280CalibParam.DigT3)) >> 14;
+  Dum1Int32 = ((((RawTemp >> 3)  - ((int32_t)Bme280Data.DigT1 << 1))) * ((int32_t)Bme280Data.DigT2)) >> 11;
+  Dum2Int32 = (((((RawTemp >> 4) - ((int32_t)Bme280Data.DigT1)) * ((RawTemp >> 4) - ((int32_t)Bme280Data.DigT1))) >> 12) * ((int32_t)Bme280Data.DigT3)) >> 14;
   TempFactor = Dum1Int32 + Dum2Int32;
-  Bme280CalibParam.TemperatureC = ((TempFactor * 5 + 128) >> 8) / 100.0;
-  Bme280CalibParam.TemperatureF = ((Bme280CalibParam.TemperatureC * 9) / 5.0) + 32;
+  Bme280Data.TemperatureC = ((TempFactor * 5 + 128) >> 8) / 100.0;
+  Bme280Data.TemperatureF = ((Bme280Data.TemperatureC * 9) / 5.0) + 32;
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "Temperature:    %3.3f'C   %3.3f'F\r\r\r", Bme280CalibParam.TemperatureC, Bme280CalibParam.TemperatureF);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Temperature:    %3.3f'C   %3.3f'F\r\r\r", Bme280Data.TemperatureC, Bme280Data.TemperatureF);
+
 
   /* Compute actual relative humidity. */
   FinalHum = (TempFactor - ((int32_t)76800));
-  FinalHum = (((((RawHum << 14) - (((int32_t)Bme280CalibParam.DigH4) << 20) - (((int32_t)Bme280CalibParam.DigH5) * FinalHum)) +
-                ((int32_t)16384)) >>
-               15) *
-              (((((((FinalHum * ((int32_t)Bme280CalibParam.DigH6)) >> 10) *
-                   (((FinalHum * ((int32_t)Bme280CalibParam.DigH3)) >> 11) + ((int32_t)32768))) >>
-                  10) +
-                 ((int32_t)2097152)) *
-                    ((int32_t)Bme280CalibParam.DigH2) +
-                8192) >>
-               14));
-  FinalHum = (FinalHum - (((((FinalHum >> 15) * (FinalHum >> 15)) >> 7) * ((int32_t)Bme280CalibParam.DigH1)) >> 4));
+  FinalHum = (((((RawHum << 14) - (((int32_t)Bme280Data.DigH4) << 20) - (((int32_t)Bme280Data.DigH5) * FinalHum)) +
+                ((int32_t)16384)) >> 15) *
+              (((((((FinalHum * ((int32_t)Bme280Data.DigH6)) >> 10) *
+                  (((FinalHum * ((int32_t)Bme280Data.DigH3)) >> 11) + ((int32_t)32768))) >> 10) + ((int32_t)2097152)) *
+                   ((int32_t)Bme280Data.DigH2) + 8192) >> 14));
+  FinalHum = (FinalHum - (((((FinalHum >> 15) * (FinalHum >> 15)) >> 7) * ((int32_t)Bme280Data.DigH1)) >> 4));
   FinalHum = (FinalHum < 0 ? 0 : FinalHum);
   FinalHum = (FinalHum > 419430400 ? 419430400 : FinalHum);
   FinalHum = (int32_t)(FinalHum >> 12);
-  Bme280CalibParam.Humidity = FinalHum / 1024.0;
+  Bme280Data.Humidity = FinalHum / 1024.0;
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "Humidity:       %2.3f%%\r\r\r", Bme280CalibParam.Humidity);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Humidity:       %2.3f%%\r\r\r", Bme280Data.Humidity);
 
   /* Compute actual barometric pressure. */
   Dum1Int64 = ((int64_t)TempFactor) - 128000;
-  Dum2Int64 = Dum1Int64 * Dum1Int64 * (int64_t)Bme280CalibParam.DigP6;
-  Dum2Int64 = Dum2Int64 + ((Dum1Int64 * (int64_t)Bme280CalibParam.DigP5) << 17);
-  Dum2Int64 = Dum2Int64 + (((int64_t)Bme280CalibParam.DigP4) << 35);
-  Dum1Int64 = ((Dum1Int64 * Dum1Int64 * (int64_t)Bme280CalibParam.DigP3) >> 8) + ((Dum1Int64 * (int64_t)Bme280CalibParam.DigP2) << 12);
-  Dum1Int64 = (((((int64_t)1) << 47) + Dum1Int64)) * ((int64_t)Bme280CalibParam.DigP1) >> 33;
+  Dum2Int64 = Dum1Int64 * Dum1Int64 * (int64_t)Bme280Data.DigP6;
+  Dum2Int64 = Dum2Int64 + ((Dum1Int64 * (int64_t)Bme280Data.DigP5) << 17);
+  Dum2Int64 = Dum2Int64 + (((int64_t)Bme280Data.DigP4) << 35);
+  Dum1Int64 = ((Dum1Int64 * Dum1Int64 * (int64_t)Bme280Data.DigP3) >> 8) + ((Dum1Int64 * (int64_t)Bme280Data.DigP2) << 12);
+  Dum1Int64 = (((((int64_t)1) << 47) + Dum1Int64)) * ((int64_t)Bme280Data.DigP1) >> 33;
   if (Dum1Int64 == 0)
     return 0;  // to prevent a division by zero.
   
   FinalPress = 1048576 - RawPress;
   FinalPress = (((FinalPress << 31) - Dum2Int64) * 3125) / Dum1Int64;
-  Dum1Int64 = (((int64_t)Bme280CalibParam.DigP9) * (FinalPress >> 13) * (FinalPress >> 13)) >> 25;
-  Dum2Int64 = (((int64_t)Bme280CalibParam.DigP8) * FinalPress) >> 19;
-  FinalPress = (UINT32)((FinalPress + Dum1Int64 + Dum2Int64) >> 8) + (((int64_t)Bme280CalibParam.DigP7) << 4);
-  Bme280CalibParam.Pressure = FinalPress / 25600.0;
+  Dum1Int64 = (((int64_t)Bme280Data.DigP9) * (FinalPress >> 13) * (FinalPress >> 13)) >> 25;
+  Dum2Int64 = (((int64_t)Bme280Data.DigP8) * FinalPress) >> 19;
+  FinalPress = (UINT32)((FinalPress + Dum1Int64 + Dum2Int64) >> 8) + (((int64_t)Bme280Data.DigP7) << 4);
+  Bme280Data.Pressure = FinalPress / 25600.0;
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "Pressure:       %4.3f hPa\r\r\r", Bme280CalibParam.Pressure);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Pressure:       %4.3f hPa\r\r\r", Bme280Data.Pressure);
 
   /* NOTE: Relative altitude may not be an interesting value to calculate since this value changes with
            normal and usual pressure changes due to atmospheric factors. */
   /*** Compute approximate altitude above sea level, based on atmospheric pressure and current temperature.
      NOTE: 1013.25 hPa is the standard pressure at sea level. ***
-  Bme280CalibParam.Altitude = 44330.0 * (1.0 - pow(Bme280CalibParam.Pressure / 1013.25, 0.190294957));
+  Bme280Data.Altitude = 44330.0 * (1.0 - pow(Bme280Data.Pressure / 1013.25, 0.190294957));
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "Altitude:       %4.3f - seems to vary too much with pressure change over time\r\r\r", Bme280CalibParam.Altitude);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Altitude:       %4.3f - seems to vary too much with pressure change over time\r\r\r", Bme280Data.Altitude);
   ***/
 
   /* NOTE: Equation below to calculate the humidex factor is wrong. References about how to calculate this parameter are hard to
@@ -3510,25 +3690,19 @@ UINT8 bme280_get_temp(void)
   /* Compute humidex factor, based on current temperature, relative humidity and atmospheric pressure. */
   /* Humidex is not valid if temperature is below 0'C. */
   /*** Part requiring rework... ***
-  if (Bme280CalibParam.TemperatureC < 0)
-    Bme280CalibParam.Humidex = 0;
+  if (Bme280Data.TemperatureC < 0)
+    Bme280Data.Humidex = 0;
 
-  Alpha = ((17.27 * Bme280CalibParam.TemperatureC) / (237.7 + Bme280CalibParam.TemperatureC)) + log(Bme280CalibParam.Humidity / 100);
+  Alpha = ((17.27 * Bme280Data.TemperatureC) / (237.7 + Bme280Data.TemperatureC)) + log(Bme280Data.Humidity / 100);
   DewPoint = (237.7 * Alpha) / (17.27 - Alpha);
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "Dew point:      %4.3f - need to be confirmed\r\r\r", DewPoint);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Dew point:      %4.3f - need to be confirmed\r\r\r", DewPoint);
 
-  Bme280CalibParam.Humidex = (TempC + (0.5555 * (Bme280CalibParam.Pressure - 10.0)));
+  Bme280Data.Humidex = (TempC + (0.5555 * (Bme280Data.Pressure - 10.0)));
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "Humidex:        %4.3f - current equation is incorrect\r\r\r\r\r", Bme280CalibParam.Humidex);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Humidex:        %4.3f - current equation is incorrect\r\r\r\r\r", Bme280Data.Humidex);
   ***/
 
   return 0;
@@ -3553,9 +3727,8 @@ UINT8 bme280_init(void)
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_init(Entering)\r\r\r");
-  }
+
 
   /* ---------------------- Reset the BME280. ----------------------- */
   Buffer[0] = BME280_REGISTER_RESET;
@@ -3625,9 +3798,8 @@ UINT8 bme280_read_all_registers()
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_read_all_registers(Entering)    ");
-  }
+
 
   /* Give adress of the first BME280 register to read (lowest address). */
   Buffer[0] = BME280_REGISTER_CTRL_HUM;
@@ -3640,60 +3812,46 @@ UINT8 bme280_read_all_registers()
   if (DebugBitMask & DEBUG_BME280)
   {
     /* Validate return code, to make sure register read was successful. */
-    sprintf(String, "Read(%u)\r\r", ReturnCode);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Read(%u)\r\r", ReturnCode);
 
     /* Display ctrl_hum register content. */
-    sprintf(String, "ctrl_hum:   %2.2X\r", Buffer[0]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "ctrl_hum:   %2.2X\r", Buffer[0]);
 
     /* Display status register content. */
-    sprintf(String, "status:     %2.2X\r", Buffer[1]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "status:     %2.2X\r", Buffer[1]);
 
     /* Display ctrl_meas register content. */
-    sprintf(String, "ctrl_meas:  %2.2X\r", Buffer[2]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "ctrl_meas:  %2.2X\r", Buffer[2]);
 
     /* Display config register content. */
-    sprintf(String, "config:     %2.2X\r", Buffer[3]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "config:     %2.2X\r", Buffer[3]);
 
     /* Display unknown register content. */
-    sprintf(String, "unknown:    %2.2X\r", Buffer[4]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "unknown:    %2.2X\r", Buffer[4]);
 
     /* Display press_msb register content. */
-    sprintf(String, "press_msb:  %2.2X\r", Buffer[5]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "press_msb:  %2.2X\r", Buffer[5]);
 
     /* Display press_lsb register content. */
-    sprintf(String, "press_lsb:  %2.2X\r", Buffer[6]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "press_lsb:  %2.2X\r", Buffer[6]);
 
     /* Display press_xlsb register content. */
-    sprintf(String, "press_xlsb: %2.2X\r", Buffer[7]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "press_xlsb: %2.2X\r", Buffer[7]);
 
     /* Display temp_msb register content. */
-    sprintf(String, "temp_msb:   %2.2X\r", Buffer[8]);
-    uart_send(__LINE__, String);
-
+    uart_send(__LINE__, "temp_msb:   %2.2X\r", Buffer[8]);
+  
     /* Display temp_lsb register content. */
-    sprintf(String, "temp_lsb:   %2.2X\r", Buffer[9]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "temp_lsb:   %2.2X\r", Buffer[9]);
 
     /* Display temp_xlsb register content. */
-    sprintf(String, "temp_xlsb:  %2.2X\r", Buffer[10]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "temp_xlsb:  %2.2X\r", Buffer[10]);
 
     /* Display hum_msb register content. */
-    sprintf(String, "hum_msb:    %2.2X\r", Buffer[11]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "hum_msb:    %2.2X\r", Buffer[11]);
 
     /* Display hum_lsb register content. */
-    sprintf(String, "hum_lsb:    %2.2X\r\r\r\r\r", Buffer[12]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "hum_lsb:    %2.2X\r\r\r\r\r", Buffer[12]);
   }
 
   return 0;
@@ -3718,36 +3876,29 @@ UINT8 bme280_read_calib_data()
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_read_calib_data(Entering)\r\r");
-  }
+
 
   /* Read first chunk of BME280 calibration data. */
   Buffer = BME280_REGISTER_CALIB00;
 
   i2c_write_timeout_us(I2C_PORT, BME280_ADDRESS, &Buffer, 1, true, 10000000);
-  ReturnCode = i2c_read_timeout_us(I2C_PORT, BME280_ADDRESS, Bme280CalibData, 26, false, 10000000);
+  ReturnCode = i2c_read_timeout_us(I2C_PORT, BME280_ADDRESS, Bme280Data.Bme280CalibData, 26, false, 10000000);
 
   /* Read second chunk of BME280 calibration data. */
   Buffer = BME280_REGISTER_CALIB26;
 
   i2c_write_timeout_us(I2C_PORT, BME280_ADDRESS, &Buffer, 1, true, 10000000);
-  ReturnCode = i2c_read_timeout_us(I2C_PORT, BME280_ADDRESS, &Bme280CalibData[26], 16, false, 10000000);
+  ReturnCode = i2c_read_timeout_us(I2C_PORT, BME280_ADDRESS, &Bme280Data.Bme280CalibData[26], 16, false, 10000000);
 
   if (DebugBitMask & DEBUG_BME280)
   {
     /* Display calibration data to optional monitor connected via UART. */
     for (Loop1UInt8 = 0; Loop1UInt8 < 26; ++Loop1UInt8)
-    {
-      sprintf(String, "Calib[%2.2u]  Address: 0x%2.2X = %2.2X\r", Loop1UInt8, (Loop1UInt8 + 0x88), Bme280CalibData[Loop1UInt8]);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Calib[%2.2u]  Address: 0x%2.2X = %2.2X\r", Loop1UInt8, (Loop1UInt8 + 0x88), Bme280Data.Bme280CalibData[Loop1UInt8]);
 
     for (Loop1UInt8 = 0; Loop1UInt8 < 16; ++Loop1UInt8)
-    {
-      sprintf(String, "Calib[%2.2u]  Address: 0x%2.2X = %2.2X\r", (Loop1UInt8 + 26), (0xE1 + Loop1UInt8), Bme280CalibData[Loop1UInt8 + 26]);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Calib[%2.2u]  Address: 0x%2.2X = %2.2X\r", (Loop1UInt8 + 26), (0xE1 + Loop1UInt8), Bme280Data.Bme280CalibData[Loop1UInt8 + 26]);
 
     uart_send(__LINE__, "\r\r");
   }
@@ -3773,9 +3924,8 @@ UINT8 bme280_read_config(void)
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_read_config(Entering)           ");
-  }
+
 
   Buffer = BME280_REGISTER_CONFIG;
 
@@ -3783,10 +3933,7 @@ UINT8 bme280_read_config(void)
   i2c_read_blocking(I2C_PORT, BME280_ADDRESS, &Buffer, 1, false);
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "Config: 0x%2.2X\r\r", Buffer);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Config: 0x%2.2X\r\r", Buffer);
 
   return Buffer;
 }
@@ -3812,9 +3959,8 @@ UINT8 bme280_read_device_id(void)
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_read_device_id(Entering)         ");
-  }
+
 
   Buffer = BME280_REGISTER_ID;
 
@@ -3822,10 +3968,7 @@ UINT8 bme280_read_device_id(void)
   ReturnCode = i2c_read_timeout_us(I2C_PORT, BME280_ADDRESS, &Buffer, 1, false, 10000000);
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "- Read(%u)    0x%2.2X\r\r\r", ReturnCode, Buffer);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "- Read(%u)    0x%2.2X\r\r\r", ReturnCode, Buffer);
 
   return Buffer;
 }
@@ -3852,16 +3995,11 @@ UINT8 bme280_read_registers(UINT8 *Buffer)
   Buffer[0] = BME280_REGISTER_PRESS_MSB;
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "bme280_read_registers(Entering)  %2.2X\r\r", Buffer[0]);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "bme280_read_registers(Entering)  %2.2X\r\r", Buffer[0]);
 
   Loop1UInt8 = 0;
   while (bme280_read_status() != 0)
-  {
     ++Loop1UInt8;
-  }
 
   i2c_write_blocking(I2C_PORT, BME280_ADDRESS, Buffer, 1, true);
   i2c_read_blocking(I2C_PORT, BME280_ADDRESS, Buffer, 8, false);
@@ -3869,13 +4007,9 @@ UINT8 bme280_read_registers(UINT8 *Buffer)
   if (DebugBitMask & DEBUG_BME280)
   {
     /* Display registers read from BME280. */
-    sprintf(String, "Registers:       (wait: %4u)          ", Loop1UInt8);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Registers:       (wait: %4u)          ", Loop1UInt8);
     for (Loop1UInt8 = 0; Loop1UInt8 < 8; ++Loop1UInt8)
-    {
-      sprintf(String, "- %2.2X ", Buffer[Loop1UInt8]);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- %2.2X ", Buffer[Loop1UInt8]);
     uart_send(__LINE__, "\r\r");
   }
 
@@ -3901,9 +4035,8 @@ UINT8 bme280_read_status(void)
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_read_status(Entering)           ");
-  }
+
 
   Buffer = BME280_REGISTER_STATUS;
 
@@ -3911,10 +4044,7 @@ UINT8 bme280_read_status(void)
   i2c_read_blocking(I2C_PORT, BME280_ADDRESS, &Buffer, 1, false);
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "- Status: 0x%2.2X\r\r", Buffer);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "- Status: 0x%2.2X\r\r", Buffer);
 
   /* Bits 0 and 3 indicate that bme280 operation is on-going. */
   return (Buffer & 0x9);
@@ -3939,9 +4069,8 @@ UINT32 bme280_read_unique_id()
 
 
   if (DebugBitMask & DEBUG_BME280)
-  {
     uart_send(__LINE__, "bme280_read_unique_id(Entering)         ");
-  }
+
 
   /* Give adress of the first BME280 register to read (lowest address). */
   Buffer[0] = BME280_REGISTER_UNIQUE_ID;
@@ -3955,10 +4084,7 @@ UINT32 bme280_read_unique_id()
              (((uint32_t)Buffer[1]) << 8) + (uint32_t)Buffer[0];
 
   if (DebugBitMask & DEBUG_BME280)
-  {
-    sprintf(String, "- Read(%u)    Hex: %4.4X %4.4X\r\r\r", ReturnCode, ((UniqueId & 0xFFFF0000) >> 16), UniqueId & 0xFFFF);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "- Read(%u)    Hex: %4.4X %4.4X\r\r\r", ReturnCode, ((UniqueId & 0xFFFF0000) >> 16), UniqueId & 0xFFFF);
 
   return UniqueId;
 }
@@ -4041,10 +4167,7 @@ UINT8 command_queue(UINT8 Command, UINT16 Parameter)
   ++CommandQueueHead;
 
   if (DebugBitMask & DEBUG_COMMAND_QUEUE)
-  {
-    sprintf(String, "- Command queueing: %3u   %3u\r", Command, Parameter);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "- Command queueing: %3u   %3u\r", Command, Parameter);
 
   /* Revert to zero when reaching out-of-bound. */
   if (CommandQueueHead >= MAX_COMMAND_QUEUE)
@@ -4087,10 +4210,7 @@ UINT8 command_unqueue(UINT8 *Command, UINT16 *Parameter)
 
 
   if (DebugBitMask & DEBUG_COMMAND_QUEUE)
-  {
-    sprintf(String, "- Command unqueuing Command: %u   Parameter: %u\r", *Command, *Parameter);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "- Command unqueuing Command: %u   Parameter: %u\r", *Command, *Parameter);
 
 
   /* Adjust queue tail. */
@@ -4167,9 +4287,6 @@ void core1_main(void)
   UINT8 Command;
   UINT8 FlagError;
 
-  UINT64 CurrentReset;
-  UINT64 LastReset;
-
   float Humidity;
   float Temperature;
 
@@ -4178,15 +4295,7 @@ void core1_main(void)
   if (DebugBitMask & DEBUG_CORE)
     uart_send(__LINE__, "==================== CORE 1 - Core 1 thread started...\r");
 
-  /*** Since core 1 runs in background, we won't easily see if it crashes, except for the increasing number of errors in DHT reads.
-     But if ever we add more functions to core 1, a crash of this thread may become more problematic. So, we'll start a watchdog
-     and core 1 will be in charge of taking care of it. If it gets lost, Clock will reboot. ***
-  TO BE CONTINUED...
-  watchdog_enable(60000, true);  // 60 seconds watchdog, pause it when debugging the Pico.
-  WatchDogDelay = 10;
-  ***/
 
-  
   /* Loop forever, waiting for commands from core 0. */
   while (1)
   {
@@ -4194,33 +4303,10 @@ void core1_main(void)
     Command = core_unqueue(1);
     
     
-    /***
-    // Reset watchdog - Not implemented yet.
-    watchdog_update();
-    if (DebugBitMask & DEBUG_CORE)
-    {
-      CurrentReset = time_us_64();
-      sprintf(String, "Reset watchdog: %llu - %llu = %llu", CurrentReset, LastReset, (CurrentReset - LastReset));
-      if (DebugBitMask & DEBUG_WATCHDOG)
-        uart_send(__LINE__, String);
-      LastReset = CurrentReset;
-    }
-    ***/
-
-
-
     /* If queue is empty, no command received yet... Wait until receiving a valid command. */
     if (Command == MAX_CORE_QUEUE)
     {
       sleep_ms(2);  // command queue is empty, wait a little while before checking again.
-
-      /***
-      sleep_ms(WatchDogDelay);
-      WatchDogDelay += 10;
-      sprintf(String, "Delay: %u\r", WatchDogDelay);
-      if (DebugBitMask & DEBUG_WATCHDOG)
-        uart_send(__LINE__, String);
-      ***/
     }
     else
     {
@@ -4235,10 +4321,7 @@ void core1_main(void)
           {
             /* Error while reading DHT22. Retry a maximum of 3 times. */
             if (DebugBitMask & DEBUG_CORE)
-            {
-              sprintf(String, "==================== CORE 1 - DHT read error... Return error code to core 0\r");
-              uart_send(__LINE__, String);
-            }
+              uart_send(__LINE__, "==================== CORE 1 - DHT read error... Return error code to core 0\r");
                 
             /* Return error code to core 0. */
             core_queue(0, CORE0_DHT_ERROR);
@@ -4252,11 +4335,8 @@ void core1_main(void)
 
             if (DebugBitMask & DEBUG_CORE)
             {
-              sprintf(String, "==================== CORE 1 - DHT read successful... Return result to core 0 (%f   %f)\r", Temperature, Humidity);
-              uart_send(__LINE__, String);
-
-              sprintf(String, "==================== CORE 1 - TimeStamp: %llu   Temperature: %f   Humidity: %f\r", DhtData.TimeStamp, DhtData.Temperature, DhtData.Humidity);
-              uart_send(__LINE__, String);
+              uart_send(__LINE__, "==================== CORE 1 - DHT read successful... Return result to core 0 (%f   %f)\r", Temperature, Humidity);
+              uart_send(__LINE__, "==================== CORE 1 - TimeStamp: %llu   Temperature: %f   Humidity: %f\r", DhtData.TimeStamp, DhtData.Temperature, DhtData.Humidity);
             }
             
             /* Return response to core 0. */
@@ -4285,20 +4365,14 @@ UINT8 core_queue(UINT8 CoreNumber, UINT8 Command)
 
 
   if (DebugBitMask & DEBUG_CORE)
-  {
-    sprintf(String, "Entering core_queue():       Target core: %u          Command: %2u\r", CoreNumber, Command);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Entering core_queue():       Target core: %u          Command: %2u\r", CoreNumber, Command);
 
 
   switch (CoreNumber)
   {
     case (0):
       if (DebugBitMask & DEBUG_CORE)
-      {
-        sprintf(String, "Core 0 queue on entry: Core0QueueHead: %2u   Core0QueueTail: %2u\r", Core0QueueHead, Core0QueueTail);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Core 0 queue on entry: Core0QueueHead: %2u   Core0QueueTail: %2u\r", Core0QueueHead, Core0QueueTail);
 
       /* Check if the circular buffer is full. */
       if (((Core0QueueTail > 0) && (Core0QueueHead == Core0QueueTail - 1)) || ((Core0QueueTail == 0) && (Core0QueueHead == MAX_CORE_QUEUE - 1)))
@@ -4318,10 +4392,7 @@ UINT8 core_queue(UINT8 CoreNumber, UINT8 Command)
         Core0QueueHead = 0;  // revert to zero when reaching out-of-bound.
 
       if (DebugBitMask & DEBUG_CORE)
-      {
-        sprintf(String, "Core 0 queue on exit:  Core0QueueHead: %2u   Core0QueueTail: %2u\r", Core0QueueHead, Core0QueueTail);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Core 0 queue on exit:  Core0QueueHead: %2u   Core0QueueTail: %2u\r", Core0QueueHead, Core0QueueTail);
 
       return 0x00;
     break;
@@ -4329,10 +4400,7 @@ UINT8 core_queue(UINT8 CoreNumber, UINT8 Command)
 
     case (1):
       if (DebugBitMask & DEBUG_CORE)
-      {
-        sprintf(String, "Core 1 queue on entry: Core1QueueHead: %u   Core1QueueTail: %u\r", Core1QueueHead, Core1QueueTail);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Core 1 queue on entry: Core1QueueHead: %u   Core1QueueTail: %u\r", Core1QueueHead, Core1QueueTail);
 
       /* Check if the circular buffer is full. */
       if (((Core1QueueTail > 0) && (Core1QueueHead == Core1QueueTail - 1)) || ((Core1QueueTail == 0) && (Core1QueueHead == MAX_CORE_QUEUE - 1)))
@@ -4352,10 +4420,7 @@ UINT8 core_queue(UINT8 CoreNumber, UINT8 Command)
         Core1QueueHead = 0;  // revert to zero when reaching out-of-bound.
 
       if (DebugBitMask & DEBUG_CORE)
-      {
-        sprintf(String, "Core 1 queue on exit:  Core1QueueHead: %u   Core1QueueTail: %u\r", Core1QueueHead, Core1QueueTail);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Core 1 queue on exit:  Core1QueueHead: %u   Core1QueueTail: %u\r", Core1QueueHead, Core1QueueTail);
 
       return 0x00;
     break;
@@ -4364,10 +4429,7 @@ UINT8 core_queue(UINT8 CoreNumber, UINT8 Command)
     default:
       /* Invalid core number specified until Raspberry Pi decides to manufacture a Pico with 8 cores :-) */
       if (DebugBitMask & DEBUG_CORE)
-      {
-        sprintf(String, "Wrong core specified for core_queue() function [%u]\r", CoreNumber);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Wrong core specified for core_queue() function [%u]\r", CoreNumber);
     break;
   }
 }
@@ -4445,9 +4507,7 @@ UINT16 crc16(UINT8 *Data, UINT16 DataSize)
 
   if (DebugBitMask & DEBUG_CRC16)
   {
-    sprintf(String, "Calculating CRC16 of this packet (size: %u):\r", DataSize);
-    uart_send(__LINE__, String);
-
+    uart_send(__LINE__, "Calculating CRC16 of this packet (size: %u):\r", DataSize);
     display_data(Data, DataSize);
   }
 
@@ -4467,10 +4527,7 @@ UINT16 crc16(UINT8 *Data, UINT16 DataSize)
   }
 
   if (DebugBitMask & DEBUG_CRC16)
-  {
-    sprintf(String, "CRC16 computed: %X\r\r\r", CrcValue & 0xFFFF);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "CRC16 computed: %X\r\r\r", CrcValue & 0xFFFF);
 
   return (CrcValue & 0xFFFF);
 }
@@ -4538,8 +4595,7 @@ void display_data(UCHAR *Data, UINT32 Size)
   UINT32 Loop2UInt32;
 
 
-  sprintf(String, "Entering display_data(size: %u)\r", Size);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Entering display_data(size: %u)\r", Size);
 
 
   for (Loop1UInt32 = 0; Loop1UInt32 < Size; Loop1UInt32 += 16)
@@ -4608,8 +4664,7 @@ void display_pwm(struct pwm *Pwm, UCHAR *TitleString)
 
   uart_send(__LINE__, TitleString);
 
-  sprintf(String, "Pwm->Gpio:         %u    (13 = Brightness   19 = Sound)\r", Pwm->Gpio);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Pwm->Gpio:         %u    (13 = Brightness   19 = Sound)\r", Pwm->Gpio);
 
   if (Pwm->OnOff == FLAG_OFF)
     uart_send(__LINE__, "Pwm->OnOff:        Off\r");
@@ -4617,40 +4672,27 @@ void display_pwm(struct pwm *Pwm, UCHAR *TitleString)
     uart_send(__LINE__, "Pwm->OnOff:        On\r");
 
 
-  sprintf(String, "Pwm->Slice:        %u (%u)\r", Pwm->Slice, pwm_gpio_to_slice_num(Pwm->Gpio));
-  uart_send(__LINE__, String);
-
-  sprintf(String, "Pwm->Channel:      %u (%u)\r", Pwm->Channel, pwm_gpio_to_channel(Pwm->Gpio));
-  uart_send(__LINE__, String);
-
-  sprintf(String, "SystemClock:       %u:\r", SystemClock);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "Pwm->ClockDivider: %f\r", Pwm->ClockDivider);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Pwm->Slice:        %u (%u)\r", Pwm->Slice, pwm_gpio_to_slice_num(Pwm->Gpio));
+  uart_send(__LINE__, "Pwm->Channel:      %u (%u)\r", Pwm->Channel, pwm_gpio_to_channel(Pwm->Gpio));
+  uart_send(__LINE__, "SystemClock:       %u:\r", SystemClock);
+  uart_send(__LINE__, "Pwm->ClockDivider: %f\r", Pwm->ClockDivider);
 
   Pwm->Clock = (UINT32)(SystemClock / Pwm->ClockDivider);
-  sprintf(String, "Pwm->Clock:        %u\r", Pwm->Clock);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "Pwm->Wrap:         %u\r", Pwm->Wrap);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Pwm->Clock:        %u\r", Pwm->Clock);
+  uart_send(__LINE__, "Pwm->Wrap:         %u\r", Pwm->Wrap);
 
   Pwm->Frequency = (UINT32)(Pwm->Clock / Pwm->Wrap);
-  sprintf(String, "Pwm->Frequency:    %lu\r", Pwm->Frequency);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Pwm->Frequency:    %lu\r", Pwm->Frequency);
 
   if (Pwm->Level > Pwm->Wrap)
   {
     Dum1UInt16 = Pwm->Level;
     Pwm->Level = Pwm->Frequency;
-    sprintf(String, "Pwm->Level:        %u  === has been reset from %u ===\r", Pwm->Level, Dum1UInt16);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Pwm->Level:        %u  === has been reset from %u ===\r", Pwm->Level, Dum1UInt16);
   }
   else
   {
-    sprintf(String, "Pwm->Level:        %u\r", Pwm->Level);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Pwm->Level:        %u\r", Pwm->Level);
   }
 
   if (Pwm->Gpio == OE)
@@ -4658,11 +4700,8 @@ void display_pwm(struct pwm *Pwm, UCHAR *TitleString)
   else
     Pwm->DutyCycle = (UINT8)(((float)Pwm->Level / Pwm->Wrap) * 100.0);
 
-  sprintf(String, "Pwm->DutyCycle:    %u\r", Pwm->DutyCycle);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "CurrentClockMode:  %u\r\r\r\r", CurrentClockMode);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Pwm->DutyCycle:    %u\r", Pwm->DutyCycle);
+  uart_send(__LINE__, "CurrentClockMode:  %u\r\r\r\r", CurrentClockMode);
 }
 
 
@@ -5021,10 +5060,7 @@ void flash_check_config(void)
   Crc16 = crc16((UINT8 *)&FlashConfig, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
 
   if (DebugBitMask & DEBUG_FLASH)
-  {
-    sprintf(String, "CRC16 computed for current active clock configuration: 0x%X (%u)\r", Crc16, Crc16);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "CRC16 computed for current active clock configuration: 0x%X (%u)\r", Crc16, Crc16);
 
   /* We know that FlashConfig.Crc16 corresponds to the crc16 value that has been retrieved the last time the configuration was restored from (or saved to) flash.
      So, if the current active configuration's CRC16 is still the same as the last one retrieved from (or saved to) flash, 
@@ -5032,7 +5068,6 @@ void flash_check_config(void)
   if (FlashConfig.Crc16 == Crc16)
   {
     if (DebugBitMask & DEBUG_FLASH)
-
       uart_send(__LINE__, "Current active configuration is the same as the last one retrieved from flash.\r\r\r");
 
     return;
@@ -5077,9 +5112,7 @@ void flash_display(UINT32 Offset, UINT32 Length)
   if (DebugBitMask & DEBUG_FLASH)
     uart_send(__LINE__, "Entering flash_display()\r");
 
-
-  sprintf(String, "XIP_BASE: 0x%p   Offset: 0x%6.6X   Length: 0x%X (%u)\r", XIP_BASE, Offset, Length, Length);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "XIP_BASE: 0x%p   Offset: 0x%6.6X   Length: 0x%X (%u)\r", XIP_BASE, Offset, Length, Length);
 
 
   for (Loop1UInt32 = Offset; Loop1UInt32 < (Offset + Length); Loop1UInt32 += 16)
@@ -5141,101 +5174,51 @@ UINT8 flash_display_config(void)
   UINT16 Loop2UInt16;
 
 
-  uart_send(__LINE__, "Entering flash_display_config()\r");
+  uart_send(__LINE__, "=========================================================================================================\r");
+  uart_send(__LINE__, "                                     Entering flash_display_config()\r");
+  uart_send(__LINE__, "=========================================================================================================\r");
 
-  sprintf(String, "NOTE: FLAG_OFF = 0x%2.2X      FLAG_ON = 0x%2.2X\r", FLAG_OFF, FLAG_ON);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "NOTE: FLAG_OFF = 0x%2.2X   FLAG_ON = 0x%2.2X\r", FLAG_OFF, FLAG_ON);
+  uart_send(__LINE__, "NOTE: sizeof(FlashConfig):           0x%3.3X (%3u)\r", sizeof(FlashConfig), sizeof(FlashConfig));
+  uart_send(__LINE__, "NOTE: sizeof(FlashConfig.Reserved1): 0x%3.3X (%3u)\r", sizeof(FlashConfig.Reserved1), sizeof(FlashConfig.Reserved1));
+  uart_send(__LINE__, "NOTE: sizeof(FlashConfig.Reserved2): 0x%3.3X (%3u)\r\r", sizeof(FlashConfig.Reserved2), sizeof(FlashConfig.Reserved2));
+  uart_send(__LINE__, "[%X] Firmware version:         %c%c%c%c\r", &FlashConfig.Version, FlashConfig.Version[0], FlashConfig.Version[1], FlashConfig.Version[2], FlashConfig.Version[3]);
+  uart_send(__LINE__, "[%X] CurrentYearCentile:        %3u\r", &FlashConfig.CurrentYearCentile, FlashConfig.CurrentYearCentile);
+  uart_send(__LINE__, "[%X] Language:                  %3u     (01 = Eng   02 = Fre  03 = Spa - not implemented)\r", &FlashConfig.Language, FlashConfig.Language);
+  uart_send(__LINE__, "[%X] DSTCountry:                %3u     ( 0 = No DST support   Refer to user guide for all others)\r", &FlashConfig.DSTCountry, FlashConfig.DSTCountry);
+  uart_send(__LINE__, "[%X] Timezone:                  %3d\r", &FlashConfig.Timezone, FlashConfig.Timezone);
+  uart_send(__LINE__, "[%X] Flag Summer Time status:  0x%2.2X   (0x00 = inactive   0x01 = active)\r", &FlashConfig.FlagSummerTime, FlashConfig.FlagSummerTime);
+  uart_send(__LINE__, "[%X] TemperatureUnit:          0x%2.2X   (0x00 = Celsius    0x01 = Fahrenheit)\r", &FlashConfig.TemperatureUnit, FlashConfig.TemperatureUnit);
+  uart_send(__LINE__, "[%X] TimeDisplayMode:          0x%2.2X   (0x00 = 12Hours    0x01 = 24Hours)\r", &FlashConfig.TimeDisplayMode, FlashConfig.TimeDisplayMode);
+  uart_send(__LINE__, "[%X] ChimeMode:                 %3u     (00 = Off   01 = On   02 = On, Intermittent)\r", &FlashConfig.ChimeMode, FlashConfig.ChimeMode);
+  uart_send(__LINE__, "[%X] ChimeTimeOn:               %3u\r", &FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOn);
+  uart_send(__LINE__, "[%X] ChimeTimeOff:              %3u\r", &FlashConfig.ChimeTimeOff, FlashConfig.ChimeTimeOff);
+  uart_send(__LINE__, "[%X] NightLightMode:            %3u     (00 = Off   01 = On   02 = Night   03 = Auto)\r", &FlashConfig.NightLightMode, FlashConfig.NightLightMode);
+  uart_send(__LINE__, "[%X] NightLightTimeOn:          %3u\r", &FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOn);
+  uart_send(__LINE__, "[%X] NightLightTimeOff:         %3u\r", &FlashConfig.NightLightTimeOff, FlashConfig.NightLightTimeOff);
+  uart_send(__LINE__, "[%X] FlagAutoBrightness:       0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
+  uart_send(__LINE__, "[%X] FlagKeyclick:             0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
+  uart_send(__LINE__, "[%X] FlagScrollEnable:         0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
 
-  sprintf(String, "NOTE: sizeof(FlashConfig):           0x%3.3X (%3u)\r", sizeof(FlashConfig), sizeof(FlashConfig));
-  uart_send(__LINE__, String);
 
-  sprintf(String, "NOTE: sizeof(FlashConfig.Reserved1): 0x%3.3X (%3u)\r", sizeof(FlashConfig.Reserved1), sizeof(FlashConfig.Reserved1));
-  uart_send(__LINE__, String);
-
-  sprintf(String, "NOTE: sizeof(FlashConfig.Reserved2): 0x%3.3X (%3u)\r\r", sizeof(FlashConfig.Reserved2), sizeof(FlashConfig.Reserved2));
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Firmware version:         %c%c%c%c\r", &FlashConfig.Version, FlashConfig.Version[0], FlashConfig.Version[1], FlashConfig.Version[2], FlashConfig.Version[3]);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] CurrentYearCentile:        %3u\r", &FlashConfig.CurrentYearCentile, FlashConfig.CurrentYearCentile);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Language:                  %3u     (01 = Eng   02 = Fre  03 = Spa - not implemented)\r", &FlashConfig.Language, FlashConfig.Language);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] DaylightSavingTime:        %3u     ( 0 = No DST support   Refer to user guide for all others)\r", &FlashConfig.DaylightSavingTime, FlashConfig.DaylightSavingTime);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] UTC Delta:                 %3d\r", &FlashConfig.Timezone, FlashConfig.Timezone);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Flag Summer Time status:  0x%2.2X   (0x00 = inactive   0xFF = active)\r", &FlashConfig.FlagSummerTime, FlashConfig.FlagSummerTime);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] TemperatureUnit:          0x%2.2X   (0x00 = Celsius    0x01 = Fahrenheit)\r", &FlashConfig.TemperatureUnit, FlashConfig.TemperatureUnit);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] TimeDisplayMode:          0x%2.2X   (0x00 = 12Hours    0xFF = 24Hours)\r", &FlashConfig.TimeDisplayMode, FlashConfig.TimeDisplayMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeMode:                 %3u     (00 = Off   01 = On   02 = On, Intermittent)\r", &FlashConfig.ChimeMode, FlashConfig.ChimeMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeTimeOn:               %3u\r", &FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOn);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeTimeOff:              %3u\r", &FlashConfig.ChimeTimeOff, FlashConfig.ChimeTimeOff);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightMode:            %3u     (00 = Off   01 = On   02 = Night   03 = Auto)\r", &FlashConfig.NightLightMode, FlashConfig.NightLightMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightTimeOn:          %3u\r", &FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOn);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightTimeOff:         %3u\r", &FlashConfig.NightLightTimeOff, FlashConfig.NightLightTimeOff);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagAutoBrightness:       0x%2.2X     (00 = Off   FF = On)\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagKeyclick:             0x%2.2X     (00 = Off   FF = On)\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagScrollEnable:         0x%2.2X     (00 = Off   FF = On)\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Reserved1:\r  ", &FlashConfig.Reserved1[Loop1UInt16]);
-  uart_send(__LINE__, String);
-
+  /* Display Reserved1 data. */
+  uart_send(__LINE__, "[%X] Reserved1 - size: 0x%2.2X (%3u):\r  ", &FlashConfig.Reserved1[Loop1UInt16], sizeof(FlashConfig.Reserved1), sizeof(FlashConfig.Reserved1));
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved1); ++Loop1UInt16)
   {
-    sprintf(String, "- 0x%2.2X ", FlashConfig.Reserved1[Loop1UInt16]);
-    uart_send(__LINE__, String);
-
+    uart_send(__LINE__, "- 0x%2.2X ", FlashConfig.Reserved1[Loop1UInt16]);
     if (((Loop1UInt16 + 1) % 10) == 0)
       uart_send(__LINE__, "\r  ");
   }
   uart_send(__LINE__, "\r");
 
-  sprintf(String, "Bit mask used for alarm DayOfWeek selection:\r");
-  uart_send(__LINE__, String);
-
-  /* Display all 7 days-of-week. */
+  
+  /* Display all 7 days-of-week with its corresponding bitmask. */
+  uart_send(__LINE__, "Bit mask used for alarm DayOfWeek selection:\r");
   for (Loop1UInt16 = 1; Loop1UInt16 < 8; ++Loop1UInt16)
   {
-    sprintf(String, "                                 ");
-    /* Display binary bitmap. */
-    for (Loop2UInt16 = 7; Loop2UInt16 > 0; --Loop2UInt16)
-    {
-      if (Loop1UInt16 == Loop2UInt16)
-        sprintf(&String[strlen(String)], "1");
-      else
-        sprintf(&String[strlen(String)], "0");
-    }
-    sprintf(&String[strlen(String)], "0");  // add final "bit 0" since days-of-week go from 1 to 7 (1 being SUN and 7 being SAT).
-    
+    /* Get binary string representing day mask for this particular day-of-week. */
+    uint64_to_binary_string(1 << Loop1UInt16, 8, String);
+
     /* Force English if flash configuration has not already been read. */
     if ((FlashConfig.Language > LANGUAGE_LO_LIMIT) && (FlashConfig.Language < LANGUAGE_HI_LIMIT))
       sprintf(&String[strlen(String)], "   %s\r", DayName[FlashConfig.Language][Loop1UInt16]);
@@ -5246,37 +5229,16 @@ UINT8 flash_display_config(void)
   uart_send(__LINE__, "\r");
 
 
-  /* Scan all alarms (0 to 8). */
+  /* Scan and display all alarms (0 to 8) -> (1 to 9 for clock user). */
   for (Loop1UInt16 = 0; Loop1UInt16 < 9; ++Loop1UInt16)
   {
-    sprintf(String, "[%X] Alarm[%2.2u].Status:         0x%2.2X     (00 = Off   FF = On)\r", &FlashConfig.Alarm[Loop1UInt16].FlagStatus, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].FlagStatus);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "[%X] Alarm[%2.2u].Hour:            %3u\r", &FlashConfig.Alarm[Loop1UInt16].Hour, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Hour);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "[%X] Alarm[%2.2u].Minute:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Minute, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Minute);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "[%X] Alarm[%2.2u].Second:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Second, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Second);
-    uart_send(__LINE__, String);
-
+    uart_send(__LINE__, "[%X] Alarm[%2.2u].Status:         0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.Alarm[Loop1UInt16].FlagStatus, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].FlagStatus);
+    uart_send(__LINE__, "[%X] Alarm[%2.2u].Hour:            %3u\r", &FlashConfig.Alarm[Loop1UInt16].Hour, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Hour);
+    uart_send(__LINE__, "[%X] Alarm[%2.2u].Minute:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Minute, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Minute);
+    uart_send(__LINE__, "[%X] Alarm[%2.2u].Second:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Second, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Second);
     
-    /* Identify all target days-of-week for each alarm (convert to binary). */
-    DayMask[0] = 0x00; // initialize string as null.
-    for (Loop2UInt16 = 7; Loop2UInt16 > 0; --Loop2UInt16)
-    {
-      if (FlashConfig.Alarm[Loop1UInt16].Day & (1 << (Loop2UInt16)))
-        sprintf(&DayMask[strlen(DayMask)], "1");
-      else
-        sprintf(&DayMask[strlen(DayMask)], "0");
-    }
-    /* Add final "bit 0" since days-of-week go from 1 to 7 (1 being SUN and 7 being SAT). */
-    if (FlashConfig.Alarm[Loop1UInt16].Day & 1)
-      sprintf(&DayMask[strlen(DayMask)], "1");
-    else
-      sprintf(&DayMask[strlen(DayMask)], "0");
-    sprintf(String, "[%8.8X] Alarm[%2.2u].DayMask:    %s     (0x%2X) ", &FlashConfig.Alarm[Loop1UInt16].Day, Loop1UInt16, DayMask, FlashConfig.Alarm[Loop1UInt16].Day);
+    uint64_to_binary_string(FlashConfig.Alarm[Loop1UInt16].Day, 8, DayMask);
+    sprintf(String, "[%8.8X] Alarm[%2.2u].DayMask:    %s     (0x%2.2X) ", &FlashConfig.Alarm[Loop1UInt16].Day, Loop1UInt16, DayMask, FlashConfig.Alarm[Loop1UInt16].Day);
 
     for (Loop2UInt16 = 1; Loop2UInt16 < 8; ++Loop2UInt16)
     {
@@ -5284,19 +5246,35 @@ UINT8 flash_display_config(void)
       {
         Dum1UInt8 = strlen(String);
         sprintf(&String[strlen(String)], "%s", DayName[FlashConfig.Language][Loop2UInt16]);
-        String[Dum1UInt8 + 3] = 0x20; // space separator.
-        String[Dum1UInt8 + 4] = 0x00; // keep first 3 characters of day name.
+        String[Dum1UInt8 + 3] = 0x20;  // space separator.
+        String[Dum1UInt8 + 4] = 0x00;  // keep first 3 characters of day name.
       }
     }
-
     sprintf(&String[strlen(String)], "\r\r");
     uart_send(__LINE__, String);
   }
 
-  sprintf(String, "[%X] Reserved2:\r  ", &FlashConfig.Reserved2[Loop1UInt16]);
+  
+  /* In case SSID is not initialized, display it character by character. */
+  uart_send(__LINE__, "Note: SSID and Password begin at 5th character position, superimposed on top of two different footprints.\r");
+  uart_send(__LINE__, "      There is also an end-of-string character at the end of each string that we don't see on the screen.\r");
+  sprintf(String, "SSID:     [");
+  for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.SSID); ++Loop1UInt16)
+    sprintf(&String[strlen(String)], "%c", FlashConfig.SSID[Loop1UInt16]);
+  sprintf(&String[strlen(String)], "]\r");
   uart_send(__LINE__, String);
 
 
+  /* In case password is not initialized, display it character by character. */
+  sprintf(String, "Password: [");
+  for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Password); ++Loop1UInt16)
+    sprintf(&String[strlen(String)], "%c", FlashConfig.Password[Loop1UInt16]);
+  sprintf(&String[strlen(String)], "]\r\r");
+  uart_send(__LINE__, String);
+
+
+  /* Display Reserved2 data. */
+  uart_send(__LINE__, "[%X] Reserved2 - size 0x%2.2X (%3u):\r  ", &FlashConfig.Reserved2[Loop1UInt16], sizeof(FlashConfig.Reserved2), sizeof(FlashConfig.Reserved2));
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved2); ++Loop1UInt16)
   {
     sprintf(String, "- 0x%2.2X ", FlashConfig.Reserved2[Loop1UInt16]);
@@ -5307,14 +5285,10 @@ UINT8 flash_display_config(void)
   }
   uart_send(__LINE__, "\r\r");
 
-  sprintf(String, "[%X] Crc16:                  0x%4.4X\r\r\r", &FlashConfig.Crc16, FlashConfig.Crc16);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "Size of data for Crc16:  %u -  %u     = %u\r", &FlashConfig.Crc16, &FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "(in hex: 0x%8.8X - 0x%8.8X     = 0x%8.8X)\r\r\r", &FlashConfig.Crc16, &FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "[%X] CRC16: 0x%4.4X\r\r\r", &FlashConfig.Crc16, FlashConfig.Crc16);
+  uart_send(__LINE__, "Size of data for CRC16: %u - %u = %u\r", &FlashConfig.Crc16, &FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
+  uart_send(__LINE__, "(in hex: 0x%8.8X - 0x%8.8X = 0x%8.8X)\r", &FlashConfig.Crc16, &FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
+  uart_send(__LINE__, "=========================================================================================================\r\r\r");
 
   return 0;
 }
@@ -5346,10 +5320,7 @@ void flash_erase(UINT32 FlashMemoryOffset)
 
 
   if (DebugBitMask & DEBUG_FLASH)
-  {
-    sprintf(String, "Entering flash_erase(offset: 0x%8.8X)\r", FlashMemoryOffset);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Entering flash_erase(offset: 0x%8.8X)\r", FlashMemoryOffset);
 
   /* Erase an area of the Pico's flash memory.
      NOTES:
@@ -5358,10 +5329,7 @@ void flash_erase(UINT32 FlashMemoryOffset)
   if (FlashMemoryOffset % FLASH_SECTOR_SIZE)
   {
     if (DebugBitMask & DEBUG_FLASH)
-    {
-      sprintf(String, "Offset specified for flash_erase(0x%8.8X) is not aligned on a sector boundary (multiple of 4096)\r", FlashMemoryOffset);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Offset specified for flash_erase(0x%8.8X) is not aligned on a sector boundary (multiple of 4096)\r", FlashMemoryOffset);
 
     while (FlashMemoryOffset % FLASH_SECTOR_SIZE)
     {
@@ -5370,8 +5338,8 @@ void flash_erase(UINT32 FlashMemoryOffset)
 
     if (DebugBitMask & DEBUG_FLASH)
     {
-      sprintf(String, "Offset has been shifted to 0x%8.8X\r", FlashMemoryOffset);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "Offset has been shifted to 0x%8.8X\r", FlashMemoryOffset);
+      sleep_ms(100);  // wait for UART before disabling interrupts.
     }
   }
 
@@ -5413,11 +5381,8 @@ UINT8 flash_read_config(void)
 
   if (DebugBitMask & DEBUG_FLASH)
   {
-    sprintf(String, "Entering flash_read_config()\r");
-    uart_send(__LINE__, String);
-
-    sprintf(String, "sizeof(FlashConfig): 0x%X (%u)\r", sizeof(FlashConfig), sizeof(FlashConfig));
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Entering flash_read_config()\r");
+    uart_send(__LINE__, "sizeof(FlashConfig): 0x%X (%u)\r", sizeof(FlashConfig), sizeof(FlashConfig));
   }
 
   /* Read Green Clock configuration from Pico's flash memory (as an array of UINT8). */
@@ -5430,7 +5395,7 @@ UINT8 flash_read_config(void)
   /* Display configuration values retrieved from flash memory. */
   if (DebugBitMask & DEBUG_FLASH)
   {
-    uart_send(__LINE__, "Display configuration retrieved from flash memory:\r");
+    uart_send(__LINE__, "Display Green Clock configuration retrieved from flash memory:\r");
     flash_display_config();
   }
 
@@ -5439,20 +5404,15 @@ UINT8 flash_read_config(void)
 
   if (DebugBitMask & DEBUG_FLASH)
   {
-    sprintf(String, "CRC16 saved in flash configuration: 0x%X (%u)\r", FlashConfig.Crc16, FlashConfig.Crc16);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "CRC16 computed from data read:      0x%X (%u)\r", Dum1UInt16, Dum1UInt16);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "CRC16 saved in flash configuration: 0x%X (%u)\r", FlashConfig.Crc16, FlashConfig.Crc16);
+    uart_send(__LINE__, "CRC16 computed from data read:      0x%X (%u)\r", Dum1UInt16, Dum1UInt16);
   }
 
   /* If CRC16 read from flash does not correspond to the data read, assign default values and save new configuration. */
   if (FlashConfig.Crc16 == Dum1UInt16)
   {
     if (DebugBitMask & DEBUG_FLASH)
-    {
       uart_send(__LINE__, "Flash configuration is valid.\r\r\r");
-    }
 
     return 0;
   }
@@ -5481,7 +5441,7 @@ UINT8 flash_read_config(void)
   sprintf(FlashConfig.Version, "%s", FIRMWARE_VERSION);   // firmware version number.
   FlashConfig.CurrentYearCentile = 20;                    // assume we are in years 20xx. Green Clock was always reverting to 20.
   FlashConfig.Language           = DEFAULT_LANGUAGE;      // hourly chime will begin at this hour.
-  FlashConfig.DaylightSavingTime = DAYLIGHT_SAVING_TIME;  // specifies how to handle the daylight saving time (see clock options above).
+  FlashConfig.DSTCountry         = DST_COUNTRY;           // specifies how to handle the daylight saving time depending of country (see User Guide).
   FlashConfig.Timezone           = 0;                     // time difference between local time and Universal Coordinated Time.
   FlashConfig.FlagSummerTime     = FLAG_OFF;              // system will evaluate and overwrite this value on next power-up sequence.
   FlashConfig.TemperatureUnit    = TEMPERATURE_DEFAULT;   // CELSIUS or FAHRENHEIT default value (see clock options above).
@@ -5567,6 +5527,11 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[8].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[8].Text, "Alarm 9"); // string to be scrolled when alarm 9 is triggered (ALARM TEXT).
 
+  sprintf(FlashConfig.SSID,     ".;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.");                                // write specific footprint to flash memory.
+  sprintf(FlashConfig.Password, ".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");  // write specific footprint to flash memory.
+  sprintf(&FlashConfig.SSID[4],     "MyNetworkName");
+  sprintf(&FlashConfig.Password[4], "MyPassword");
+
   /* Make provision for future parameters. */
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved2); ++Loop1UInt16)
   {
@@ -5600,16 +5565,12 @@ UINT8 flash_save_config(void)
 
   if (DebugBitMask & DEBUG_FLASH)
   {
-    uart_send(__LINE__, "Save current Green Clock configuration to flash.\r");
-
-    sprintf(String, "Pointer to FlashConfig.Version: %X\r", FlashConfig.Version);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "Pointer to FlashConfig.Crc16:   %X\r", &FlashConfig.Crc16);
-    uart_send(__LINE__, String);
-
-    sprintf(String, "&FlashConfig.Crc16 - &FlashConfig.Version: %X (%u)\r\r\r", (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "=========================================================================================================\r");
+    uart_send(__LINE__, "                             SAVING current Green Clock configuration to flash.\r");
+    uart_send(__LINE__, "                                Pointer to FlashConfig.Version: 0x%8.8X\r", FlashConfig.Version);
+    uart_send(__LINE__, "                                Pointer to FlashConfig.Crc16:   0x%8.8X\r", &FlashConfig.Crc16);
+    uart_send(__LINE__, "                           &FlashConfig.Crc16 - &FlashConfig.Version: 0x%X (%u)\r", (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
+    uart_send(__LINE__, "=========================================================================================================\r");
 
     /* Display configuration being saved. */
     flash_display_config();
@@ -5659,9 +5620,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
            called by callback_s. */
   if (DebugBitMask & DEBUG_FLASH)
   {
-    sprintf(String, "Entering flash_write()   Data offset: 0x%X   Data size: 0x%X (%u)\r", NewDataOffset, NewDataSize, NewDataSize);
-    uart_send(__LINE__, String);
-
+    uart_send(__LINE__, "Entering flash_write()   Data offset: 0x%X   Data size: 0x%X (%u)\r", NewDataOffset, NewDataSize, NewDataSize);
     uart_send(__LINE__, "Display the data to write to flash.\r");
     display_data(NewData, NewDataSize);
   }
@@ -5673,11 +5632,8 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
     /* Offset specified is not aligned on a sector boundary. */
     if (DebugBitMask & DEBUG_FLASH)
     {
-      sprintf(String, "New data offset specified (0x%6.6X) is not aligned on a sector boundary (multiple of 4096)\r", SectorOffset);
-      uart_send(__LINE__, String);
-
-      sprintf(String, "Phased out by 0x%X (%u) bytes.\r", SectorOffset % FLASH_SECTOR_SIZE, SectorOffset % FLASH_SECTOR_SIZE);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "New data offset specified (0x%6.6X) is not aligned on a sector boundary (multiple of 4096)\r", SectorOffset);
+      uart_send(__LINE__, "Phased out by 0x%X (%u) bytes.\r", SectorOffset % FLASH_SECTOR_SIZE, SectorOffset % FLASH_SECTOR_SIZE);
     }
 
     while (SectorOffset % FLASH_SECTOR_SIZE)
@@ -5688,11 +5644,8 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
 
     if (DebugBitMask & DEBUG_FLASH)
     {
-      sprintf(String, "Sector offset has been shifted down to 0x%6.6X\r", SectorOffset);
-      uart_send(__LINE__, String);
-
-      sprintf(String, "And new data offset has been shifted up to 0x%X (%u)\r", NewDataOffset, NewDataOffset);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "Sector offset has been shifted down to 0x%6.6X\r", SectorOffset);
+      uart_send(__LINE__, "And new data offset has been shifted up to 0x%X (%u)\r", NewDataOffset, NewDataOffset);
     }
   }
 
@@ -5701,9 +5654,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
     if (DebugBitMask & DEBUG_FLASH)
     {
       uart_send(__LINE__, "The arguments given cross a sector boundary which is not allowed...\r");
-
-      sprintf(String, "Sector offset: %X   New data offset: %X  New data size: %X\r\r\r", SectorOffset, NewDataOffset, NewDataSize);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "Sector offset: %X   New data offset: %X  New data size: %X\r\r\r", SectorOffset, NewDataOffset, NewDataSize);
     }
 
     return 1;
@@ -5714,10 +5665,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
   FlashBaseAddress = (UINT8 *)(XIP_BASE);
 
   if (DebugBitMask & DEBUG_FLASH)
-  {
-    sprintf(String, "FlashBaseAddress: %p   Sector offset: %X   Target offset in sector: %X\r", FlashBaseAddress, SectorOffset, NewDataOffset);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "FlashBaseAddress: %p   Sector offset: %X   Target offset in sector: %X\r", FlashBaseAddress, SectorOffset, NewDataOffset);
 
   /* Take a copy of current flash content. */
   for (Loop1UInt16 = 0; Loop1UInt16 < FLASH_SECTOR_SIZE; ++Loop1UInt16)
@@ -5734,9 +5682,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
 
   if (DebugBitMask & DEBUG_FLASH)
   {
-    sprintf(String, "Data to be written to flash offset %X:\r", SectorOffset);
-    uart_send(__LINE__, String);
-    
+    uart_send(__LINE__, "Data to be written to flash offset %X:\r", SectorOffset);
     display_data(FlashData, FLASH_SECTOR_SIZE);
   }
 
@@ -5761,9 +5707,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
   pwm_set_duty_cycle(CurrentDutyCycle);
 
   if (DebugBitMask & DEBUG_FLASH)
-  {
     uart_send(__LINE__, "Exiting flash_write()\r\r\r");
-  }
 
   return 0;
 }
@@ -5848,10 +5792,7 @@ float get_ambient_temperature(UINT8 TemperatureUnit)
 
   /* Use DEBUG_DHT since it is temperature related. */
   if (DebugBitMask & DEBUG_DHT)
-  {
-    sprintf(String, "Temperature from DS3231: TempString: %s   Temperature: %2.2f ", TempString, Temperature);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Temperature from DS3231: TempString: %s   Temperature: %2.2f ", TempString, Temperature);
 
   return Temperature;
 }
@@ -5953,6 +5894,8 @@ void get_date_string(UCHAR *String)
                        Return the DayOfWeek,
                given the day-of-month, month and year
       SUN: 1   MON: 2   TUE: 3   WED: 4   THU: 5   FRI: 6   SAT: 7
+   
+   https://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week#Implementation-dependent_methods
 \* ------------------------------------------------------------------ */
 UINT8 get_day_of_week(UINT16 Year, UINT8 Month, UINT8 DayOfMonth)
 {
@@ -5999,16 +5942,14 @@ UINT16 get_day_of_year(UINT16 YearNumber, UINT8 MonthNumber, UINT8 DayNumber)
     
     if (DebugBitMask & DEBUG_DST)
     {
-      // sprintf(String, "Adding month %u [%3s] TargetDayNumber += %u (cumulative: %u)\r", Loop1UInt8, ShortMonth[ENGLISH][Loop1UInt8], get_month_days(YearNumber, Loop1UInt8), TargetDayNumber);
-      // uart_send(__LINE__, String);
+      // uart_send(__LINE__, "Adding month %u [%3s] TargetDayNumber += %u (cumulative: %u)\r", Loop1UInt8, ShortMonth[ENGLISH][Loop1UInt8], get_month_days(YearNumber, Loop1UInt8), TargetDayNumber);
     }
   }
 
   /* Then add days of the last, partial month. */
   if (DebugBitMask & DEBUG_DST)
   {
-    // sprintf(String, "Final DayNumber after adding final partial month: (%u + %u)\r\r\r", TargetDayNumber, DayNumber, TargetDayNumber + DayNumber);
-    // uart_send(__LINE__, String);
+    // uart_send(__LINE__, "Final DayNumber after adding final partial month: (%u + %u)\r\r\r", TargetDayNumber, DayNumber, TargetDayNumber + DayNumber);
   }
 
   TargetDayNumber += DayNumber;
@@ -6038,42 +5979,34 @@ void get_dst_days(void)
                     Calculate DayOfYear for DST start date.
   \* ------------------------------------------------------------------------ */
   /* Total number of days in target month. */
-  DaysInMonth = get_month_days(CurrentYear, DstParameters[FlashConfig.DaylightSavingTime].StartMonth);
+  DaysInMonth = get_month_days(CurrentYear, DstParameters[FlashConfig.DSTCountry].StartMonth);
 
   if (DebugBitMask & DEBUG_DST)
   {
-    sprintf(String, "Calculating DST start day number for %s (%u to %u) %s-%u \r", 
-            DayName[FlashConfig.Language][DstParameters[FlashConfig.DaylightSavingTime].StartDayOfWeek], 
-            DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthLow, 
-            DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthHigh, 
-            ShortMonth[ENGLISH][DstParameters[FlashConfig.DaylightSavingTime].StartMonth], 
+    uart_send(__LINE__, "Calculating DST start day number for %s (%u to %u) %s-%u \r", 
+            DayName[ENGLISH][DstParameters[FlashConfig.DSTCountry].StartDayOfWeek], 
+            DstParameters[FlashConfig.DSTCountry].StartDayOfMonthLow, 
+            DstParameters[FlashConfig.DSTCountry].StartDayOfMonthHigh, 
+            ShortMonth[ENGLISH][DstParameters[FlashConfig.DSTCountry].StartMonth], 
             CurrentYear);
-    uart_send(__LINE__, String);
-
     
-    sprintf(String, "DST start month is %s and contains %u days\r", MonthName[FlashConfig.Language][DstParameters[FlashConfig.DaylightSavingTime].StartMonth], DaysInMonth);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "DST start month is %s and contains %u days\r", MonthName[ENGLISH][DstParameters[FlashConfig.DSTCountry].StartMonth], DaysInMonth);
   }
 
 
   /* Find the DayOfMonth when DST starts. */
   for (Loop1UInt8 = 1; Loop1UInt8 <= DaysInMonth; ++Loop1UInt8)
   {
-    TargetDayOfWeek = get_day_of_week(CurrentYear, DstParameters[FlashConfig.DaylightSavingTime].StartMonth, Loop1UInt8);
+    TargetDayOfWeek = get_day_of_week(CurrentYear, DstParameters[FlashConfig.DSTCountry].StartMonth, Loop1UInt8);
     
     if (DebugBitMask & DEBUG_DST)
-    {
-      sprintf(String, "Checking day of month: %2u  day of week: %u [%8s]\r", Loop1UInt8, TargetDayOfWeek, DayName[FlashConfig.Language][TargetDayOfWeek]);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Checking day of month: %2u   day of week: %u [%8s]\r", Loop1UInt8, TargetDayOfWeek, DayName[ENGLISH][TargetDayOfWeek]);
 
-    if ((Loop1UInt8 >= DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthLow) && (Loop1UInt8 <= DstParameters[FlashConfig.DaylightSavingTime].StartDayOfMonthHigh) && (TargetDayOfWeek == DstParameters[FlashConfig.DaylightSavingTime].StartDayOfWeek))
+
+    if ((Loop1UInt8 >= DstParameters[FlashConfig.DSTCountry].StartDayOfMonthLow) && (Loop1UInt8 <= DstParameters[FlashConfig.DSTCountry].StartDayOfMonthHigh) && (TargetDayOfWeek == DstParameters[FlashConfig.DSTCountry].StartDayOfWeek))
     {
       if (DebugBitMask & DEBUG_DST)
-      {
-        sprintf(String, "Found the starting DayOfMonth: %2u\r", Loop1UInt8);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Found the starting DayOfMonth: %2u\r", Loop1UInt8);
 
       break;  // get out of "for" loop when we found DST start day.
     }
@@ -6081,20 +6014,19 @@ void get_dst_days(void)
   
   
   /* Evaluate the DayOfYear for DST starting date. */
-  DstParameters[FlashConfig.DaylightSavingTime].StartDayOfYear = get_day_of_year(CurrentYear, DstParameters[FlashConfig.DaylightSavingTime].StartMonth, Loop1UInt8);
+  DstParameters[FlashConfig.DSTCountry].StartDayOfYear = get_day_of_year(CurrentYear, DstParameters[FlashConfig.DSTCountry].StartMonth, Loop1UInt8);
 
   if (DebugBitMask & DEBUG_DST)
   {
     sprintf(String, "Total number of days:  ");
-    for (Loop2UInt8 = 1; Loop2UInt8 < DstParameters[FlashConfig.DaylightSavingTime].StartMonth; ++Loop2UInt8)
+    for (Loop2UInt8 = 1; Loop2UInt8 < DstParameters[FlashConfig.DSTCountry].StartMonth; ++Loop2UInt8)
     {
-      sprintf(&String[strlen(String)], "%2u + ", get_month_days(CurrentYear, Loop2UInt8));
+      sprintf(&String[strlen(String)], "%u + ", get_month_days(CurrentYear, Loop2UInt8));
     }
-    sprintf(&String[strlen(String)], "%2u\r", Loop1UInt8);
+    sprintf(&String[strlen(String)], "%u\r", Loop1UInt8);
     uart_send(__LINE__, String);
 
-    sprintf(String, "StartDayOfYear for DST: %u (%2u-%s-%4.4u)\r\r\r", DstParameters[FlashConfig.DaylightSavingTime].StartDayOfYear, Loop1UInt8, ShortMonth[ENGLISH][DstParameters[FlashConfig.DaylightSavingTime].StartMonth], CurrentYear);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, " ----------> StartDayOfYear for DST: %u   %s %2u-%s-%4.4u\r\r\r", DstParameters[FlashConfig.DSTCountry].StartDayOfYear, ShortDay[FlashConfig.Language][DstParameters[FlashConfig.DSTCountry].StartDayOfWeek], Loop1UInt8, ShortMonth[ENGLISH][DstParameters[FlashConfig.DSTCountry].StartMonth], CurrentYear);
   }
 
 
@@ -6105,41 +6037,33 @@ void get_dst_days(void)
                     Calculate DayOfYear for DST end date.
   \* ------------------------------------------------------------------------ */
   /* Total number of days in target month. */
-  DaysInMonth = get_month_days(CurrentYear, DstParameters[FlashConfig.DaylightSavingTime].EndMonth);
+  DaysInMonth = get_month_days(CurrentYear, DstParameters[FlashConfig.DSTCountry].EndMonth);
 
   if (DebugBitMask & DEBUG_DST)
   {
-    sprintf(String, "Calculating DST end day number for %s (%u to %u) %s-%4.4u \r", 
-            DayName[FlashConfig.Language][DstParameters[FlashConfig.DaylightSavingTime].EndDayOfWeek], 
-            DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthLow, 
-            DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthHigh, 
-            ShortMonth[ENGLISH][DstParameters[FlashConfig.DaylightSavingTime].EndMonth], 
+    uart_send(__LINE__, "Calculating DST end day number for %s (%u to %u) %s-%4.4u \r", 
+            DayName[FlashConfig.Language][DstParameters[FlashConfig.DSTCountry].EndDayOfWeek], 
+            DstParameters[FlashConfig.DSTCountry].EndDayOfMonthLow, 
+            DstParameters[FlashConfig.DSTCountry].EndDayOfMonthHigh, 
+            ShortMonth[ENGLISH][DstParameters[FlashConfig.DSTCountry].EndMonth], 
             CurrentYear);
-    uart_send(__LINE__, String);
 
-    sprintf(String, "DST end month is %s and contains %u days\r", MonthName[FlashConfig.Language][DstParameters[FlashConfig.DaylightSavingTime].EndMonth], DaysInMonth);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "DST end month is %s and contains %u days\r", MonthName[FlashConfig.Language][DstParameters[FlashConfig.DSTCountry].EndMonth], DaysInMonth);
   }
 
 
   /* Find the DayOfMonth when DST ends. */
   for (Loop1UInt8 = 1; Loop1UInt8 <= DaysInMonth; ++Loop1UInt8)
   {
-    TargetDayOfWeek = get_day_of_week(CurrentYear, DstParameters[FlashConfig.DaylightSavingTime].EndMonth, Loop1UInt8);
+    TargetDayOfWeek = get_day_of_week(CurrentYear, DstParameters[FlashConfig.DSTCountry].EndMonth, Loop1UInt8);
     
     if (DebugBitMask & DEBUG_DST)
-    {
-      sprintf(String, "Checking day of month: %2u  day of week: %u [%8s]\r", Loop1UInt8, TargetDayOfWeek, DayName[FlashConfig.Language][TargetDayOfWeek]);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Checking day of month: %2u  day of week: %u [%8s]\r", Loop1UInt8, TargetDayOfWeek, DayName[FlashConfig.Language][TargetDayOfWeek]);
 
-    if ((Loop1UInt8 >= DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthLow) && (Loop1UInt8 <= DstParameters[FlashConfig.DaylightSavingTime].EndDayOfMonthHigh) && (TargetDayOfWeek == DstParameters[FlashConfig.DaylightSavingTime].EndDayOfWeek))
+    if ((Loop1UInt8 >= DstParameters[FlashConfig.DSTCountry].EndDayOfMonthLow) && (Loop1UInt8 <= DstParameters[FlashConfig.DSTCountry].EndDayOfMonthHigh) && (TargetDayOfWeek == DstParameters[FlashConfig.DSTCountry].EndDayOfWeek))
     {
       if (DebugBitMask & DEBUG_DST)
-      {
-        sprintf(String, "Found the ending DayOfMonth: %2u\r", Loop1UInt8);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Found the ending DayOfMonth: %2u\r", Loop1UInt8);
 
       break;  // get out of "for" loop when we found DST end day.
     }
@@ -6147,20 +6071,20 @@ void get_dst_days(void)
   
   
   /* Evaluate the DayOfYear for DST ending date. */
-  DstParameters[FlashConfig.DaylightSavingTime].EndDayOfYear = get_day_of_year(CurrentYear, DstParameters[FlashConfig.DaylightSavingTime].EndMonth, Loop1UInt8);
+  DstParameters[FlashConfig.DSTCountry].EndDayOfYear = get_day_of_year(CurrentYear, DstParameters[FlashConfig.DSTCountry].EndMonth, Loop1UInt8);
 
   if (DebugBitMask & DEBUG_DST)
   {
     sprintf(String, "Total number of days:  ");
-    for (Loop2UInt8 = 1; Loop2UInt8 < DstParameters[FlashConfig.DaylightSavingTime].EndMonth; ++Loop2UInt8)
+    for (Loop2UInt8 = 1; Loop2UInt8 < DstParameters[FlashConfig.DSTCountry].EndMonth; ++Loop2UInt8)
     {
-      sprintf(&String[strlen(String)], "%2u + ", get_month_days(CurrentYear, Loop2UInt8));
+      sprintf(&String[strlen(String)], "%u + ", get_month_days(CurrentYear, Loop2UInt8));
     }
-    sprintf(&String[strlen(String)], "%2u\r", Loop1UInt8);
+    sprintf(&String[strlen(String)], "%u\r", Loop1UInt8);
     uart_send(__LINE__, String);
 
-    sprintf(String, "EndDayOfYear for DST: %u (%2u-%s-%4.4u)\r\r\r", DstParameters[FlashConfig.DaylightSavingTime].EndDayOfYear, Loop1UInt8, ShortMonth[ENGLISH][DstParameters[FlashConfig.DaylightSavingTime].EndMonth], CurrentYear);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, " ----------> EndDayOfYear for DST: %u   %s %2u-%s-%4.4u\r", DstParameters[FlashConfig.DSTCountry].EndDayOfYear, ShortDay[FlashConfig.Language][DstParameters[FlashConfig.DSTCountry].EndDayOfWeek], Loop1UInt8, ShortMonth[ENGLISH][DstParameters[FlashConfig.DSTCountry].EndMonth], CurrentYear);
+    uart_send(__LINE__, "=========================================================================================================\r\r\r");
   }
 
   return;
@@ -6186,44 +6110,43 @@ UINT8 get_microcontroller_type(void)
   float Volts2;
 
 
-  /* Notes: 
+  /* Notes - On the Green Clock:
      ADC 0 (gpio 26)  is for photo-resistor (ambient light level).
      ADC 1 (gpio 27)  not used
      ADC 2 (gpio 28)  not used
      ADC 3 (gpio 29)  is for power supply voltage.
      ADC 4 (internal) is internally connected to read Pico's temperature. */
+
   /* Select power supply input. */
   adc_select_input(3);
 
-  gpio_put(PICO_LED, true);
+  gpio_put(PICO_LED, 1);
 
   /* Read ADC converter raw value. */
   AdcValue1 = adc_read();
 
   /* Convert raw value to voltage value. */
-  Volts1 = (3 * (AdcValue1 * 3.3f / 4096));
+  Volts1 = AdcValue1 * (3.3 / (1 << 12));
 
 
 
   /* The important power supply value to consider is when GPIO25 is Low. */
-  gpio_put(PICO_LED, false);
+  gpio_put(PICO_LED, 0);
     
   /* Read ADC converter raw value. */
   AdcValue2 = adc_read();
 
   /* Convert raw value to voltage value. */
-  Volts2 = (3 * (AdcValue2 * 3.3f / 4096));
+  Volts2 = AdcValue2 * (3.3 / (1 << 12));
+  
   if (DebugBitMask & DEBUG_PICO_W)
-  {
-    sprintf(String, "Volts1: %4.2f   Volts2: %4.2f\r", Volts1, Volts2);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "AdcValue1: %4u   Volts1: %4.2f   AdcValue2: %4u   Volts2: %4.2f\r", AdcValue1, Volts1, AdcValue2, Volts2);
+
   if (Volts2 > 3.0)
     return TYPE_PICO;
   else
     return TYPE_PICO_W;
 }
-
 
 
 
@@ -6454,12 +6377,12 @@ int init_gpio(void)
   uart_init(uart0, 921600);
   uart_set_format(uart0, 8, 1, UART_PARITY_NONE);
 
-  /* If "NO_SOUND" is defined, absolutely no sound will be made by the clock. */
-  #ifndef NO_SOUND
+  /* If "SOUND_DISABLED" is defined, absolutely no sound will be made by the clock. */
+  #ifndef SOUND_DISABLED
   /* Original Green clock active piezo. */
   gpio_init(BUZZ);
   gpio_set_dir(BUZZ, GPIO_OUT);
-  #endif  // NO_SOUND
+  #endif  // SOUND_DISABLED
 
   /* If user installed an infrared sensor (VS1838B) and support for a remote control. */
   #ifdef IR_SUPPORT
@@ -6568,11 +6491,11 @@ void input_string(UCHAR *String)
   printf("\r\r\r");
 
   /* Optionally display each character entered. */
-  /*
+  /***
   for (Loop1UInt8 = 0; Loop1UInt8 < 10; ++Loop1UInt8)
     printf("%2u:[%2.2X]   ", Loop1UInt8, String[Loop1UInt8]);
   printf("\r");
-  */
+  ***/
 
   return;
 }
@@ -6874,10 +6797,7 @@ void matrix_test(UINT8 TestNumber)
       } while (Column % 2);
   
       if (DebugBitMask & DEBUG_TEMP)
-      {
-        sprintf(String, "Random Column: %2u   ColumnUp[%2u]: %u   ColumnDown[%2u]: %u ", Column, Column, ColumnUp[Column], Column, ColumnDown[Column]);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Random Column: %2u   ColumnUp[%2u]: %u   ColumnDown[%2u]: %u ", Column, Column, ColumnUp[Column], Column, ColumnDown[Column]);
 
 
       if ((ColumnUp[Column] == 0) && (CurrentTimer < (StartTimer + ((DurationSeconds - 2) * 1000000))))
@@ -6890,19 +6810,13 @@ void matrix_test(UINT8 TestNumber)
         set_pixel(ColumnDown[Column], Column, FLAG_ON);
 
         if (DebugBitMask & DEBUG_TEMP)
-        {
-          sprintf(String, "- Empty column - Random Row: %u   Turn  On pixel %u, %2u\r", Row, Row, Column);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "- Empty column - Random Row: %u   Turn  On pixel %u, %2u\r", Row, Row, Column);
       }
       else
       {
         /* Column already occupied or five seconds before end of animation... check current down position. */
         if (DebugBitMask & DEBUG_TEMP)
-        {
-          sprintf(String, "- Occupied - Up[%2u]: %u   Down[%2u]: %u ", Column, ColumnUp[Column], Column, ColumnDown[Column]);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "- Occupied - Up[%2u]: %u   Down[%2u]: %u ", Column, ColumnUp[Column], Column, ColumnDown[Column]);
 
         if ((ColumnDown[Column] < 7) && (ColumnDown[Column] != 0))
         {
@@ -6910,19 +6824,13 @@ void matrix_test(UINT8 TestNumber)
           set_pixel(ColumnDown[Column], Column, FLAG_ON);
         
           if (DebugBitMask & DEBUG_TEMP)
-          {
-            sprintf(String, "- Turn  On pixel %u, %2u\r", ColumnDown[Column], Column);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, "- Turn  On pixel %u, %2u\r", ColumnDown[Column], Column);
         }
         else
         {
           /* We already reached the lowest down mark, erase falling flake. */
           if (DebugBitMask & DEBUG_TEMP)
-          {
-            sprintf(String, "- Turn Off pixel %u, %2u\r", ColumnUp[Column], Column);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, "- Turn Off pixel %u, %2u\r", ColumnUp[Column], Column);
 
           set_pixel(ColumnUp[Column], Column, FLAG_OFF);
           ++ColumnUp[Column];
@@ -7175,10 +7083,7 @@ void process_command_queue(void)
 
 
   if (DebugBitMask & DEBUG_COMMAND_QUEUE)
-  {
-    sprintf(String, "Entering process_command_queue()\r");
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "Entering process_command_queue()\r");
   
   
   /* Check if for any reason, the function has been called while the command queue is empty. */
@@ -7186,10 +7091,7 @@ void process_command_queue(void)
 
 
   if (DebugBitMask & DEBUG_COMMAND_QUEUE)
-  {
-    sprintf(String, "CommandQueueHead: %u   CommandQueueTail: %u\r\r", CommandQueueHead, CommandQueueTail);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "CommandQueueHead: %u   CommandQueueTail: %u\r\r", CommandQueueHead, CommandQueueTail);
   
 
   while (CommandQueueTail != CommandQueueHead)
@@ -7202,10 +7104,7 @@ void process_command_queue(void)
       {
         case (COMMAND_PLAY_JINGLE):
           if (DebugBitMask & DEBUG_COMMAND_QUEUE)
-          {
-            sprintf(String, "Processing play_jingle(%u)\r\r", Parameter);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, "Processing play_jingle(%u)\r\r", Parameter);
         
           play_jingle(Parameter);
         break;
@@ -7268,10 +7167,7 @@ void process_ir_command(UINT8 IrCommand)
 
 
   if (DebugBitMask & DEBUG_IR_COMMAND)
-  {
-    sprintf(String, "process_ir_command(%2.2u)   Limits: %2.2u - %2.2u\r", IrCommand, IR_LO_LIMIT, IR_HI_LIMIT);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "process_ir_command(%2.2u)   Limits: %2.2u - %2.2u\r", IrCommand, IR_LO_LIMIT, IR_HI_LIMIT);
 
 
   /* Check if IrCommand is out-of-bound or "do nothing" (On-Off). */
@@ -7295,10 +7191,23 @@ void process_ir_command(UINT8 IrCommand)
   {
     // scroll_string(24, "Button 'Set': Top quick");
 
+
+
+
     /* If one or more alarms are ringing, the "Set" button is used to shut them Off. */
-    if (AlarmReachedBitMask)
+    if (AlarmReachedBitMask || FlagTimerCountDownEnd)
     {
-      AlarmReachedBitMask = 0;
+      if (AlarmReachedBitMask) AlarmReachedBitMask = 0;
+
+
+      /* If "Set" button (or IR equivalent) has been pressed while count-down timer alarm is ringing, reset count-down timer alarm so that it stops ringing. */
+      if (FlagTimerCountDownEnd == FLAG_ON)
+      {
+        FlagTimerCountDownEnd = FLAG_OFF;
+
+        if (DebugBitMask & DEBUG_TIMER)
+          uart_send(__LINE__, "FlagTimerCountDownEnd has been reset.\r");
+      }
     }
     else
     {
@@ -7330,10 +7239,10 @@ void process_ir_command(UINT8 IrCommand)
 
         default:
           /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
-          FlagSetClock = FLAG_ON;
-          SetupSource = SETUP_SOURCE_CLOCK;
-          CurrentClockMode = MODE_CLOCK_SETUP;
-          IdleNumberOfSeconds = 0; // reset the number of seconds the system has been idle.
+          FlagSetClock        = FLAG_ON;
+          SetupSource         = SETUP_SOURCE_CLOCK;
+          CurrentClockMode    = MODE_CLOCK_SETUP;
+          IdleNumberOfSeconds = 0;  // reset the number of seconds the system has been idle.
           ++SetupStep;
         break;
       }
@@ -7352,7 +7261,7 @@ void process_ir_command(UINT8 IrCommand)
     /* If we are not already in setup mode, enter alarm setup mode. */
     FlagSetAlarm = FLAG_ON; // enter alarm setup mode.
     SetupSource  = SETUP_SOURCE_ALARM;
-    ++SetupStep; // process through all alarm setup steps.
+    ++SetupStep;  // process through all alarm setup steps.
   }
 
   
@@ -7424,7 +7333,7 @@ void process_ir_command(UINT8 IrCommand)
         if (SetupStep == SETUP_NONE)
         {
           FlagSetTimer = FLAG_ON;
-          SetupSource = SETUP_SOURCE_TIMER;
+          SetupSource  = SETUP_SOURCE_TIMER;
           ++SetupStep;
         }
       break;
@@ -7897,6 +7806,9 @@ void process_ir_command(UINT8 IrCommand)
     scroll_queue(TAG_VOLTAGE);          // power supply voltage.
     scroll_queue(TAG_BME280_DEVICE_ID); // BME280 device ID if one has been installed by user.
     scroll_queue(TAG_IDLE_MONITOR);     // system idle time monitor.
+    #ifdef PICO_W
+    scroll_queue(TAG_NTP_ERRORS);       // scroll number of error in NTP requests.
+    #endif  // PICO_W
 
     /* Test active buzzer. */
     for (Loop1UInt8 = 0; Loop1UInt8 < 4; ++Loop1UInt8)
@@ -7997,7 +7909,10 @@ void process_ir_command(UINT8 IrCommand)
             get_date_string(String);
             scroll_string(24, String);
           }
+          scroll_queue(TAG_NTP_STATUS);
+          scroll_queue(TAG_WIFI_CREDENTIALS);
         break;
+        
         case (0x06):  // SETUP_DST
           /* Daylight saving time status. */
           scroll_queue(TAG_DST);
@@ -8330,10 +8245,7 @@ void process_ir_command(UINT8 IrCommand)
     Dum1UInt8 = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
 
     if (DebugBitMask & DEBUG_EVENT)
-    {
-      sprintf(String, "Today is %s [DayOfWeek %u] %2u-%s-%4.4u\r", DayName[FlashConfig.Language][Dum1UInt8], Dum1UInt8, CurrentDayOfMonth, MonthName[FlashConfig.Language][CurrentMonth], CurrentYear);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Today is %s [DayOfWeek %u] %2u-%s-%4.4u\r", DayName[FlashConfig.Language][Dum1UInt8], Dum1UInt8, CurrentDayOfMonth, MonthName[FlashConfig.Language][CurrentMonth], CurrentYear);
     
     DumDayOfMonth = CurrentDayOfMonth;
     DumMonth      = CurrentMonth;
@@ -8358,19 +8270,13 @@ void process_ir_command(UINT8 IrCommand)
         Dum1UInt8 = get_day_of_week(DumYear, DumMonth, DumDayOfMonth);
         
         if (DebugBitMask & DEBUG_EVENT)
-        {
-          sprintf(String, "Back one day, to %8s [%u] %2u-%s-%4.4u\r", DayName[FlashConfig.Language][Dum1UInt8], Dum1UInt8, DumDayOfMonth, MonthName[FlashConfig.Language][DumMonth], DumYear);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "Back one day, to %8s [%u] %2u-%s-%4.4u\r", DayName[FlashConfig.Language][Dum1UInt8], Dum1UInt8, DumDayOfMonth, MonthName[FlashConfig.Language][DumMonth], DumYear);
       } while (Dum1UInt8 != SUN);
     }
 
     /* Display date of the first day of the week (Sunday) that has been found. */
     if (DebugBitMask & DEBUG_EVENT)
-    {
-      sprintf(String, "Week beginning: %2u-%s-%4u\r", DumDayOfMonth, MonthName[FlashConfig.Language][DumMonth], DumYear);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Week beginning: %2u-%s-%4u\r", DumDayOfMonth, MonthName[FlashConfig.Language][DumMonth], DumYear);
 
     /* And display all events for each of the next seven days, starting with this Sunday. */
     Dum1UInt8 = 0;
@@ -8379,26 +8285,18 @@ void process_ir_command(UINT8 IrCommand)
     for (Loop1UInt8 = 0; Loop1UInt8 < 7; ++Loop1UInt8)
     {
       if (DebugBitMask & DEBUG_EVENT)
-      {
-        sprintf(String, "Checking date:  %2u-%s-%4.4u\r", DumDayOfMonth, MonthName[ENGLISH][DumMonth], DumYear);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Checking date:  %2u-%s-%4.4u\r", DumDayOfMonth, MonthName[ENGLISH][DumMonth], DumYear);
 
       /* Check every calendar event to find a match with date under evaluation. */
       for (Loop2UInt8 = 0; Loop2UInt8 < MAX_EVENTS; ++Loop2UInt8)
       {
         if (DebugBitMask & DEBUG_EVENT)
-        {
-          sprintf(String, "Checking event number %2u  %2llu %10s [%s]\r", Loop2UInt8, CalendarEvent[Loop2UInt8].Day, MonthName[ENGLISH][CalendarEvent[Loop2UInt8].Month], CalendarEvent[Loop2UInt8].Description);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "Checking event number %2u  %2llu %10s [%s]\r", Loop2UInt8, CalendarEvent[Loop2UInt8].Day, MonthName[ENGLISH][CalendarEvent[Loop2UInt8].Month], CalendarEvent[Loop2UInt8].Description);
 
         if ((CalendarEvent[Loop2UInt8].Month == DumMonth) && (CalendarEvent[Loop2UInt8].Day == DumDayOfMonth))
         {
           if (DebugBitMask & DEBUG_EVENT)
-          {
             uart_send(__LINE__, "Match found !\r");
-          }
 
           if (FlashConfig.Language == ENGLISH)
             sprintf(String, "%s %u: %s   /   ", MonthName[FlashConfig.Language][DumMonth], DumDayOfMonth, CalendarEvent[Loop2UInt8].Description);
@@ -8635,11 +8533,11 @@ void process_scroll_queue(void)
               switch (FlashConfig.Language)
               {
                 case (ENGLISH):
-                  sprintf(String, "Out: %2.2f%cC  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280CalibParam.TemperatureC, 0x80, Bme280CalibParam.Humidity, Bme280CalibParam.Pressure);
+                  sprintf(String, "Out: %2.2f%cC  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280Data.TemperatureC, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
                 break;
 
                 case (FRENCH):
-                  sprintf(String, "Ext: %2.2f%cC  Hum: %2.2f%%  Pression: %4.2f hPa ", Bme280CalibParam.TemperatureC, 0x80, Bme280CalibParam.Humidity, Bme280CalibParam.Pressure);
+                  sprintf(String, "Ext: %2.2f%cC  Hum: %2.2f%%  Pression: %4.2f hPa ", Bme280Data.TemperatureC, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
                 break;
               }
             }
@@ -8649,11 +8547,11 @@ void process_scroll_queue(void)
               switch (FlashConfig.Language)
               {
                 case (ENGLISH):
-                  sprintf(String, "Out: %2.2f%cF  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280CalibParam.TemperatureF, 0x80, Bme280CalibParam.Humidity, Bme280CalibParam.Pressure);
+                  sprintf(String, "Out: %2.2f%cF  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280Data.TemperatureF, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
                 break;
 
                 case (FRENCH):
-                  sprintf(String, "Ext: %2.2f%cF  Hum: %2.2f%%  Pression: %4.2f hPa ", Bme280CalibParam.TemperatureF, 0x80, Bme280CalibParam.Humidity, Bme280CalibParam.Pressure);
+                  sprintf(String, "Ext: %2.2f%cF  Hum: %2.2f%%  Pression: %4.2f hPa ", Bme280Data.TemperatureF, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
                 break;
               }
             }
@@ -8668,7 +8566,7 @@ void process_scroll_queue(void)
           }
 
           // For statistic purposes, display the cumulative number of errors while reading BME280 data.
-          sprintf(String, " [%llu/%llu]    ", Bme280Errors, Bme280Readings);
+          sprintf(String, " [%lu/%lu]    ", Bme280Data.Bme280Errors, Bme280Data.Bme280ReadCycles);
           if (DebugBitMask & DEBUG_BME280)
           {
             uart_send(__LINE__, String);
@@ -8681,7 +8579,16 @@ void process_scroll_queue(void)
 
 
 
+        case (TAG_WIFI_CREDENTIALS):
+          /* Scroll Wi-Fi credentials saved in flash memory. */
+          sprintf(String, "SSID: [%s]   Pwd: [%s]", FlashConfig.SSID, FlashConfig.Password);
+          scroll_string(24, String);
+        break;
+
+
+
         case (TAG_DATE):
+          /* Scroll current date. */
           get_date_string(String);
           scroll_string(24, String);
         break;
@@ -8705,7 +8612,7 @@ void process_scroll_queue(void)
           core_queue(1, CORE1_READ_DHT);
           
           /* Initializations. */
-          ++DhtReadings;
+          ++DhtData.DhtReadCycles;
           Loop1UInt16 = 0;
           TempString[0] = 0x00;  // init as null string.
 
@@ -8721,21 +8628,16 @@ void process_scroll_queue(void)
               sleep_ms(5);
 
               if (DebugBitMask & DEBUG_CORE)
-              {
-                sprintf(String, "-------------------- CORE 0 - Still waiting for core 1 response [%2u msec] Head: %u Tail: %u (Command: %u)\r", (Loop1UInt16 * 10), Core0QueueHead, Core0QueueTail, Command);
-                uart_send(__LINE__, String);
-              }
+                uart_send(__LINE__, "-------------------- CORE 0 - Still waiting for core 1 response [%2u msec] Head: %u Tail: %u (Command: %u)\r", (Loop1UInt16 * 10), Core0QueueHead, Core0QueueTail, Command);
 
               ++Loop1UInt16;
               
               if (Loop1UInt16 > 50)
               {
                 if (DebugBitMask & DEBUG_CORE)
-                {
-                  sprintf(String, "-------------------- CORE 0 - Time-out while waiting for core 1 [%u msec] %u - %u (%u)\r", (Loop1UInt16 * 50), Core0QueueHead, Core0QueueTail, Command);
-                  uart_send(__LINE__, String);
-                }
-                ++DhtErrors;
+                  uart_send(__LINE__, "-------------------- CORE 0 - Time-out while waiting for core 1 [%u msec] %u - %u (%u)\r", (Loop1UInt16 * 50), Core0QueueHead, Core0QueueTail, Command);
+
+                ++DhtData.DhtErrors;
                 break;
               }
             }
@@ -8745,10 +8647,9 @@ void process_scroll_queue(void)
             if (Command == CORE0_DHT_ERROR)
             {
               if (DebugBitMask & DEBUG_CORE)
-              {
                 uart_send(__LINE__, "-------------------- CORE 0 - Returned an error while trying to read DHT22\r");
-              }
-              ++DhtErrors;
+
+              ++DhtData.DhtErrors;
               break;
             }
 
@@ -8758,28 +8659,17 @@ void process_scroll_queue(void)
             {
               if (DebugBitMask & DEBUG_CORE)
               {
-                sprintf(String, "-------------------- CORE 0 - Returned DHT read successful - Temp: %f   Hum: %f\r", DhtData.Temperature, DhtData.Humidity);
-                uart_send(__LINE__, String);
+                uart_send(__LINE__, "-------------------- CORE 0 - Returned DHT read successful - Temp: %f   Hum: %f\r", DhtData.Temperature, DhtData.Humidity);
 
                 CurrentTimeStamp = time_us_64();
-                sprintf(String, "Current TimeStamp: %llu\r", CurrentTimeStamp);
-                uart_send(__LINE__, String);
-      
-                sprintf(String, "DHT22 TimeStamp: %llu\r", DhtData.TimeStamp);
-                uart_send(__LINE__, String);
-      
-                sprintf(String, "TimeStamp difference: : %2.2f milliseconds\r", ((CurrentTimeStamp - DhtData.TimeStamp) / 1000.0));
-                uart_send(__LINE__, String);
-      
-                sprintf(String, "Temperature: %2.2f\r", DhtData.Temperature);
-                uart_send(__LINE__, String);
-
-                sprintf(String, "Humidity:    %2.2f\r", DhtData.Humidity);
-                uart_send(__LINE__, String);
+                uart_send(__LINE__, "Current TimeStamp: %llu\r", CurrentTimeStamp);
+                uart_send(__LINE__, "DHT22 TimeStamp: %llu\r", DhtData.TimeStamp);
+                uart_send(__LINE__, "TimeStamp difference: : %2.2f milliseconds\r", ((CurrentTimeStamp - DhtData.TimeStamp) / 1000.0));
+                uart_send(__LINE__, "Temperature: %2.2f\r", DhtData.Temperature);
+                uart_send(__LINE__, "Humidity:    %2.2f\r", DhtData.Humidity);
 
                 /* Get the formatted string to be scrolled on clock display. */
-                sprintf(String, "-------------------- CORE 0 - TempString before: [%s]\r", TempString);
-                uart_send(__LINE__, String);
+                uart_send(__LINE__, "-------------------- CORE 0 - TempString before: [%s]\r", TempString);
               }
 
               #ifdef RELEASE_VERSION
@@ -8788,19 +8678,16 @@ void process_scroll_queue(void)
               format_temp(TempString, "Int: ", DhtData.Temperature, DhtData.Humidity, 0.0);
               #endif
 
-
               if (DebugBitMask & DEBUG_CORE)
-              {
-                sprintf(String, "-------------------- CORE 0 - TempString after: [%s]\r", TempString);
-                uart_send(__LINE__, String);
-              }
+                uart_send(__LINE__, "-------------------- CORE 0 - TempString after: [%s]\r", TempString);
+
               break;
             }
           }
 
           /* No matter if we scroll temperature data or if DHT22 read cycle failed (in which case we don't scroll temperature data),
              in all cases, let's display the total number or DHT22 read errors on the total number of DHT22 read cycles. */
-          sprintf(&TempString[strlen(TempString)], " (%u/%u)    ", DhtErrors, DhtReadings);
+          sprintf(&TempString[strlen(TempString)], " (%lu/%lu)    ", DhtData.DhtErrors, DhtData.DhtReadCycles);
           scroll_string(24, TempString);
           #endif  // DHT_SUPPORT
         break;
@@ -8835,13 +8722,13 @@ void process_scroll_queue(void)
           switch (FlashConfig.Language)
           {
             case (ENGLISH):
-              if (FlashConfig.DaylightSavingTime == DST_NONE)
+              if (FlashConfig.DSTCountry == DST_NONE)
               {
                 scroll_string(24, "No support for daylight saving time    ");
               }
               else
               {
-                switch(FlashConfig.DaylightSavingTime)
+                switch(FlashConfig.DSTCountry)
                 {
                   case (DST_AUSTRALIA):
                     scroll_string(24, "DST setting: Australia");
@@ -8901,7 +8788,7 @@ void process_scroll_queue(void)
             break;
 
             case (FRENCH):
-              if (FlashConfig.DaylightSavingTime == DST_NONE)
+              if (FlashConfig.DSTCountry == DST_NONE)
               {
                 sprintf(String, "Heure avancee non supportee    ");
                 String[11] = (UINT8)31;  // e accent aigu.
@@ -8910,7 +8797,7 @@ void process_scroll_queue(void)
               }
               else
               {
-                switch(FlashConfig.DaylightSavingTime)
+                switch(FlashConfig.DSTCountry)
                 {
                   case (DST_AUSTRALIA):
                     sprintf(String, "Heure avancee: Australie");
@@ -9022,8 +8909,7 @@ void process_scroll_queue(void)
         case (TAG_INFO):
           if (DebugBitMask & DEBUG_ALARMS)
           {
-            sprintf(String, "Bit mask used for weekday selection:\r");
-            uart_send(__LINE__, String);
+            uart_send(__LINE__, "Bit mask used for weekday selection:\r");
 
             /* Display all 7 day-of-week. */
             for (Loop1UInt8 = 1; Loop1UInt8 < 8; ++Loop1UInt8)
@@ -9045,18 +8931,10 @@ void process_scroll_queue(void)
             /* Scan all alarms (0 to 8). */
             for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
             {
-              sprintf(String, "[%X] Alarm[%2.2u].Status:         0x%2.2X     (00 = Off   FF = On)\r", &FlashConfig.Alarm[Loop1UInt8].FlagStatus, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].FlagStatus);
-              uart_send(__LINE__, String);
-
-              sprintf(String, "[%X] Alarm[%2.2u].Hour:            %3u\r", &FlashConfig.Alarm[Loop1UInt8].Hour, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour);
-              uart_send(__LINE__, String);
-
-              sprintf(String, "[%X] Alarm[%2.2u].Minute:          %3u\r", &FlashConfig.Alarm[Loop1UInt8].Minute, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Minute);
-              uart_send(__LINE__, String);
-
-              sprintf(String, "[%X] Alarm[%2.2u].Second:          %3u\r", &FlashConfig.Alarm[Loop1UInt8].Second, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Second);
-              uart_send(__LINE__, String);
-
+              uart_send(__LINE__, "[%X] Alarm[%2.2u].Status:         0x%2.2X     (00 = Off   FF = On)\r", &FlashConfig.Alarm[Loop1UInt8].FlagStatus, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].FlagStatus);
+              uart_send(__LINE__, "[%X] Alarm[%2.2u].Hour:            %3u\r", &FlashConfig.Alarm[Loop1UInt8].Hour, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour);
+              uart_send(__LINE__, "[%X] Alarm[%2.2u].Minute:          %3u\r", &FlashConfig.Alarm[Loop1UInt8].Minute, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Minute);
+              uart_send(__LINE__, "[%X] Alarm[%2.2u].Second:          %3u\r", &FlashConfig.Alarm[Loop1UInt8].Second, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Second);
           
               /* Identify all day-of-week targets for each alarm. */
               DayMask[0] = 0x00;  // initialize string as null.
@@ -9087,6 +8965,49 @@ void process_scroll_queue(void)
             }
           }
         break;
+
+
+
+        #ifdef PICO_W
+        case (TAG_NTP_ERRORS):
+          /* Scroll total number of NTP errors so far. */
+          if (NTPData.NTPErrors)
+          {
+            switch (FlashConfig.Language)
+            {
+              case (ENGLISH):
+                sprintf(String, "NTP errors: %lu   ", NTPData.NTPErrors);
+              break;
+
+              case (FRENCH):
+                sprintf(String, "Erreurs NTP: %lu/%lu   ", NTPData.NTPErrors);
+              break;
+            }
+            scroll_string(24, String);
+          }
+        break;
+        #endif  // PICO_W
+
+
+
+        #ifdef PICO_W
+        #ifdef DEVELOPER_VERSION
+        case (TAG_NTP_STATUS):
+          /* Scroll total number of NTP request failures so far. */
+          switch (FlashConfig.Language)
+          {
+            case (ENGLISH):
+              sprintf(String, "NTP status: %lu/%lu   ", NTPData.NTPErrors, NTPData.NTPReadCycles);
+            break;
+
+            case (FRENCH):
+              sprintf(String, "Statut NTP: %lu/%lu   ", NTPData.NTPErrors, NTPData.NTPReadCycles);
+            break;
+          }
+          scroll_string(24, String);
+        break;
+        #endif  // DEVELOPER_VERSION
+        #endif  // PICO_W
 
 
 
@@ -9273,7 +9194,7 @@ void pwm_initialize(void)
         pwm_set_enabled(Pwm[Loop1UInt8].Slice, TRUE);
       break;
 
-      #ifndef NO_SOUND
+      #ifndef SOUND_DISABLED
       case (PWM_SOUND):
         /* Set current values in PWM structure. */
         Pwm[Loop1UInt8].Frequency = 250;
@@ -9290,7 +9211,7 @@ void pwm_initialize(void)
         /* Make sure PWM is turned Off. */
         pwm_set_enabled(Pwm[Loop1UInt8].Slice, FALSE);
       break;
-      #endif  // NO_SOUND
+      #endif  // SOUND_DISABLED
     }
   }
 
@@ -9369,7 +9290,7 @@ void pwm_set_duty_cycle(UINT8 DutyCycle)
 \* ---------------------------------------------------------------------------- */
 void pwm_set_frequency(UINT16 Frequency)
 {
-  #ifndef NO_SOUND
+  #ifndef SOUND_DISABLED
   UCHAR String[256];
 
 
@@ -9385,7 +9306,7 @@ void pwm_set_frequency(UINT16 Frequency)
 
   /* Set PWM duty cycle given the Divider, Counter and Frequency current values. */
   pwm_set_chan_level(Pwm[PWM_SOUND].Slice, Pwm[PWM_SOUND].Channel, Pwm[PWM_SOUND].Level);
-  #endif  // NO_SOUND
+  #endif  // SOUND_DISABLED
 
   return;
 }
@@ -9441,10 +9362,7 @@ UINT8 read_dht(float *Temperature, float *Humidity)
   while (TryNumber < MaxTry)
   {
     if (DebugBitMask & DEBUG_DHT)
-    {
-      sprintf(String, "Read DHT22, retry %u\r", TryNumber);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Read DHT22, retry %u\r", TryNumber);
 
     /* Initializations. */
     DhtStepCount = 0;  // total number of "logic level changes" received from DHT22 (must be 83).
@@ -9453,7 +9371,6 @@ UINT8 read_dht(float *Temperature, float *Humidity)
     for (Loop1UInt16 = 0; Loop1UInt16 < MAX_DHT_READINGS; ++Loop1UInt16)
       DhtLevel[Loop1UInt16] = 'X';  // logic level: 'X' = Unknown   'L' = Low   'H' = High
 
-  
 
     /* Set the line in "output" mode to trigger a "read cycle request" to DHT22. */
     gpio_set_dir(DHT22, GPIO_OUT);
@@ -9503,10 +9420,7 @@ UINT8 read_dht(float *Temperature, float *Humidity)
     if ((DhtFinalValue[DhtStepCount] - DhtStartValue[DhtStepCount]) > (UINT64)50)
     {
       if (DebugBitMask & DEBUG_DHT)
-      {
-        sprintf(String, "Time-out while waiting for DHT22 to respond, retry number %u\r", TryNumber + 1);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Time-out while waiting for DHT22 to respond, retry number %u\r", TryNumber + 1);
 
       /*** Try brute force method to see if there is a DHT22 responding on the GPIO line. ***
       sleep_ms(500);                  // wait to make sure previous read cycle is over.
@@ -9533,21 +9447,13 @@ UINT8 read_dht(float *Temperature, float *Humidity)
 
       if (DebugBitMask & DEBUG_DHT)
       {
-        sprintf(String, "Time-out while trying to read DHT22 (%llu uSec)\r", (DhtFinalValue[DhtStepCount] - DhtStartValue[DhtStepCount]));
-        uart_send(__LINE__, String);
-
-        sprintf(String, "CurrentLevel: %u\r", gpio_get(DHT22));
-        uart_send(__LINE__, String);
-
-
-        sprintf(String, "Total duration: %llu uSec total   (average %llu)\r", (FinalTime - InitialTime), ((FinalTime - InitialTime) / MAX_DHT_READINGS));
-        uart_send(__LINE__, String);
-
+        uart_send(__LINE__, "Time-out while trying to read DHT22 (%llu uSec)\r", (DhtFinalValue[DhtStepCount] - DhtStartValue[DhtStepCount]));
+        uart_send(__LINE__, "CurrentLevel: %u\r", gpio_get(DHT22));
+        uart_send(__LINE__, "Total duration: %llu uSec total   (average %llu)\r", (FinalTime - InitialTime), ((FinalTime - InitialTime) / MAX_DHT_READINGS));
 
         for (Loop1UInt16 = 0; Loop1UInt16 < MAX_DHT_READINGS; ++Loop1UInt16)
         {
-          sprintf(String, "-[%3u] %u ", Loop1UInt16, TempLevel[Loop1UInt16]);
-          uart_send(__LINE__, String);
+          uart_send(__LINE__, "-[%3u] %u ", Loop1UInt16, TempLevel[Loop1UInt16]);
 
           if (((Loop1UInt16 + 1) % 15) == 0) uart_send(__LINE__, "\r");
         }
@@ -9628,10 +9534,7 @@ UINT8 read_dht(float *Temperature, float *Humidity)
 
     /* Optionally display number of steps (logic levels) received. */
     if (DebugBitMask & DEBUG_DHT)
-    {
-      sprintf(String, "DHT step count: %u\r", DhtStepCount);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "DHT step count: %u\r", DhtStepCount);
 
 
 
@@ -9657,12 +9560,8 @@ UINT8 read_dht(float *Temperature, float *Humidity)
         if (DebugBitMask & DEBUG_DHT)
         {
           uart_send(__LINE__, "Wait for response from DHT22 - 20 to 40 usec\r");
-
-          sprintf(String, "Initial: %llu   Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Step:          %2.2u   Level:        %c                 - - - - - ResultValue: %3llu\r\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
+          uart_send(__LINE__, "Initial: %llu   Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
+          uart_send(__LINE__, "Step:          %2.2u   Level:        %c                 - - - - - ResultValue: %3llu\r\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
         }
         continue;
       }
@@ -9675,12 +9574,8 @@ UINT8 read_dht(float *Temperature, float *Humidity)
         {
 
           uart_send(__LINE__, "1st <get ready> received from DHT22 - around 70 usec\r");
-
-          sprintf(String, "Initial: %llu   Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Step:          %2.2u   Level:       %c                  - - - - - ResultValue: %3llu\r\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
+          uart_send(__LINE__, "Initial: %llu   Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
+          uart_send(__LINE__, "Step:          %2.2u   Level:       %c                  - - - - - ResultValue: %3llu\r\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
         }
         continue;
       }
@@ -9692,12 +9587,8 @@ UINT8 read_dht(float *Temperature, float *Humidity)
         if (DebugBitMask & DEBUG_DHT)
         {
           uart_send(__LINE__, "2nd <get ready> received from DHT22 - around 70 usec\r");
-
-          sprintf(String, "Initial: %llu    Final: %llu   Result: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16], (DhtFinalValue[Loop1UInt16] - DhtStartValue[Loop1UInt16]));
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Step:          %2.2u    Level:        %c                - - - - - ResultValue: %3llu\r\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
+          uart_send(__LINE__, "Initial: %llu    Final: %llu   Result: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16], (DhtFinalValue[Loop1UInt16] - DhtStartValue[Loop1UInt16]));
+          uart_send(__LINE__, "Step:          %2.2u    Level:        %c                - - - - - ResultValue: %3llu\r\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
         }
         continue;
       }
@@ -9712,14 +9603,9 @@ UINT8 read_dht(float *Temperature, float *Humidity)
         /* Low level, it is a first half-bit. */
         if (DebugBitMask & DEBUG_DHT)
         {
-          sprintf(String, "Current bit: %u\r", CurrentBit);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Initial: %llu     Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Step: %2u   Level: %c   (should be around 50 usec)    - - - - - ResultValue: %3llu\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
+          uart_send(__LINE__, "Current bit: %u\r", CurrentBit);
+          uart_send(__LINE__, "Initial: %llu     Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
+          uart_send(__LINE__, "Step: %2u   Level: %c   (should be around 50 usec)    - - - - - ResultValue: %3llu\r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
         }
       }
       else
@@ -9766,23 +9652,12 @@ UINT8 read_dht(float *Temperature, float *Humidity)
               Dum2UChar[7 - Loop2UInt16] = '0'; // if this is a zero bit.
           }
 
-          sprintf(String, "Initial: %llu     Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Step: %2u   Level: %c   (26 usec = 0  70 usec = 1)    - - - - - ResultValue: %3llu  \r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "DataBuffer in binary: %s\r", Dum1UChar);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "DataBuffer:           0x%8.8X\r", DataBuffer);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Checksum   in binary: %s\r", Dum2UChar);
-          uart_send(__LINE__, String);
-
-          sprintf(String, "Checksum:             0x%2.2X\r\r", Checksum);
-          uart_send(__LINE__, String);
+          uart_send(__LINE__, "Initial: %llu     Final: %llu\r", DhtStartValue[Loop1UInt16], DhtFinalValue[Loop1UInt16]);
+          uart_send(__LINE__, "Step: %2u   Level: %c   (26 usec = 0  70 usec = 1)    - - - - - ResultValue: %3llu  \r", Loop1UInt16, DhtLevel[Loop1UInt16], DhtResultValue[Loop1UInt16]);
+          uart_send(__LINE__, "DataBuffer in binary: %s\r", Dum1UChar);
+          uart_send(__LINE__, "DataBuffer:           0x%8.8X\r", DataBuffer);
+          uart_send(__LINE__, "Checksum   in binary: %s\r", Dum2UChar);
+          uart_send(__LINE__, "Checksum:             0x%2.2X\r\r", Checksum);
         }
 
         ++CurrentBit;
@@ -9823,8 +9698,7 @@ UINT8 read_dht(float *Temperature, float *Humidity)
           }
         }
 
-        sprintf(String, "Calculate Checksum (part %u): 0x%2.2X     %s\r", Loop1UInt16 + 1, Value, Dum2UChar);
-        uart_send(__LINE__, String);
+        uart_send(__LINE__, "Calculate Checksum (part %u): 0x%2.2X     %s\r", Loop1UInt16 + 1, Value, Dum2UChar);
       }
     
       ComputedChecksum += Value;
@@ -9858,9 +9732,7 @@ UINT8 read_dht(float *Temperature, float *Humidity)
           Dum2UChar[23 - (3 * Loop1UInt16)] = '0';
         }
       }
-      sprintf(String, "Checksum received:                    %s\r", Dum2UChar);
-      uart_send(__LINE__, String);
-
+      uart_send(__LINE__, "Checksum received:                    %s\r", Dum2UChar);
       uart_send(__LINE__, "Before comparing checksums\r");
     }
 
@@ -9874,11 +9746,8 @@ UINT8 read_dht(float *Temperature, float *Humidity)
     else
     {
       if (DebugBitMask & DEBUG_DHT)
-      {
-        sprintf(String, "===##### ERROR #####===   Retry (%u/%u) reading DHT22   Checksum calculated: 0x%2.2X   Checksum received: 0x%2.2X\r", (TryNumber + 1), MaxTry, ComputedChecksum, Checksum);
-        uart_send(__LINE__, String);
-      }
-
+        uart_send(__LINE__, "===##### ERROR #####===   Retry (%u/%u) reading DHT22   Checksum calculated: 0x%2.2X   Checksum received: 0x%2.2X\r", (TryNumber + 1), MaxTry, ComputedChecksum, Checksum);
+ 
       ++TryNumber;  // one more try to read DHT22 failed.
     }
   }
@@ -9890,25 +9759,16 @@ UINT8 read_dht(float *Temperature, float *Humidity)
     /* We got out of while loop after three failure tryying to read DHT22. */
     if (DebugBitMask & DEBUG_DHT)
     {
-      sprintf(String, "===##### ERROR #####===   Failed to read DHT22 after %u retries (MAX: %u).\r\r\r\r", TryNumber, MaxTry);
-      uart_send(__LINE__, String);
-
-      sprintf(String, "                          Cumulative DhtErrors: %3u   DhtReadings: %3u\r\r\r", DhtErrors, DhtReadings);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "===##### ERROR #####===   Failed to read DHT22 after %u retries (MAX: %u).\r\r\r\r", TryNumber, MaxTry);
+      uart_send(__LINE__, "                       Cumulative DhtErrors: %6lu   DhtReadCycles: %6lu\r\r\r", DhtData.DhtErrors, DhtData.DhtReadCycles);
     }
 
     return 0xFF;
   }
 
 
-
-
   if (DebugBitMask & DEBUG_DHT)
-  {
-    sprintf(String, "===##### SUCCESS #####===   (%u/%u)   ComputedChecksum: 0x%2.2X   Checksum: 0x%2.2X\r", DhtErrors, DhtReadings, ComputedChecksum, Checksum);
-    uart_send(__LINE__, String);
-  }
-
+    uart_send(__LINE__, "===##### SUCCESS #####===   (%lu/%lu)   ComputedChecksum: 0x%2.2X   Checksum: 0x%2.2X\r", DhtData.DhtErrors, DhtData.DhtReadCycles, ComputedChecksum, Checksum);
 
 
   /* If no error, compute the temperature and relative humidity from received data. */
@@ -9930,10 +9790,7 @@ UINT8 read_dht(float *Temperature, float *Humidity)
 
 
   if ((DebugBitMask & DEBUG_DHT) || (DebugBitMask & DEBUG_CORE))
-  {
-    sprintf(String, "===##### SUCCESS #####===   Temperature: %2.3f C   Humidity:    %2.3f %c\r\r\r", *Temperature, *Humidity, 0x25);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "===##### SUCCESS #####===   Temperature: %2.3f C   Humidity:    %2.3f %c\r\r\r", *Temperature, *Humidity, 0x25);
 
   return 0x00;
 }
@@ -10108,11 +9965,8 @@ void scroll_string(UINT8 StartColumn, UCHAR *StringToScroll)
   if (CurrentClockMode != MODE_SCROLLING)
   {
     if (DebugBitMask & DEBUG_SCROLL)
-    {
-      sprintf(String, "Current clock mode: %u\r", CurrentClockMode);
-      uart_send(__LINE__, String);
-    }
-    
+      uart_send(__LINE__, "Current clock mode: %u\r", CurrentClockMode);
+
     /* Nothing scrolling on LED display... Clear framebuffer on entry. */
     clear_framebuffer(0);
 
@@ -10131,10 +9985,7 @@ void scroll_string(UINT8 StartColumn, UCHAR *StringToScroll)
     if (ScrollDotCount >= (DISPLAY_BUFFER_SIZE - 9))  // make sure we have enough space to add spaces.
     {
       if (DebugBitMask & DEBUG_SCROLL)
-      {
-        sprintf(String, "Waiting to add 2 spaces: %u\r", ScrollDotCount);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Waiting to add 2 spaces: %u\r", ScrollDotCount);
 
 
       /* We're approaching the end of the virtual framebuffer... wait some time for the display buffer to be partly cleared. */
@@ -10142,10 +9993,7 @@ void scroll_string(UINT8 StartColumn, UCHAR *StringToScroll)
     }
 
     if (DebugBitMask & DEBUG_SCROLL)
-    {
       uart_send(__LINE__, "Filling-up display_buffer [ ]\r");
-      uart_send(__LINE__, "Filling-up display_buffer [ ]\r");
-    }
 
     /* Add two "space separators" before concatenating next string. */
     ScrollDotCount = fill_display_buffer_5X7(ScrollDotCount, ' ');
@@ -10160,19 +10008,13 @@ void scroll_string(UINT8 StartColumn, UCHAR *StringToScroll)
     {
       /* We are approaching the end of the framebuffer... wait a some time for the buffer to be partly cleared. */
       if (DebugBitMask & DEBUG_SCROLL)
-      {
-        sprintf(String, "Waiting to add text to scroll: [%s] (%u)\r", &StringToScroll[Loop1UInt16], ScrollDotCount);
-        uart_send(__LINE__, String);
-      }
-        
+        uart_send(__LINE__, "Waiting to add text to scroll: [%s] (%u)\r", &StringToScroll[Loop1UInt16], ScrollDotCount);
+
       sleep_ms(SCROLL_DOT_TIME * 6 * 18);  // wait for about 18 characters to be scrolled.
     }
     
     if (DebugBitMask & DEBUG_SCROLL)
-    {
-      sprintf(String, "Filling-up display_buffer [%c]\r", StringToScroll[Loop1UInt16]);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Filling-up display_buffer [%c]\r", StringToScroll[Loop1UInt16]);
 
     ScrollDotCount   = fill_display_buffer_5X7(++ScrollDotCount, StringToScroll[Loop1UInt16]);
     CurrentClockMode = MODE_SCROLLING;
@@ -10248,6 +10090,254 @@ void send_data(UINT8 Byte)
 
 
 /* $PAGE */
+/* $TITLE=set_and_save_credentials() */
+/* ------------------------------------------------------------------ *\
+               Request Wi-Fi SSID and password from user
+                    and save them to Pico's flash.
+\* ------------------------------------------------------------------ */
+void set_and_save_credentials(void)
+{
+  UCHAR NewSsid[33];
+  UCHAR NewPassword[65];
+  UCHAR String[256];
+
+  UINT8 CharacterNumber;    // character being entered for SSID or password.
+  UINT8 Column;
+  UINT8 CurrentStepNumber;  // current procedure step (SSID, Password).
+  UINT8 FlagNextStep;       // flag indicating it's time to continue with next step (SSID, Password).
+  UINT8 Loop1Number;        // to evaluate the time the "Up" and "Down" buttons have been pressed.
+  UINT8 Loop2Number;        // to evaluate the time the "Set" button has been pressed.
+  UINT8 OriginalClockMode;  // keep track of clock mode before entering this function.
+  UINT8 Row;
+  UINT8 TargetCharacter;
+
+  UINT16 Delay;
+
+  UINT32 Duration;
+  UINT32 TimeStamp;
+
+
+  if (DebugBitMask & DEBUG_NTP)
+    uart_send(__LINE__, "Entering set_and_save_credentials()\r\r");
+
+  /* Clear framebuffer on entry. */
+  clear_framebuffer(0);
+
+  /* Tone to announce entering the function. */
+  tone(10);
+  sleep_ms(100);
+
+  
+  /* Scroll current credentials on entry. */
+  sprintf(String, "SSID: [%s]   Pwd: [%s]", FlashConfig.SSID, FlashConfig.Password);
+  scroll_string(24, String);
+
+  /* Wait until scrolling is done. */
+  while(ScrollDotCount)
+    sleep_ms(100);
+
+
+  /* Prevent dots blinking and other automations on the clock. */
+  OriginalClockMode = CurrentClockMode;
+  CurrentClockMode = MODE_TEST;
+
+
+  /* Enter SSID and Password. */
+  for (CurrentStepNumber = 0; CurrentStepNumber < 2; ++CurrentStepNumber)
+  {
+    CharacterNumber = 0;
+    FlagNextStep    = FLAG_OFF;  // will be turned On when it's time to iterate next "for" loop.
+    TargetCharacter = 'A';
+
+    switch (CurrentStepNumber)
+    {
+      case (0):
+        scroll_string(24, "Enter SSID:");
+      break;
+    
+      case (1):
+        scroll_string(24, "Enter Password:");
+      break;
+    }
+  
+
+    /* Wait until scrolling is done. */
+    while (ScrollDotCount)
+      sleep_ms(100);
+
+    
+    fill_display_buffer_5X7(2, ' ');    // last character selected.
+    fill_display_buffer_5X7(11, '[');   // open frame for target character.
+    fill_display_buffer_5X7(15, TargetCharacter);
+    fill_display_buffer_5X7(21, ']');   // close frame for target character.
+
+
+    CurrentClockMode = MODE_TEST;
+
+    while (FlagNextStep == FLAG_OFF)
+    {
+      /* Wait until user presses a button. */
+      while ((gpio_get(SET_BUTTON)) && (gpio_get(UP_BUTTON)) && (gpio_get(DOWN_BUTTON)));
+    
+      
+      /* Initialize data for this specific button press. */
+      Delay      = 300;  // initial delay to scan characters.
+      Loop1Number = 0;    // reset character scan acceleration on entry.
+      TimeStamp  = time_us_32();  // time stamp at beginning of button press.
+
+
+      if (DebugBitMask & DEBUG_NTP)
+        uart_send(__LINE__, "CurrentClockMode: %u  (MODE_TEST: %u)\r", CurrentClockMode, MODE_TEST);
+
+
+      /* If user pressed the "Set" button. */
+      if (gpio_get(SET_BUTTON) == 0)
+      {
+        Loop2Number = 0;
+        if (DebugBitMask & DEBUG_NTP)
+          uart_send(__LINE__, "User pressed the <Set> button.\r");
+        
+        while (gpio_get(SET_BUTTON) == 0)
+        {
+          if ((Loop2Number % 10) == 0)
+          {
+            tone(50);  // audible feedback to user for each second passed.
+          }
+          ++Loop2Number;
+          sleep_ms(100);
+        }
+
+        Duration = time_us_32() - TimeStamp;
+        sleep_ms(100);  // debounce.
+
+        /* User pressed "Set" (top) button for more than 3 seconds (3,000,000 microseconds). */
+        if (Duration < 3000000)
+        {
+          if (DebugBitMask & DEBUG_NTP)
+            uart_send(__LINE__, "<Set> button press shorter than 3 seconds.\r");
+
+          /* "Set" (top) button press is less than 5 seconds, add target character to current string (SSID or password). */
+          if (CurrentStepNumber == 0) NewSsid[CharacterNumber] = TargetCharacter;
+          if (CurrentStepNumber == 1) NewPassword[CharacterNumber] = TargetCharacter;
+          fill_display_buffer_5X7(2, TargetCharacter);   // last character entered.
+
+          /* Refresh open frame and target character. */
+          fill_display_buffer_5X7(11, '[');   // open frame for target character.
+          fill_display_buffer_5X7(15, TargetCharacter);   //  current target character.
+          ++CharacterNumber;
+        }
+        else
+        {
+          if (DebugBitMask & DEBUG_NTP)
+            uart_send(__LINE__, "<Set> button press longer than 3 seconds.\r");
+
+          /* "Set" (top) button pressed for more than 3 seconds, assign current string to SSID to be flashed. */
+          if (CurrentStepNumber == 0)
+          {
+            NewSsid[CharacterNumber] = 0;  // add end-of-string.
+            
+            /* Assign SSID only if it is a non-null string. */
+            if (NewSsid[0] != 0)
+            {
+              sprintf(&FlashConfig.SSID[4], NewSsid);
+              clear_framebuffer(0);
+              sprintf(String, "SSID saved: %s      ", NewSsid);
+              scroll_string(24, String);
+            }
+          }
+
+          if (CurrentStepNumber == 1)
+          {
+            NewPassword[CharacterNumber] = 0;  // add end-of-string.
+            
+            /* Assign password only if it is a non-null string. */
+            if (NewPassword[0] != 0)
+            {
+              sprintf(&FlashConfig.Password[4], NewPassword);
+              clear_framebuffer(0);
+              sprintf(String, "Password saved: %s   ", NewPassword);
+              scroll_string(24, String);
+            }
+
+            /* Wait until scrolling is done before falling in Green Clock power-up sequence. */
+            while (ScrollDotCount)
+              sleep_ms(100);
+          }
+          FlagNextStep = FLAG_ON;
+          continue;
+        }
+      }
+
+
+
+      /* If user pressed the "Up" button. */ 
+      if (gpio_get(UP_BUTTON) == 0)
+      {
+        if (DebugBitMask & DEBUG_NTP)
+          uart_send(__LINE__, "User pressed the <Up> button.\r");
+
+        while (gpio_get(UP_BUTTON) == 0)
+        {
+          sleep_ms(100);  // debounce.
+          /* User pressed "Up" (middle) button, scan target characters. */
+          ++TargetCharacter;
+          if (TargetCharacter == 127) TargetCharacter = 32;
+          ++Loop1Number;
+
+          /* Erase previous character. */
+          for (Row = 1; Row < 8; ++Row)
+            for (Column = 15; Column < 20; ++Column)
+              set_pixel(Row, Column, FLAG_OFF);
+
+          fill_display_buffer_5X7(15, TargetCharacter);   //  current target character.
+          /// fill_display_buffer_5X7(21, ']');               // close frame for target character.
+          if (Loop1Number == 5)  Delay = 250;
+          if (Loop1Number == 10) Delay = 120;
+          sleep_ms(Delay);
+        }
+      }
+
+
+
+      /* If user pressed the "Down" button. */ 
+      if (gpio_get(DOWN_BUTTON) == 0)
+      {
+        if (DebugBitMask & DEBUG_NTP)
+          uart_send(__LINE__, "User pressed the <Down> button.\r");
+
+        while (gpio_get(DOWN_BUTTON) == 0)
+        {
+          sleep_ms(100);  // debounce.
+          /* User pressed "Down" (bottom) button, scan target characters. */
+          --TargetCharacter;
+          if (TargetCharacter == 31) TargetCharacter = 126;
+          ++Loop1Number;
+
+          /* Erase previous character. */
+          for (Row = 1; Row < 8; ++Row)
+            for (Column = 15; Column < 20; ++Column)
+              set_pixel(Row, Column, FLAG_OFF);
+
+          fill_display_buffer_5X7(15, TargetCharacter);   //  current target character.
+          /// fill_display_buffer_5X7(21, ']');  // close frame for target character.
+          if (Loop1Number == 5)  Delay = 250;
+          if (Loop1Number == 10) Delay = 120;
+          sleep_ms(Delay);
+        }
+      }
+    }
+  }
+
+  CurrentClockMode = OriginalClockMode;
+
+  return;
+}
+
+
+
+
+
+/* $PAGE */
 /* $TITLE=set_mode_out() */
 /* ------------------------------------------------------------------ *\
         Program potentially modified clock parameters to RTC IC.
@@ -10258,9 +10348,7 @@ void set_mode_out(void)
 
 
   if (DebugBitMask & DEBUG_DST)
-  {
     uart_send(__LINE__, "Set mode out\r");
-  }
 
   if ((FlagSetupRTC == FLAG_ON) && (FlagSetupClock[SETUP_HOUR]   == FLAG_ON))
     set_hour(CurrentHourSetting);
@@ -10335,14 +10423,13 @@ void set_mode_out(void)
 /* $PAGE */
 /* $TITLE=set_mode_timeout() */
 /* ------------------------------------------------------------------ *\
-          Exit setup mode because of inactivity (time-out).
+          Exit setup mode because of inactivity (time-out)
+                  or when setup has been completed.
 \* ------------------------------------------------------------------ */
 void set_mode_timeout(void)
 {
   if (DebugBitMask & DEBUG_DST)
-  {
     uart_send(__LINE__, "Set mode timeout\r");
-  }
 
   ScrollSecondCounter = 0;          // reset number of seconds to reach time-to-scroll.
   SetupSource         = SETUP_SOURCE_NONE;
@@ -10357,6 +10444,9 @@ void set_mode_timeout(void)
 
   /* Check for an eventual change in Daylight Saving Time status. */
   update_dst_status();
+
+  /* Request a NTP re-sync if clock setup has been changed (Time, Date, or Timezone may have been changed). */
+  NTPData.FlagNTPResync = FLAG_ON;
 
   return;
 }
@@ -10666,9 +10756,7 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
     if (FlagButtonSelect == FLAG_UP)
     {
       if (DebugBitMask & DEBUG_ALARMS)
-      {
         uart_send(__LINE__, "Received FLAG_UP\r");
-      }
 
       /* User pressed the "Up" (middle) button, increment potential alarm target day-of-week. */
       ++AlarmTargetDay;
@@ -10678,9 +10766,7 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
     if (FlagButtonSelect == FLAG_DOWN)
     {
       if (DebugBitMask & DEBUG_ALARMS)
-      {
         uart_send(__LINE__, "Received FLAG_DOWN\r");
-      }
 
       /* User presser the "Down" (bottom) button, proceed through all day-of-week. */
       --AlarmTargetDay;
@@ -10692,9 +10778,7 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
       FlashConfig.Alarm[AlarmNumber].Day |= (1 << AlarmTargetDay);
 
       if (DebugBitMask & DEBUG_ALARMS)
-      {
         uart_send(__LINE__, "Received FLAG_LONG_UP\r");
-      }
     }
 
     if (FlagButtonSelect == FLAG_LONG_DOWN)
@@ -10702,16 +10786,13 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
       FlashConfig.Alarm[AlarmNumber].Day &= (~(1 << AlarmTargetDay));
 
       if (DebugBitMask & DEBUG_ALARMS)
-      {
         uart_send(__LINE__, "Received FLAG_LONG_DOWN\r");
-      }
     }
   }
 
   if (DebugBitMask & DEBUG_ALARMS)
   {
-    sprintf(String, "AlarmTargetDay = %u   (%s)\r", AlarmTargetDay, DayName[FlashConfig.Language][AlarmTargetDay]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "AlarmTargetDay = %u   (%s)\r", AlarmTargetDay, DayName[FlashConfig.Language][AlarmTargetDay]);
 
     /* Identify all days-of-week targets for current alarm. */
     DayMask[0] = 0x00;  // initialize bitmask.
@@ -10910,7 +10991,7 @@ void setup_clock_frame(void)
     fill_display_buffer_5X7(2, 'S');
     fill_display_buffer_5X7(8, 'T');
 
-    switch (FlashConfig.DaylightSavingTime)
+    switch (FlashConfig.DSTCountry)
     {
       default:
       case (DST_NONE):
@@ -11630,16 +11711,16 @@ void setup_clock_variables(UINT8 FlagButtonSelect)
        go through different DST options. */
     if (FlagButtonSelect == FLAG_UP)
     {
-      ++FlashConfig.DaylightSavingTime;
-      if (FlashConfig.DaylightSavingTime >= DST_HI_LIMIT)
-        FlashConfig.DaylightSavingTime = DST_NONE;
+      ++FlashConfig.DSTCountry;
+      if (FlashConfig.DSTCountry >= DST_HI_LIMIT)
+        FlashConfig.DSTCountry = DST_NONE;
     }
     else
     {
       /* Must be the "Down"  button. */
-      --FlashConfig.DaylightSavingTime;
-      if (FlashConfig.DaylightSavingTime == 255)
-        FlashConfig.DaylightSavingTime = DST_HI_LIMIT - 1;
+      --FlashConfig.DSTCountry;
+      if (FlashConfig.DSTCountry == 255)
+        FlashConfig.DSTCountry = DST_HI_LIMIT - 1;
     }
   }
 
@@ -11955,6 +12036,8 @@ void setup_clock_variables(UINT8 FlagButtonSelect)
 \* ------------------------------------------------------------------ */
 void setup_timer_frame(void)
 {
+  UCHAR String[128];
+
   UINT8 Loop1UInt8;
 
 
@@ -12030,6 +12113,9 @@ void setup_timer_frame(void)
       /* Timer is currently in "Count Down" mode. */
       FlagSetupTimer[SETUP_TIMER_SECOND] = FLAG_ON;
       FlagTimerCountDownEnd = FLAG_OFF;
+
+      if (DebugBitMask & DEBUG_TIMER)
+        uart_send(__LINE__, "FlagTimerCountDownEnd has been reset.\r");
     }
 
     if (TimerMode == TIMER_COUNT_DOWN)
@@ -12064,8 +12150,8 @@ void setup_timer_frame(void)
   }
   else if ((SetupStep == SETUP_TIMER_READY) && (TimerMode == TIMER_COUNT_DOWN) && (FlagTimerCountDownEnd == FLAG_OFF))
   {
-    IdleNumberOfSeconds = 0;         // reset the number of seconds the system has been idle.
-    FlagSetTimerCountDown = FLAG_ON; // make count down timer active.
+    IdleNumberOfSeconds = 0;          // reset the number of seconds the system has been idle.
+    FlagSetTimerCountDown = FLAG_ON;  // make count down timer active.
     fill_display_buffer_4X7(0, TimerMinutes / 10 + '0');
     fill_display_buffer_4X7(5, TimerMinutes % 10 + '0');
     fill_display_buffer_4X7(10, ':');
@@ -12312,9 +12398,7 @@ bool sound_callback_ms(struct repeating_timer *Timer50MSec)
     if (ActiveMSecCounter >= ActiveMSeconds)
     {
       if (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
         uart_send(__LINE__, "- A-Shutoff\r");
-      }
 
       /* Current sound is over on active buzzer. Turn sound off to make a cut with next sound. */
       gpio_put(BUZZ, 0);
@@ -12355,10 +12439,7 @@ bool sound_callback_ms(struct repeating_timer *Timer50MSec)
       else
       {
         if (DebugBitMask & DEBUG_SOUND_QUEUE)
-        {
-          sprintf(String, "- A-Unqueued:            %5u   %5u\r", ActiveMSeconds, ActiveRepeatCount);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "- A-Unqueued:            %5u   %5u\r", ActiveMSeconds, ActiveRepeatCount);
 
         /* If RepeatCount is 0 ("SILENT"), we wanted to wait for specified duration without any sound. */
         if (ActiveRepeatCount != SILENT) gpio_put(BUZZ, 1);
@@ -12394,9 +12475,7 @@ bool sound_callback_ms(struct repeating_timer *Timer50MSec)
     if (PassiveMSecCounter >= PassiveMSeconds)
     {
       if (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
         uart_send(__LINE__, "- P-Shutoff\r");
-      }
 
       /* Current sound on passive buzzer is over. Turn sound Off to make a cut with next sound. */
       pwm_on_off(PWM_SOUND, FLAG_OFF);
@@ -12417,9 +12496,7 @@ bool sound_callback_ms(struct repeating_timer *Timer50MSec)
       if ((SoundActiveHead != SoundActiveTail) || (FlagActiveSound == FLAG_ON) || (CurrentRepeat != 0))
       {
         if (DebugBitMask & DEBUG_SOUND_QUEUE)
-        {
           uart_send(__LINE__, "- P-Waiting\r");
-        }
 
         /* Active sound queue not done yet. */
         return TRUE;
@@ -12446,10 +12523,7 @@ bool sound_callback_ms(struct repeating_timer *Timer50MSec)
     else
     {
       if (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
-        sprintf(String, "- P-Unqueued:            %5u   %5u\r", Frequency, PassiveMSeconds);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "- P-Unqueued:            %5u   %5u\r", Frequency, PassiveMSeconds);
 
       /* If frequency is 0 ("SILENT"), we wanted to wait for specified duration without any sound. */
       if (Frequency == SILENT)
@@ -12479,8 +12553,7 @@ bool sound_callback_ms(struct repeating_timer *Timer50MSec)
   {
     Timer2 = time_us_64();
 
-    sprintf(String, "Sound callback: %5.2f msec\r", ((Timer2 - Timer1) / 1000.0));
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Sound callback: %5.2f msec\r", ((Timer2 - Timer1) / 1000.0));
   }
   ***/
 
@@ -12507,10 +12580,8 @@ UINT16 sound_queue_active(UINT16 MSeconds, UINT16 RepeatCount)
   if ((SoundActiveHead > MAX_ACTIVE_SOUND_QUEUE) || (SoundActiveTail > MAX_ACTIVE_SOUND_QUEUE))
   {
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
-    {
-      sprintf(String, "- A-Corrupted:        %5u   %5u\r", SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- A-Corrupted:        %5u   %5u\r", SoundActiveHead, SoundActiveTail);
+ 
     SoundActiveHead = 0;
     SoundActiveTail = 0;
 
@@ -12531,10 +12602,7 @@ UINT16 sound_queue_active(UINT16 MSeconds, UINT16 RepeatCount)
   ++SoundActiveHead;
 
   if (DebugBitMask & DEBUG_SOUND_QUEUE)
-  {
-    sprintf(String, "- A-Queueing:            %5u   %5u\r", MSeconds, RepeatCount);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "- A-Queueing:            %5u   %5u\r", MSeconds, RepeatCount);
 
 
   /* Revert to zero when reaching out-of-bound. */
@@ -12544,22 +12612,13 @@ UINT16 sound_queue_active(UINT16 MSeconds, UINT16 RepeatCount)
   if (DebugBitMask & DEBUG_SOUND_QUEUE)
   {
     if (SoundActiveHead > SoundActiveTail)
-    {
-      sprintf(String, "Active queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_ACTIVE_SOUND_QUEUE - SoundActiveHead + SoundActiveTail - 1), SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Active queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_ACTIVE_SOUND_QUEUE - SoundActiveHead + SoundActiveTail - 1), SoundActiveHead, SoundActiveTail);
 
     if (SoundActiveHead == SoundActiveTail)
-    {
-      sprintf(String, "Active queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_ACTIVE_SOUND_QUEUE - 1), SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Active queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_ACTIVE_SOUND_QUEUE - 1), SoundActiveHead, SoundActiveTail);
 
     if (SoundActiveHead < SoundActiveTail)
-    {
-      sprintf(String, "Active queue remaining space: %5u  Head: %3u  Tail: %3u\r", (SoundActiveTail - SoundActiveHead - 1), SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Active queue remaining space: %5u  Head: %3u  Tail: %3u\r", (SoundActiveTail - SoundActiveHead - 1), SoundActiveHead, SoundActiveTail);
   }
   ***/
 
@@ -12589,19 +12648,12 @@ UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount)
   {
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
     {
-      sprintf(String, "- A-Corrupted:        %5u   %5u\r", SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-
-      sprintf(String, "ACTIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_ACTIVE_SOUND_QUEUE, SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-
+      uart_send(__LINE__, "- A-Corrupted:        %5u   %5u\r", SoundActiveHead, SoundActiveTail);
+      uart_send(__LINE__, "ACTIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_ACTIVE_SOUND_QUEUE, SoundActiveHead, SoundActiveTail);
       uart_send(__LINE__, "          MSec    Repeat\r");
 
       for (Loop1UInt16 = 0; Loop1UInt16 < MAX_ACTIVE_SOUND_QUEUE; ++Loop1UInt16)
-      {
-        sprintf(String, "(%4u)   %5u     %5u\r", Loop1UInt16, SoundQueueActive[Loop1UInt16].MSec, SoundQueueActive[Loop1UInt16].RepeatCount);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "(%4u)   %5u     %5u\r", Loop1UInt16, SoundQueueActive[Loop1UInt16].MSec, SoundQueueActive[Loop1UInt16].RepeatCount);
     }
     
     SoundActiveHead = 0;
@@ -12620,10 +12672,7 @@ UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount)
 
     /***
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
-    {
-      sprintf(String, "- A-Empty:               %5u   %5u\r", SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- A-Empty:               %5u   %5u\r", SoundActiveHead, SoundActiveTail);
     ***/
 
     return 0xFF;
@@ -12632,11 +12681,7 @@ UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount)
   {
     /* Active sound queue is not empty. */
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
-    {
-      sprintf(String, "- A-NotEmpty:            %5u   %5u\r", SoundActiveHead, SoundActiveTail);
-      uart_send(__LINE__, String);
-    }
-
+      uart_send(__LINE__, "- A-NotEmpty:            %5u   %5u\r", SoundActiveHead, SoundActiveTail);
 
     /* Extract data for next sound to play. */
     *MSeconds    = SoundQueueActive[SoundActiveTail].MSec;
@@ -12650,10 +12695,7 @@ UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount)
 
     /***
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
-    {
-      sprintf(String, "- A-Unqueuing:           %5u   %5u\r", *MSeconds, *RepeatCount);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- A-Unqueuing:           %5u   %5u\r", *MSeconds, *RepeatCount);
     ***/
 
 
@@ -12671,10 +12713,7 @@ UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount)
     {
       /* Sound in this slot was invalid. */
       if (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
-        sprintf(String, "- A-Housekeeping from      %3u\r", SoundActiveTail);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "- A-Housekeeping from      %3u\r", SoundActiveTail);
 
       /* If this slot was corrupted, make some housekeeping. */
       CurrentTail = SoundActiveTail; // keep track of starting position in the queue.
@@ -12700,11 +12739,7 @@ UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount)
       SoundActiveHead = SoundActiveTail;
 
       if (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
-        sprintf(String, "- A-Done:                %5u   %5u\r", SoundActiveHead, SoundActiveTail);
-        uart_send(__LINE__, String);
-      }
-
+        uart_send(__LINE__, "- A-Done:                %5u   %5u\r", SoundActiveHead, SoundActiveTail);
 
       return 0xFF;
     }
@@ -12729,20 +12764,14 @@ UINT16 sound_queue_passive(UINT16 Frequency, UINT16 MSeconds)
 
 
   if (DebugBitMask & DEBUG_SOUND_QUEUE)
-  {
-    sprintf(String, "- P-Queueing:    (%3u)   %5u   %5u\r", SoundPassiveHead, Frequency, MSeconds);
-    uart_send(__LINE__, String);
-  }
-
+    uart_send(__LINE__, "- P-Queueing:    (%3u)   %5u   %5u\r", SoundPassiveHead, Frequency, MSeconds);
 
   /* Trap circular buffer corruption. */
   if ((SoundPassiveHead > MAX_PASSIVE_SOUND_QUEUE) || (SoundPassiveTail > MAX_PASSIVE_SOUND_QUEUE))
   {
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
-    {
-      sprintf(String, "- P-Corrupted:           %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- P-Corrupted:           %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
+
     SoundPassiveHead = 0;
     SoundPassiveTail = 0;
 
@@ -12772,22 +12801,13 @@ UINT16 sound_queue_passive(UINT16 Frequency, UINT16 MSeconds)
   if (DebugBitMask & DEBUG_SOUND_QUEUE)
   {
     if (SoundPassiveHead > SoundPassiveTail)
-    {
-      sprintf(String, "Passive queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_PASSIVE_SOUND_QUEUE - SoundPassiveHead + SoundPassiveTail - 1), SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Passive queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_PASSIVE_SOUND_QUEUE - SoundPassiveHead + SoundPassiveTail - 1), SoundPassiveHead, SoundPassiveTail);
 
     if (SoundPassiveHead == SoundPassiveTail)
-    {
-      sprintf(String, "Passive queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_PASSIVE_SOUND_QUEUE - 1), SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Passive queue remaining space: %5u  Head: %3u  Tail: %3u\r", (MAX_PASSIVE_SOUND_QUEUE - 1), SoundPassiveHead, SoundPassiveTail);
 
     if (SoundPassiveHead < SoundPassiveTail)
-    {
-      sprintf(String, "Passive queue remaining space: %5u  Head: %3u  Tail: %3u\r", (SoundPassiveTail - SoundPassiveHead - 1), SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Passive queue remaining space: %5u  Head: %3u  Tail: %3u\r", (SoundPassiveTail - SoundPassiveHead - 1), SoundPassiveHead, SoundPassiveTail);
   }
   ***/
 
@@ -12817,19 +12837,12 @@ UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds)
   {
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
     {
-      sprintf(String, "- P-Corrupted:           %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
-
-      sprintf(String, "PASSIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_PASSIVE_SOUND_QUEUE, SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
-
+      uart_send(__LINE__, "- P-Corrupted:           %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
+      uart_send(__LINE__, "PASSIVE SOUND QUEUE (%u)   Head: %4u   Tail: %4u\r", MAX_PASSIVE_SOUND_QUEUE, SoundPassiveHead, SoundPassiveTail);
       uart_send(__LINE__, "        Freq   MSec\r");
 
       for (Loop1UInt16 = 0; Loop1UInt16 < MAX_PASSIVE_SOUND_QUEUE; ++Loop1UInt16)
-      {
-        sprintf(String, "(%4u) %5u  %5u\r", Loop1UInt16, SoundQueuePassive[Loop1UInt16].Freq, SoundQueuePassive[Loop1UInt16].MSec);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "(%4u) %5u  %5u\r", Loop1UInt16, SoundQueuePassive[Loop1UInt16].Freq, SoundQueuePassive[Loop1UInt16].MSec);
     }
 
     SoundPassiveHead = 0;
@@ -12848,10 +12861,7 @@ UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds)
     
     /***
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
-    {
-      sprintf(String, "- P-Empty:               %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- P-Empty:               %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
     ***/
 
     return 0xFF;
@@ -12861,11 +12871,9 @@ UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds)
     /* Passive queue is not empty, return next sound. */
     if (DebugBitMask & DEBUG_SOUND_QUEUE)
     {
-      sprintf(String, "- P-NotEmpty:            %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "- P-NotEmpty:            %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
 
-      // sprintf(String, "- P-Unqueuing:   [%3u]   %5u   %5u\r", SoundPassiveTail, SoundQueuePassive[SoundPassiveTail].Freq, SoundQueuePassive[SoundPassiveTail].MSec);
-      // uart_send(__LINE__, String);
+      // uart_send(__LINE__, "- P-Unqueuing:   [%3u]   %5u   %5u\r", SoundPassiveTail, SoundQueuePassive[SoundPassiveTail].Freq, SoundQueuePassive[SoundPassiveTail].MSec);
     }
 
 
@@ -12889,10 +12897,7 @@ UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds)
 
       /***
       if  (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
-        sprintf(String, "- P-Adjust Tail to:         %5u\r", SoundPassiveTail);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "- P-Adjust Tail to:         %5u\r", SoundPassiveTail);
       ***/
 
       return 0;
@@ -12901,10 +12906,7 @@ UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds)
     {
       /* If this slot was corrupted, make some housekeeping. */
       if  (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
-        sprintf(String, "- P-Housekeeping from %u   Freq: %5u   MSec: %5u\r", SoundPassiveTail, *Frequency, *MSeconds);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "- P-Housekeeping from %u   Freq: %5u   MSec: %5u\r", SoundPassiveTail, *Frequency, *MSeconds);
   
       CurrentTail = SoundPassiveTail; // keep track of starting position in the queue.
 
@@ -12927,10 +12929,7 @@ UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds)
       SoundPassiveHead = SoundPassiveTail;
 
       if (DebugBitMask & DEBUG_SOUND_QUEUE)
-      {
-        sprintf(String, "- P-Done:             %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "- P-Done:             %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
     }
 
     return 0xFF;
@@ -12944,9 +12943,7 @@ UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds)
 
 #ifdef DEVELOPER_VERSION
 #ifdef DST_DEBUG
-
 #include "test_dst_status.cpp"
-  
 #endif  // DST_DEBUG
 #endif  // DEVELOPER_VERSION
 
@@ -13232,36 +13229,28 @@ Test2:
 
   Dum1UInt8 = 0;
   --Dum1UInt8;
-  sprintf(String, "Maximum value for  8 bits unsigned:               0x%X                    %u\r", Dum1UInt8, Dum1UInt8);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Maximum value for  8 bits unsigned:               0x%X                    %u\r", Dum1UInt8, Dum1UInt8);
 
   Dum1UInt16 = 0;
   --Dum1UInt16;
-  sprintf(String, "Maximum value for 16 bits unsigned:             0x%X                  %u\r", Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Maximum value for 16 bits unsigned:             0x%X                  %u\r", Dum1UInt16, Dum1UInt16);
 
   Dum1UInt32 = 0;
   --Dum1UInt32;
-  sprintf(String, "Maximum value for 32 bits unsigned:         0x%lX             %lu\r", Dum1UInt32, Dum1UInt32);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Maximum value for 32 bits unsigned:         0x%lX             %lu\r", Dum1UInt32, Dum1UInt32);
 
   Dum1UInt64 = 0;
   --Dum1UInt64;
-  sprintf(String, "Maximum value for 64 bits unsigned: 0x%llX   %llu\r", Dum1UInt64, Dum1UInt64);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Maximum value for 64 bits unsigned: 0x%llX   %llu\r", Dum1UInt64, Dum1UInt64);
 
   /* Display other useful information. */
-  sprintf(String, "Address of malloc() pointer returned (for variable FlashData): %p\r", FlashData);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Address of malloc() pointer returned (for variable FlashData): %p\r", FlashData);
 
-  sprintf(String, "FLASH_PAGE_SIZE: %u\r", FLASH_PAGE_SIZE);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "FLASH_PAGE_SIZE: %u\r", FLASH_PAGE_SIZE);
 
-  sprintf(String, "FLASH_SECTOR_SIZE: %u\r", FLASH_SECTOR_SIZE);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "FLASH_SECTOR_SIZE: %u\r", FLASH_SECTOR_SIZE);
 
-  sprintf(String, "Address of beginning of flash (XIP_BASE): %X\r\r", XIP_BASE);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Address of beginning of flash (XIP_BASE): %X\r\r", XIP_BASE);
 
   /* ================================================================ *\
           Display Raspberry Pi Pico manufacturing test results.
@@ -13455,8 +13444,7 @@ Test2:
     if (FlashBaseAddress[Loop1UInt32] != 0xFF)
     {
       ++Dum1UInt16;
-      sprintf(String, "Address: %8.8X   Content: %2.2X\r", (XIP_BASE + Loop1UInt32), FlashBaseAddress[Loop1UInt32]);
-      uart_send(__LINE__, String);
+      uart_send(__LINE__, "Address: %8.8X   Content: %2.2X\r", (XIP_BASE + Loop1UInt32), FlashBaseAddress[Loop1UInt32]);
     }
   }
   */
@@ -13464,18 +13452,15 @@ Test2:
 
   /*
   // Display the complete Pico's 2MB flash address space.
-  sprintf(String, "Flash content:\r\r");
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Flash content:\r\r");
 
   flash_display(0, 0x1FFFFF);
 
-  sprintf(String, "End of flash content\r\r");
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "End of flash content\r\r");
   */
 
   /* Tests to save Green clock configuration to flash. */
-  sprintf(String, "sizeof(FlashConfig): 0x%X (%u)\r", sizeof(FlashConfig), sizeof(FlashConfig));
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "sizeof(FlashConfig): 0x%X (%u)\r", sizeof(FlashConfig), sizeof(FlashConfig));
 
   /* Read current Green Clock configuration from flash memory. */
   FlashBaseAddress = (UINT8 *)(XIP_BASE);
@@ -13489,71 +13474,33 @@ Test2:
   display_data((UINT8 *)&FlashConfig, 256);
 
   /* Display details of configuration read from flash. */
-  sprintf(String, "NOTE: FLAG_OFF: %u     FLAG_ON: %u\r", FLAG_OFF, FLAG_ON);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Firmware version:  %s\r", &FlashConfig.Version, FlashConfig.Version);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] CurrentYearCentile: %3u\r", &FlashConfig.CurrentYearCentile, FlashConfig.CurrentYearCentile);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] DaylightSavingTime: %3u\r", &FlashConfig.DaylightSavingTime, FlashConfig.DaylightSavingTime);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeTimeOn:        %3u\r", &FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOn);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeTimeOff:       %3u\r", &FlashConfig.ChimeTimeOff, FlashConfig.ChimeTimeOff);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagAutoBrightness: %3u\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagKeyclick:       %3u\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagScrollEnable:   %3u\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeMode:          %3u\r", &FlashConfig.ChimeMode, FlashConfig.ChimeMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Language:           %3u\r", &FlashConfig.Language, FlashConfig.Language);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightMode:     %3u\r", &FlashConfig.NightLightMode, FlashConfig.NightLightMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightTimeOn:   %3u\r", &FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOn);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightTimeOff:  %3u\r", &FlashConfig.NightLightTimeOff, FlashConfig.NightLightTimeOff);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] TemperatureUnit:    %3u\r", &FlashConfig.TemperatureUnit, FlashConfig.TemperatureUnit);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] TimeDisplayMode:    %3u\r\r\r", &FlashConfig.TimeDisplayMode, FlashConfig.TimeDisplayMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] CRC16 read from flash          0x%X (%u)\r", &FlashConfig.Crc16, FlashConfig.Crc16, FlashConfig.Crc16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "NOTE: FLAG_OFF: %u     FLAG_ON: %u\r", FLAG_OFF, FLAG_ON);
+  uart_send(__LINE__, "[%X] Firmware version:  %s\r", &FlashConfig.Version, FlashConfig.Version);
+  uart_send(__LINE__, "[%X] CurrentYearCentile: %3u\r", &FlashConfig.CurrentYearCentile, FlashConfig.CurrentYearCentile);
+  uart_send(__LINE__, "[%X] DSTCountry:         %3u\r", &FlashConfig.DSTCountry, FlashConfig.DSTCountry);
+  uart_send(__LINE__, "[%X] ChimeTimeOn:        %3u\r", &FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOn);
+  uart_send(__LINE__, "[%X] ChimeTimeOff:       %3u\r", &FlashConfig.ChimeTimeOff, FlashConfig.ChimeTimeOff);
+  uart_send(__LINE__, "[%X] FlagAutoBrightness: %3u\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
+  uart_send(__LINE__, "[%X] FlagKeyclick:       %3u\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
+  uart_send(__LINE__, "[%X] FlagScrollEnable:   %3u\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
+  uart_send(__LINE__, "[%X] ChimeMode:          %3u\r", &FlashConfig.ChimeMode, FlashConfig.ChimeMode);
+  uart_send(__LINE__, "[%X] Language:           %3u\r", &FlashConfig.Language, FlashConfig.Language);
+  uart_send(__LINE__, "[%X] NightLightMode:     %3u\r", &FlashConfig.NightLightMode, FlashConfig.NightLightMode);
+  uart_send(__LINE__, "[%X] NightLightTimeOn:   %3u\r", &FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOn);
+  uart_send(__LINE__, "[%X] NightLightTimeOff:  %3u\r", &FlashConfig.NightLightTimeOff, FlashConfig.NightLightTimeOff);
+  uart_send(__LINE__, "[%X] TemperatureUnit:    %3u\r", &FlashConfig.TemperatureUnit, FlashConfig.TemperatureUnit);
+  uart_send(__LINE__, "[%X] TimeDisplayMode:    %3u\r\r\r", &FlashConfig.TimeDisplayMode, FlashConfig.TimeDisplayMode);
+  uart_send(__LINE__, "[%X] CRC16 read from flash          0x%X (%u)\r", &FlashConfig.Crc16, FlashConfig.Crc16, FlashConfig.Crc16);
 
   /* Validate CRC16 read from flash. */
   Dum1UInt16 = crc16((UINT8 *)&FlashConfig, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
-  sprintf(String, "CRC16 computed from data read: 0x%X (%u)\r", Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "CRC16 computed from data read: 0x%X (%u)\r", Dum1UInt16, Dum1UInt16);
 
   /* If CRC16 read from flash does not correspond to the data read, assign default values and save new configuration. */
   if (FlashConfig.Crc16 == Dum1UInt16)
-  {
     uart_send(__LINE__, "Flash configuration is valid. Flash memory tests completed.\r\r\r");
-  }
   else
-  {
     uart_send(__LINE__, "Flash configuration is corrupted. Save a new configuration to flash.\r\r\r");
-  }
 
   /* If CRC16 computed from retrieved data is different from CRC16 read from flash...
      Assign default values and save a new configuration to flash. */
@@ -13561,7 +13508,7 @@ Test2:
   FlashConfig.CurrentYearCentile = 20;                    // assume we are in years 20xx (could be changed in clock setup, but will revert to 20 at each power-up).
   FlashConfig.ChimeTimeOff       = CHIME_TIME_OFF;        // hourly chime will begin at this hour.
   FlashConfig.ChimeTimeOn        = CHIME_TIME_ON;         // hourly chime will begin at this hour.
-  FlashConfig.DaylightSavingTime = DAYLIGHT_SAVING_TIME;  // specifies how to handle the daylight saving time (see clock options above).
+  FlashConfig.DSTCountry         = DST_COUNTRY;           // specifies how to handle the daylight saving time depending on country (see User Guide).
   FlashConfig.FlagAutoBrightness = FLAG_ON;               // flag indicating we are in "Auto Brightness" mode.
   FlashConfig.FlagKeyclick       = FLAG_OFF;              // flag for keyclick ("button-press" tone)
   FlashConfig.FlagScrollEnable   = SCROLL_DEFAULT;        // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
@@ -13575,70 +13522,31 @@ Test2:
 
   /* Write Green Clock configuration to flash. */
   uart_send(__LINE__, "Write Green Clock configuration to flash.\r");
-
-  sprintf(String, "Pointer to FlashConfig.Version: %X\r", FlashConfig.Version);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "Pointer to FlashConfig.Crc16:   %X\r", &FlashConfig.Crc16);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "&FlashConfig.Crc16 - &FlashConfig.Version: %X (%u)\r\r\r", (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Pointer to FlashConfig.Version: %X\r", FlashConfig.Version);
+  uart_send(__LINE__, "Pointer to FlashConfig.Crc16:   %X\r", &FlashConfig.Crc16);
+  uart_send(__LINE__, "&FlashConfig.Crc16 - &FlashConfig.Version: %X (%u)\r\r\r", (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
 
   /* Display configuration being saved. */
-  sprintf(String, "NOTE: FLAG_OFF: %u     FLAG_ON: %u\r", FLAG_OFF, FLAG_ON);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Firmware version:  %s\r", &FlashConfig.Version, FlashConfig.Version);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] CurrentYearCentile: %3u\r", &FlashConfig.CurrentYearCentile, FlashConfig.CurrentYearCentile);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] DaylightSavingTime: %3u\r", &FlashConfig.DaylightSavingTime, FlashConfig.DaylightSavingTime);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeTimeOn:        %3u\r", &FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOn);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeTimeOff:       %3u\r", &FlashConfig.ChimeTimeOff, FlashConfig.ChimeTimeOff);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagAutoBrightness: %3u\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagKeyclick:       %3u\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] FlagScrollEnable:   %3u\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] ChimeMode:          %3u\r", &FlashConfig.ChimeMode, FlashConfig.ChimeMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] Language:           %3u\r", &FlashConfig.Language, FlashConfig.Language);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightMode:     %3u\r", &FlashConfig.NightLightMode, FlashConfig.NightLightMode);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightTimeOn:   %3u\r", &FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOn);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] NightLightTimeOff:  %3u\r", &FlashConfig.NightLightTimeOff, FlashConfig.NightLightTimeOff);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] TemperatureUnit:    %3u\r", &FlashConfig.TemperatureUnit, FlashConfig.TemperatureUnit);
-  uart_send(__LINE__, String);
-
-  sprintf(String, "[%X] TimeDisplayMode:    %3u\r\r\r", &FlashConfig.TimeDisplayMode, FlashConfig.TimeDisplayMode);
-  uart_send(__LINE__, String);
-
+  uart_send(__LINE__, "NOTE: FLAG_OFF: %u     FLAG_ON: %u\r", FLAG_OFF, FLAG_ON);
+  uart_send(__LINE__, "[%X] Firmware version:  %s\r", &FlashConfig.Version, FlashConfig.Version);
+  uart_send(__LINE__, "[%X] CurrentYearCentile: %3u\r", &FlashConfig.CurrentYearCentile, FlashConfig.CurrentYearCentile);
+  uart_send(__LINE__, "[%X] DSTCountry:         %3u\r", &FlashConfig.DSTCountry, FlashConfig.DSTCountry);
+  uart_send(__LINE__, "[%X] ChimeTimeOn:        %3u\r", &FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOn);
+  uart_send(__LINE__, "[%X] ChimeTimeOff:       %3u\r", &FlashConfig.ChimeTimeOff, FlashConfig.ChimeTimeOff);
+  uart_send(__LINE__, "[%X] FlagAutoBrightness: %3u\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
+  uart_send(__LINE__, "[%X] FlagKeyclick:       %3u\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
+  uart_send(__LINE__, "[%X] FlagScrollEnable:   %3u\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
+  uart_send(__LINE__, "[%X] ChimeMode:          %3u\r", &FlashConfig.ChimeMode, FlashConfig.ChimeMode);
+  uart_send(__LINE__, "[%X] Language:           %3u\r", &FlashConfig.Language, FlashConfig.Language);
+  uart_send(__LINE__, "[%X] NightLightMode:     %3u\r", &FlashConfig.NightLightMode, FlashConfig.NightLightMode);
+  uart_send(__LINE__, "[%X] NightLightTimeOn:   %3u\r", &FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOn);
+  uart_send(__LINE__, "[%X] NightLightTimeOff:  %3u\r", &FlashConfig.NightLightTimeOff, FlashConfig.NightLightTimeOff);
+  uart_send(__LINE__, "[%X] TemperatureUnit:    %3u\r", &FlashConfig.TemperatureUnit, FlashConfig.TemperatureUnit);
+  uart_send(__LINE__, "[%X] TimeDisplayMode:    %3u\r\r\r", &FlashConfig.TimeDisplayMode, FlashConfig.TimeDisplayMode);
   uart_send(__LINE__, "Calculating CRC16\r");
 
   FlashConfig.Crc16 = crc16((UINT8 *)&FlashConfig, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version);
-  sprintf(String, "Pointer: %X   Size: %u   CRC16: %X (%u)\r\r\r", (UINT8 *)&FlashConfig, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version, FlashConfig.Crc16, FlashConfig.Crc16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "Pointer: %X   Size: %u   CRC16: %X (%u)\r\r\r", (UINT8 *)&FlashConfig, (UINT32)&FlashConfig.Crc16 - (UINT32)&FlashConfig.Version, FlashConfig.Crc16, FlashConfig.Crc16);
 
   flash_write(FLASH_CONFIG_OFFSET, (UINT8 *)FlashConfig.Version, sizeof(FlashConfig));
 
@@ -13670,43 +13578,35 @@ Test3:
 
   sprintf(CrcString, "FF101A0B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   sprintf(CrcString, "FF101A8B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   sprintf(CrcString, "FF101B0B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   sprintf(CrcString, "FF101B8B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   sprintf(CrcString, "FF101C0B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   sprintf(CrcString, "FF101C8B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   sprintf(CrcString, "FF101D0B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   sprintf(CrcString, "FF101D8B");
   Dum1UInt16 = crc16(CrcString, 8);
-  sprintf(String, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "String: %s   CRC16: %X (%u)\r", CrcString, Dum1UInt16, Dum1UInt16);
 
   uart_send(__LINE__, "End of CRC16 tests...\r\r\r");
 
@@ -13922,16 +13822,16 @@ Test8:
     String[Loop1UInt8] = 0x00;
 
   /* Scroll first bunch of characters on the display. */
-  String[0] = 0x1E;
-  String[1] = 0x1F;
-  String[2] = 0x20;
-  String[3] = 0x21;
-  String[4] = 0x22;
-  String[5] = 0x23;
-  String[6] = 0x24;
-  String[7] = 0x25;
-  String[8] = 0x26;
-  String[9] = 0x27;
+  String[0]  = 0x1E;
+  String[1]  = 0x1F;
+  String[2]  = 0x20;
+  String[3]  = 0x21;
+  String[4]  = 0x22;
+  String[5]  = 0x23;
+  String[6]  = 0x24;
+  String[7]  = 0x25;
+  String[8]  = 0x26;
+  String[9]  = 0x27;
   String[10] = 0x28;
   String[11] = 0x29;
   String[12] = 0x2A;
@@ -13965,16 +13865,16 @@ Test8:
     String[Loop1UInt8] = 0x00;
 
   /* Display another bunch of characters on the display. */
-  String[0] = 0x3A;
-  String[1] = 0x3B;
-  String[2] = 0x3C;
-  String[3] = 0x3D;
-  String[4] = 0x3E;
-  String[5] = 0x3F;
-  String[6] = 0x40;
-  String[7] = 0x41;
-  String[8] = 0x42;
-  String[9] = 0x43;
+  String[0]  = 0x3A;
+  String[1]  = 0x3B;
+  String[2]  = 0x3C;
+  String[3]  = 0x3D;
+  String[4]  = 0x3E;
+  String[5]  = 0x3F;
+  String[6]  = 0x40;
+  String[7]  = 0x41;
+  String[8]  = 0x42;
+  String[9]  = 0x43;
   String[10] = 0x44;
   String[11] = 0x45;
   String[12] = 0x46;
@@ -14203,9 +14103,10 @@ Test9:
   }
 
   /* Restart sound callback when done with tests. */
-  add_repeating_timer_ms(50, sound_callback_ms, NULL, &Timer50MSec);
+  add_repeating_timer_ms(-50, sound_callback_ms, NULL, &Timer50MSec);
  
 
+  #ifdef PASSIVE_PIEZO_SUPPORT
   /* Passive sound queue tests. */
   for (Loop1UInt8 = 0; Loop1UInt8 < 10; ++Loop1UInt8)
   {
@@ -14353,6 +14254,7 @@ Test9:
   printf("\r");
 
   return;
+  #endif // PASSIVE_PIEZO_SUPPORT
 
 
 
@@ -14440,7 +14342,7 @@ Test9:
 
   return;
   /* ---------------------------------------------------------------- *\
-                 END - Test 9 - Tests with indicators.
+                END - Test 9 - Tests with sound queues.
   \* ---------------------------------------------------------------- */
 
   /* ---------------------------------------------------------------- *\
@@ -14553,11 +14455,6 @@ Test11:
   while (ScrollDotCount)
     sleep_ms(100); // let the time to complete scrolling.
 
-  // Give information to user.
-  scroll_string(24, "Variable character width...");
-  while (ScrollDotCount)
-    sleep_ms(100); // let the time to complete scrolling.
-
   /* Put a left frame. */
   for (Loop1UInt8 = 9; Loop1UInt8 < 16; ++Loop1UInt8)
     DisplayBuffer[Loop1UInt8] |= 0x40;
@@ -14571,12 +14468,14 @@ Test11:
   /* Now, display each character in between those frames. */
   for (Loop1UInt8 = 0; Loop1UInt8 < 98; ++Loop1UInt8)
   {
-    fill_display_buffer_4X7(0, Loop1UInt8 / 10 + '0');
-    fill_display_buffer_4X7(5, Loop1UInt8 % 10 + '0');
+    fill_display_buffer_4X7(0, Loop1UInt8 / 10 + '0');  // display first digit of character number.
+    fill_display_buffer_4X7(5, Loop1UInt8 % 10 + '0');  // display second digit of character number.
 
+    /* Erase first column of the digit to be displayed. */
     for (Loop2UInt8 = 9; Loop2UInt8 < 16; ++Loop2UInt8)
       DisplayBuffer[Loop2UInt8] &= 0x7F;
 
+    /* Erase last four columns of the digit to be displayed. */
     for (Loop2UInt8 = 17; Loop2UInt8 < 24; ++Loop2UInt8)
       DisplayBuffer[Loop2UInt8] &= 0xF0;
 
@@ -15110,7 +15009,7 @@ Test17:
   uart_send(__LINE__, "Will restart TimerMSec timer in 5 seconds\r");
   sleep_ms(5000);
 
-  add_repeating_timer_ms(1, timer_callback_ms, NULL, &TimerMSec);
+  add_repeating_timer_ms(-1, timer_callback_ms, NULL, &TimerMSec);
   sleep_ms(5000);
 
 
@@ -15137,7 +15036,7 @@ Test17:
   uart_send(__LINE__, "Will restart TimerSec timer in 5 seconds\r");
   sleep_ms(5000);
 
-  add_repeating_timer_ms(1000, timer_callback_ms, NULL, &TimerSec);
+  add_repeating_timer_ms(-1000, timer_callback_ms, NULL, &TimerSec);
   sleep_ms(5000);
 
 
@@ -15549,8 +15448,7 @@ Test18:
     sleep_ms(2000);
   }
 
-  sprintf(String, "CurrentClockMode: %u\r", CurrentClockMode);
-  uart_send(__LINE__, String);
+  uart_send(__LINE__, "CurrentClockMode: %u\r", CurrentClockMode);
 
   for (Loop1UInt16 = 100; Loop1UInt16 > 0; --Loop1UInt16)
   {
@@ -15600,22 +15498,13 @@ Test18:
     } while (Column % 2);
   
     if (DebugBitMask & DEBUG_TEMP)
-    {
-      sprintf(String, "Random Column: %2u   ColumnUp[%2u]: %u   ColumnDown[%2u]: %u ", Column, Column, ColumnUp[Column], Column, ColumnDown[Column]);
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "Random Column: %2u   ColumnUp[%2u]: %u   ColumnDown[%2u]: %u ", Column, Column, ColumnUp[Column], Column, ColumnDown[Column]);
 
 
     if (CurrentTimer < (StartTimer + ((DurationSeconds - 3) * 1000000)))
-    {
-      sprintf(String, "- Not the time to purge yet...\r");
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- Not the time to purge yet...\r");
     else
-    {
-      sprintf(String, "- Time to purge NOW...\r");
-      uart_send(__LINE__, String);
-    }
+      uart_send(__LINE__, "- Time to purge NOW...\r");
 
 
     if ((ColumnUp[Column] == 0) && (CurrentTimer < (StartTimer + ((DurationSeconds - 3) * 1000000))))
@@ -15628,19 +15517,13 @@ Test18:
       set_pixel(ColumnDown[Column], Column, FLAG_ON);
 
       if (DebugBitMask & DEBUG_TEMP)
-      {
-        sprintf(String, "- Empty column - Random Row: %u   Turn  On pixel %u, %2u\r", Row, Row, Column);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "- Empty column - Random Row: %u   Turn  On pixel %u, %2u\r", Row, Row, Column);
     }
     else
     {
       /* Column already occupied or five seconds before end of animation... check current down position. */
       if (DebugBitMask & DEBUG_TEMP)
-      {
-        sprintf(String, "- Occupied - Up[%2u]: %u   Down[%2u]: %u ", Column, ColumnUp[Column], Column, ColumnDown[Column]);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "- Occupied - Up[%2u]: %u   Down[%2u]: %u ", Column, ColumnUp[Column], Column, ColumnDown[Column]);
 
       if ((ColumnDown[Column] < 7) && (ColumnDown[Column] != 0))
       {
@@ -15648,19 +15531,13 @@ Test18:
         set_pixel(ColumnDown[Column], Column, FLAG_ON);
         
         if (DebugBitMask & DEBUG_TEMP)
-        {
-          sprintf(String, "- Turn  On pixel %u, %2u\r", ColumnDown[Column], Column);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "- Turn  On pixel %u, %2u\r", ColumnDown[Column], Column);
       }
       else
       {
         /* We already reached the lowest down mark, erase falling flake. */
         if (DebugBitMask & DEBUG_TEMP)
-        {
-          sprintf(String, "- Turn Off pixel %u, %2u\r", ColumnUp[Column], Column);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "- Turn Off pixel %u, %2u\r", ColumnUp[Column], Column);
 
         set_pixel(ColumnUp[Column], Column, FLAG_OFF);
         ++ColumnUp[Column];
@@ -15700,6 +15577,8 @@ Test18:
 \* ------------------------------------------------------------------ */
 bool timer_callback_ms(struct repeating_timer *TimerMSec)
 {
+  UCHAR String[128];
+
   UINT8 Dum1UInt8;
   UINT8 Loop1UInt8;
 
@@ -15710,6 +15589,8 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   evaluate_blinking_time();   // evaluate if it is time to toggle blinking some data on clock display.
   evaluate_scroll_time();     // evaluate if it is time to scroll one dot to the left on clock display.
 
+
+  if (CurrentClockMode == MODE_TEST) goto matrix_scan;
 
   /* ................................................................ *\
                         Manage "Set" (top) button.
@@ -15722,88 +15603,103 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   }
   else
   {
-    /* If 'Set' key has been pressed while one or more of the nine (9) alarms was ringing, reset all alarms and continue.
-       When one or more of the nine (9) alarms is ringing, 'Set' key is simply used for alarms shutoff. */
+    /* If "Set" key has been pressed while one or more of the nine (9) clock alarms were ringing, reset all alarms and continue.
+       If "Set" key has been pressed while the count-down timer was ringing, shut off count-down timer and continue.
+       When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Set" key is simply used for alarms and count-down timer shutoff. */
     if (TopKeyPressTime)
     {
-      if (AlarmReachedBitMask)
+      /* If "Set" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
+      if (AlarmReachedBitMask || FlagTimerCountDownEnd)
       {
-        AlarmReachedBitMask = 0;
+        if (AlarmReachedBitMask)
+          AlarmReachedBitMask = 0;
 
-        TopKeyPressTime = 0;
-      }
-    }
 
-    /* If the "Set" (top) button is not pressed, but cumulative time is not zero, it means that the
-       "Set" button has just been released and it is a "short press" (between 50 and 300 milliseconds). */
-    if ((TopKeyPressTime > 50) && (TopKeyPressTime < 300) && (ScrollDotCount == 0))
-    {
-      IdleNumberOfSeconds = 0; // reset the number of seconds the system has been idle.
-      if (FlashConfig.FlagKeyclick == FLAG_ON)
-      {
-        for (Loop1UInt8 = 0; Loop1UInt8 < TONE_KEYCLICK_REPEAT2; ++Loop1UInt8)
+        /* If "Set" key has been pressed while count-down timer alarm is ringing, reset count-down timer alarm so that it stops ringing. */
+        if (FlagTimerCountDownEnd == FLAG_ON)
         {
-          sound_queue_active(TONE_KEYCLICK_DURATION, TONE_KEYCLICK_REPEAT1);
+          FlagTimerCountDownEnd = FLAG_OFF;
+
+          if (DebugBitMask & DEBUG_TIMER)
+            uart_send(__LINE__, "FlagTimerCountDownEnd has been reset.\r");
         }
-        sound_queue_active(50, SILENT);
       }
-
-      /* If we are already in a setup mode, perform housekeeping for current SetupStep and jump on to next SetupStep. */
-      switch (SetupSource)
+      else
       {
-        case SETUP_SOURCE_ALARM:
-          set_mode_out();
-          FlagSetAlarm = FLAG_ON;
-          ++SetupStep;
-          /* Cleanup will be done in setup_alarm_frame() when done. */
-        break;
-
-        case SETUP_SOURCE_CLOCK:
-          set_mode_out();
-          FlagSetClock = FLAG_ON;
-          ++SetupStep;
-          /* Cleanup will be done in setup_clock_frame() when done. */
-        break;
-
-        case SETUP_SOURCE_TIMER:
-          set_mode_out();
-          FlagSetTimer = FLAG_ON;
-          ++SetupStep;
-          /* Cleanup will be done in setup_timer_frame() when done. */
-        break;
-
-        default:
-          /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
-          FlagSetClock = FLAG_ON;
-          SetupSource = SETUP_SOURCE_CLOCK;
-          ++SetupStep;
-        break;
-      }
-    }
-    else if ((TopKeyPressTime > 300) && (SetupStep == SETUP_NONE))
-    {
-      /* If the "Set" (top) button is not pressed, but cumulative time is not zero, it means that the
-         "Set" button has just been released and it is a "long press" (longer than 300 milliseconds). */
-      IdleNumberOfSeconds = 0; // reset the number of seconds the system has been idle.
-      if (FlashConfig.FlagKeyclick == FLAG_ON)
-      {
-        for (Loop1UInt8 = 0; Loop1UInt8 < TONE_KEYCLICK_REPEAT2; ++Loop1UInt8)
+        /* If the "Set" (top) button is not pressed, but cumulative time is not zero, it means that the
+           "Set" button has just been released and it is a "short press" (between 50 and 300 milliseconds). */
+        if ((TopKeyPressTime > 50) && (TopKeyPressTime < 300) && (ScrollDotCount == 0))
         {
-          sound_queue_active(TONE_KEYCLICK_DURATION, TONE_KEYCLICK_REPEAT1);
-        }
-        sound_queue_active(50, SILENT);
-      }
-      set_mode_out(); // housekeeping;
+          IdleNumberOfSeconds = 0; // reset the number of seconds the system has been idle.
+          if (FlashConfig.FlagKeyclick == FLAG_ON)
+          {
+            for (Loop1UInt8 = 0; Loop1UInt8 < TONE_KEYCLICK_REPEAT2; ++Loop1UInt8)
+            {
+              sound_queue_active(TONE_KEYCLICK_DURATION, TONE_KEYCLICK_REPEAT1);
+            }
+            sound_queue_active(50, SILENT);
+          }
 
-      /* If we are not already in setup mode, enter alarm setup mode. */
-      FlagSetAlarm = FLAG_ON; // enter alarm setup mode.
-      SetupSource = SETUP_SOURCE_ALARM;
-      ++SetupStep; // process through all alarm setup steps.
+          /* If we are already in a setup mode, perform housekeeping for current SetupStep and jump on to next SetupStep. */
+          switch (SetupSource)
+          {
+            case SETUP_SOURCE_ALARM:
+              set_mode_out();
+              FlagSetAlarm = FLAG_ON;
+              ++SetupStep;
+              /* Cleanup will be done in setup_alarm_frame() when done. */
+            break;
+
+            case SETUP_SOURCE_CLOCK:
+              set_mode_out();
+              FlagSetClock = FLAG_ON;
+              ++SetupStep;
+              /* Cleanup will be done in setup_clock_frame() when done. */
+            break;
+
+            case SETUP_SOURCE_TIMER:
+              set_mode_out();
+              FlagSetTimer = FLAG_ON;
+              ++SetupStep;
+              /* Cleanup will be done in setup_timer_frame() when done. */
+            break;
+
+            default:
+              /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
+              FlagSetClock = FLAG_ON;
+              SetupSource = SETUP_SOURCE_CLOCK;
+              ++SetupStep;
+            break;
+          }
+        }
+        else if ((TopKeyPressTime > 300) && (SetupStep == SETUP_NONE))
+        {
+          /* If the "Set" (top) button is not pressed, but cumulative time is not zero, it means that the
+             "Set" button has just been released and it is a "long press" (longer than 300 milliseconds). */
+          IdleNumberOfSeconds = 0; // reset the number of seconds the system has been idle.
+          if (FlashConfig.FlagKeyclick == FLAG_ON)
+          {
+            for (Loop1UInt8 = 0; Loop1UInt8 < TONE_KEYCLICK_REPEAT2; ++Loop1UInt8)
+            {
+              sound_queue_active(TONE_KEYCLICK_DURATION, TONE_KEYCLICK_REPEAT1);
+            }
+            sound_queue_active(50, SILENT);
+          }
+          set_mode_out(); // housekeeping;
+
+          /* If we are not already in setup mode, enter alarm setup mode. */
+          FlagSetAlarm = FLAG_ON;  // enter alarm setup mode.
+          SetupSource  = SETUP_SOURCE_ALARM;
+          ++SetupStep; // process through all alarm setup steps.
+        }
+      }
     }
 
     /* Reset "Set" (top) button cumulative press time. */
     TopKeyPressTime = 0;
   }
+
+
 
   /* ................................................................ *\
                        Manage "Up" (middle) button.
@@ -15898,7 +15794,7 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
       {
         /* If we're not already in a setup mode, long press on the "Up" button triggers timer setup mode. */
         FlagSetTimer = FLAG_ON;
-        SetupSource = SETUP_SOURCE_TIMER;
+        SetupSource  = SETUP_SOURCE_TIMER;
         ++SetupStep;
       }
     }
@@ -16005,6 +15901,7 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   }
 
 
+matrix_scan:
   /* ................................................................ *\
                     Increment LED matrix scanned row.
   \* ................................................................ */
@@ -16071,8 +15968,10 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   UINT8 Loop2UInt8;
   UINT8 TotalBeeps;
 
-  static UINT16 AlarmRingTime[MAX_ALARMS];  // cumulative number of seconds alarm has been ringing.
+  static UINT16 AlarmRingTime[MAX_ALARMS];    // cumulative number of seconds alarm has been ringing.
   UINT16 BeepLength;
+  static UINT16 CountDownAlarmDuration;       // keep track of curent cumulative time (in seconds) count-down alarm has been sounding so far.
+  static UINT16 CountDownDelay;               // delay (in seconds) betweek each count-down alarm sound burst.
   UINT16 LightLevel;
   static UINT16 PreviousYear;
 
@@ -16092,9 +15991,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
       pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
   
-      sprintf(String, "\r\r=== CALLBACK S ===      Delay: %5llu mSec   Stack: 0x%8.8X\r\r", ((Timer1 - PreviousTimer) / 1000), &String[0]);
-      uart_send(__LINE__, String);
-
+      uart_send(__LINE__, "\r\r=== CALLBACK S ===      Delay: %5llu mSec   Stack: 0x%8.8X\r\r", ((Timer1 - PreviousTimer) / 1000), &String[0]);
       pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
     }
   
@@ -16110,6 +16007,15 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   \* ................................................................ */
   ++CurrentSecond;
 
+    
+  if ((CurrentMinute == 0) && (CurrentSecond == 1))
+  {
+    /* Since we just changed hour, check for an eventual change in Daylight Saving Time status.
+       Wait two seconds in case there is a small discrepancy between Green Clock real-time and RTC IC. */
+    update_dst_status();
+  }
+
+
   if (CurrentSecond == 60)
   {
     ++CurrentMinute;
@@ -16121,10 +16027,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       FlagChimeHalfDone = FLAG_OFF;
 
       if (DebugBitMask & DEBUG_CHIME)
-      {
-        sprintf(String, "Resetting FlagChimeHalfDone: 0x%2.2X   Hour: %2u   Minute: %2u   CurrentSecond: %2u\r", FlagChimeHalfDone, CurrentHour, CurrentMinute, CurrentSecond);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Resetting FlagChimeHalfDone: 0x%2.2X   Hour: %2u   Minute: %2u   CurrentSecond: %2u\r", FlagChimeHalfDone, CurrentHour, CurrentMinute, CurrentSecond);
     }
 
     /* Reset FlagChimeDone to get prepared for next hour chime. */
@@ -16133,10 +16036,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       FlagChimeDone = FLAG_OFF;
 
       if (DebugBitMask & DEBUG_CHIME)
-      {
-        sprintf(String, "Resetting FlagChimeDone: 0x%2.2X   Hour: %2u   Minute: %2u   CurrentSecond: %2u\r", FlagChimeDone, CurrentHour, CurrentMinute, CurrentSecond);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Resetting FlagChimeDone: 0x%2.2X   Hour: %2u   Minute: %2u   CurrentSecond: %2u\r", FlagChimeDone, CurrentHour, CurrentMinute, CurrentSecond);
 
       
       /* Perform this check at 0h02, out of peak period. */
@@ -16165,9 +16065,6 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       ++CurrentHour;
 
       if (CurrentHour == 24) CurrentHour = 0;  // if out-of-bound, revert to 0.
-  
-      /* Since we just changed hour, check for an eventual change in Daylight Saving Time status. */
-      update_dst_status();
     }
 
 
@@ -16195,8 +16092,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
     pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
-    sprintf(String, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting);
   
     pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
   }
@@ -16253,10 +16149,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         BeepLength = 500;
 
       if (DebugBitMask & DEBUG_ALARMS)
-      {
-        sprintf(String, "-TotalBeeps: %u  BeepLength: %u\r", TotalBeeps, BeepLength);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "-TotalBeeps: %u  BeepLength: %u\r", TotalBeeps, BeepLength);
 
       /* Trigger ringer for each alarm condition reached. */
       for (Loop1UInt8 = 0; Loop1UInt8 < MAX_ALARMS; ++Loop1UInt8)
@@ -16264,10 +16157,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         if (AlarmReachedBitMask & (1 << Loop1UInt8))
         {
           if (DebugBitMask & DEBUG_ALARMS)
-          {
-            sprintf(String, "-AL %u ON   RingTime: %u\r", Loop1UInt8 + 1, AlarmRingTime[Loop1UInt8]);
-            uart_send(__LINE__, String);
-          }
+            uart_send(__LINE__, "-AL %u ON   RingTime: %u\r", Loop1UInt8 + 1, AlarmRingTime[Loop1UInt8]);
 
           /* Check if this alarm has been ringing for specified ring time. */
           AlarmRingTime[Loop1UInt8] += ALARM_PERIOD;
@@ -16280,10 +16170,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
             AlarmRingTime[Loop1UInt8] = 0;
 
             if (DebugBitMask & DEBUG_ALARMS)
-            {
-              sprintf(String, "-Bitmask: %8.8X\r", AlarmReachedBitMask);
-              uart_send(__LINE__, String);
-            }
+              uart_send(__LINE__, "-Bitmask: %8.8X\r", AlarmReachedBitMask);
 
             break;  // skip to check next alarm.
           }
@@ -16326,10 +16213,8 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_OFF)
       {
         if (DebugBitMask & DEBUG_ALARMS)
-        {
-          sprintf(String, "-[%2.2u]: Off\r", Loop1UInt8);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "-[%2.2u]: Off\r", Loop1UInt8);
+
         continue;
       }
 
@@ -16337,10 +16222,8 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       if ((FlashConfig.Alarm[Loop1UInt8].Day & (1 << CurrentDayOfWeek)) == 0)
       {
         if (DebugBitMask & DEBUG_ALARMS)
-        {
-          sprintf(String, "-[%2.2u]: Wrong day    (%2.2X VS %2.2X)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Day, (1 << CurrentDayOfWeek));
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "-[%2.2u]: Wrong day    (%2.2X VS %2.2X)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Day, (1 << CurrentDayOfWeek));
+
         continue;
       }
 
@@ -16348,10 +16231,8 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHour)
       {
         if (DebugBitMask & DEBUG_ALARMS)
-        {
-          sprintf(String, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHour);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHour);
+
         continue;
       }
 
@@ -16359,28 +16240,20 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       if (FlashConfig.Alarm[Loop1UInt8].Minute != CurrentMinute)
       {
         if (DebugBitMask & DEBUG_ALARMS)
-        {
-          sprintf(String, "-[%2.2u]: Wrong minute (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Minute, CurrentMinute);
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "-[%2.2u]: Wrong minute (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Minute, CurrentMinute);
+
         continue;
       }
 
       /* We reach this point if we comply with all alarm conditions. */
       if (DebugBitMask & DEBUG_ALARMS)
-      {
-        sprintf(String, "-[%2.2u]: **Reached**\r", Loop1UInt8);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "-[%2.2u]: **Reached**\r", Loop1UInt8);
 
       /* Set the bit corresponding to this alarm in the alarm bit mask. */
       AlarmReachedBitMask |= (1 << Loop1UInt8);
 
       if (DebugBitMask & DEBUG_ALARMS)
-      {
-        sprintf(String, "-BitMask: 0x%4.4X\r\r", AlarmReachedBitMask);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "-BitMask: 0x%4.4X\r\r", AlarmReachedBitMask);
 
       /* If there is a string associated with this alarm, scroll it on clock display. */
       if (FlashConfig.Alarm[Loop1UInt8].Text[0] != 0x00)
@@ -16415,11 +16288,9 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
     pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
-    sprintf(String, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)   S: %2u   FCD: 0x%2.2X\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting, CurrentSecond, FlagChimeDone);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)   S: %2u   FCD: 0x%2.2X\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting, CurrentSecond, FlagChimeDone);
     
-    sprintf(String, "ChimeMode:  %u   On: %2u   Off: %2u   FlagSetupClock[MIN]: 0x%2.2X\r\r", FlashConfig.ChimeMode, FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff, FlagSetupClock[SETUP_MINUTE]);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "ChimeMode:  %u   On: %2u   Off: %2u   FlagSetupClock[MIN]: 0x%2.2X\r\r", FlashConfig.ChimeMode, FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff, FlagSetupClock[SETUP_MINUTE]);
 
     pwm_set_duty_cycle(CurrentDutyCycle);  // restore display when done.
   }
@@ -16449,13 +16320,17 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       if (DebugBitMask & DEBUG_CHIME)
         uart_send(__LINE__, "Queueing hourly chime...\r");
 
-      /* Use active sound queue for hourly chime. */
+      /* If user select option where hourly chime to be equivalent to hour value. */
       if (CHIME_HOUR_COUNT)
       {
         /* Number of "beeps" correspond to hour value in 12-hour format. */
         Dum1UInt8 = CurrentHour;
         if (CurrentHour > 12) Dum1UInt8 -= 12;
-        sound_queue_active(50, Dum1UInt8);
+        for (Loop1UInt8 = 0; Loop1UInt8 < Dum1UInt8; ++Loop1UInt8)
+        {
+          sound_queue_active(CHIME_HOUR_COUNT_BEEP_DURATION, 1);
+          sound_queue_active(CHIME_HOUR_COUNT_BEEP_DURATION, SILENT);
+        }
       }
       else
       {
@@ -16512,20 +16387,21 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       if (FlashConfig.FlagScrollEnable == FLAG_ON)
       {
         if (DebugBitMask & DEBUG_SCROLL)
-        {
-          sprintf(String, "Scrolling date and other periodic display...\r");
-          uart_send(__LINE__, String);
-        }
+          uart_send(__LINE__, "Scrolling date and other periodic display...\r");
 
         /* PERIODIC SCROLLING CONFIGURATION. */
-        /* We reach the time to trigger periodic scrolling and we are in time display mode. */
+        /* We reached the time to trigger periodic scrolling and we are in time display mode. */
         scroll_queue(TAG_DATE);
         #ifdef RELEASE_VERSION
         scroll_queue(TAG_DS3231_TEMP);
-        #else  // RELEASE_VERSION
+        #ifdef PICO_W
+        scroll_queue(TAG_NTP_ERRORS);
+        #endif  // PICO_W
+        #else   // RELEASE_VERSION
         scroll_queue(TAG_BME280_TEMP);
         scroll_queue(TAG_DHT22_TEMP);
         scroll_queue(TAG_DS3231_TEMP);
+        scroll_queue(TAG_NTP_ERRORS);
         #endif  // RELEASE_VERSION
       }
     }
@@ -16567,21 +16443,82 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   /* ................................................................ *\
                             Count-down timer.
   \* ................................................................ */
-  if (FlagSetTimerCountDown == FLAG_ON)
+  if (FlagTimerCountDownEnd == FLAG_ON)
   {
-    /* If a count-down timer has been set and reaches zero, we always sound the piezo, no matter what is the Chime Time On / Off setting. */
-    if ((TimerMinutes == 0) && (TimerSeconds == 0))
+    if (DebugBitMask & DEBUG_TIMER)
+      uart_send(__LINE__, "Count-down timer has been triggered.\r");
+
+    /* Count-down timer reached zero. we sound count-down timer alarm until user pressed the "Set" button,
+       or until we reach the maximum count-down alarm elapsed time. */
+    ++CountDownDelay;          // one more second passed for next count-down timer alarm burst.
+    ++CountDownAlarmDuration;  // one more second for total count-down alarm duration.
+ 
+    if (DebugBitMask & DEBUG_TIMER)
+      uart_send(__LINE__, "CountDownDelay: %u   CountDownAlarmDuration: %u   COUNT_DOWN_DELAY: %u.\r", CountDownDelay, CountDownAlarmDuration, COUNT_DOWN_DELAY);
+    
+    if (CountDownDelay >= COUNT_DOWN_DELAY)
     {
+      CountDownDelay = 0;  // reset delay until next alarm burst.
       for (Loop1UInt8 = 0; Loop1UInt8 < TONE_TIMER_REPEAT2; ++Loop1UInt8)
       {
         sound_queue_active(TONE_TIMER_DURATION, TONE_TIMER_REPEAT1);
         sound_queue_active(1000, SILENT);
       }
+    }
 
-      SetupSource           = SETUP_SOURCE_NONE;
-      FlagSetTimerCountDown = FLAG_OFF;  // reset count down timer flag.
-      FlagTimerCountDownEnd = FLAG_ON;   // flag indicating we reached final count of count down timer (0m00).
-      IndicatorCountDownOff;             // turn Off "count-down" indicator when done.
+
+    /* If user doesn't press "Set" (top) button to shutdown count-down timer alarm, it will stop by itself
+       when reaching its maximum ringing time (which is specified in minutes). */
+    if (CountDownAlarmDuration >= (MAX_COUNT_DOWN_ALARM_DURATION * 60))
+    {
+      /* "Last call" !! */
+      sound_queue_active(TONE_TIMER_DURATION, 20);
+      sound_queue_active(1000, SILENT);
+
+      CountDownAlarmDuration = 0;
+      CountDownDelay         = 0;
+      FlagTimerCountDownEnd  = FLAG_OFF;
+
+      if (DebugBitMask & DEBUG_TIMER)
+        uart_send(__LINE__, "FlagTimerCountDownEnd has been reset.\r");
+    }
+  }
+  else
+  {
+    if (DebugBitMask & DEBUG_TIMER)
+      uart_send(__LINE__, "FlagTimerCountDownEnd: %u\r", FlagTimerCountDownEnd);
+  }
+
+
+  if (FlagSetTimerCountDown == FLAG_ON)
+  {
+    if (DebugBitMask & DEBUG_TIMER)
+      uart_send(__LINE__, "Count-down timer active: %2.2u:%2.2u\r", TimerMinutes, TimerSeconds);
+
+    /* If a count-down timer has been set and reaches zero, we always sound the piezo, no matter what is the Chime Time On / Off setting. */
+    if ((TimerMinutes == 0) && (TimerSeconds == 0))
+    {
+      if (DebugBitMask & DEBUG_TIMER)
+        uart_send(__LINE__, "Count-down timer reached zero: %2.2u:%2.2u\r", TimerMinutes, TimerSeconds);
+
+      /*** This block for a single-train alarm for count-down timer. ***
+      for (Loop1UInt8 = 0; Loop1UInt8 < TONE_TIMER_REPEAT2; ++Loop1UInt8)
+      {
+        sound_queue_active(TONE_TIMER_DURATION, TONE_TIMER_REPEAT1);
+        sound_queue_active(1000, SILENT);
+      }
+      ***/
+      /*** Block below to ring an alarm for 30 minutes or until user presses "Set" button, whichever happens first. ***/
+      CountDownDelay         = COUNT_DOWN_DELAY;  // force an alarm on first pass.
+      CountDownAlarmDuration = 0;                 // count-down alarm just begins sounding.     
+      SetupSource            = SETUP_SOURCE_NONE;
+      FlagSetTimerCountDown  = FLAG_OFF;  // reset count down timer flag.
+      FlagTimerCountDownEnd  = FLAG_ON;   // flag indicating we reached final count of count down timer (0m00).
+      IndicatorCountDownOff;              // turn Off "count-down" indicator when done.
+
+      if (DebugBitMask & DEBUG_TIMER)
+        uart_send(__LINE__, "Count-down timer CountDownDelay: %u   FlagTimerCountDownEnd: %u\r", CountDownDelay, FlagTimerCountDownEnd);
+      /*** End of block. ***/
     }
     else
     {
@@ -16659,10 +16596,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   \* ................................................................ */
   /***
   if (DebugBitMask & DEBUG_EVENT)
-  {
-    sprintf(String, "CurrentMinute: %2u   CurrentSecond: %2u   Check min1: %2u  Check min2: %2u   FlagEventDone: 0x%2.2X\r", CurrentMinute, CurrentSecond, EVENT_MINUTE1, EVENT_MINUTE2, FlagEventDone);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "CurrentMinute: %2u   CurrentSecond: %2u   Check min1: %2u  Check min2: %2u   FlagEventDone: 0x%2.2X\r", CurrentMinute, CurrentSecond, EVENT_MINUTE1, EVENT_MINUTE2, FlagEventDone);
   ***/
 
 
@@ -16771,8 +16705,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
     pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
-    sprintf(String, "\r\r=== CALLBACK S ===   Duration: %5.2f mSec\r\r", ((Timer2 - Timer1) / 1000.0));
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "\r\r=== CALLBACK S ===   Duration: %5.2f mSec\r\r", ((Timer2 - Timer1) / 1000.0));
 
     pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
   }
@@ -16835,37 +16768,45 @@ UINT8 total_one_bits(UINT32 Data, UINT8 Size)
 /* ------------------------------------------------------------------ *\
            Send a string to VT101 monitor through Pico UART.
 \* ------------------------------------------------------------------ */
-void uart_send(UINT LineNumber, UCHAR *String)
+void uart_send(UINT LineNumber, UCHAR *Format, ...)
 {
+  UCHAR Dum1Str[256];
   UCHAR TimeStamp[128];
 
   UINT Loop1UInt;
   UINT StartChar;
 
+  va_list argp;
+
+
+  /* Transfer the text to print to variable Dum1Str */
+  va_start(argp, Format);
+  vsnprintf(Dum1Str, sizeof(Dum1Str), Format, argp);
+  va_end(argp);
 
   /* Trap special control code for <HOME>. Replace "home" by appropriate control characters for "Home" on a VT101. */
-  if (strcmp(String, "home") == 0)
+  if (strcmp(Dum1Str, "home") == 0)
   {
-    String[0] = 0x1B; // ESC code
-    String[1] = '[';
-    String[2] = 'H';
-    String[3] = 0x00;
+    Dum1Str[0] = 0x1B; // ESC code
+    Dum1Str[1] = '[';
+    Dum1Str[2] = 'H';
+    Dum1Str[3] = 0x00;
   }
 
   /* Trap special control code for <CLS>. Replace "cls" by appropriate control characters for "Clear screen" on a VT101. */
-  if (strcmp(String, "cls") == 0)
+  if (strcmp(Dum1Str, "cls") == 0)
   {
-    String[0] = 0x1B; // ESC code
-    String[1] = '[';
-    String[2] = '2';
-    String[3] = 'J';
-    String[4] = 0x00;
+    Dum1Str[0] = 0x1B; // ESC code
+    Dum1Str[1] = '[';
+    Dum1Str[2] = '2';
+    Dum1Str[3] = 'J';
+    Dum1Str[4] = 0x00;
   }
 
   /* Time stamp will not be printed if first character is a '-' (for title line when starting debug, for example),
      or if first character is a line feed '\r' when we simply want add line spacing in the debug log,
      or if first character is the beginning of a control stream (for example 'Home' or "Clear screen'). */
-  if ((String[0] != '-') && (String[0] != '\r') && (String[0] != 0x1B) && (String[0] != '|'))
+  if ((Dum1Str[0] != '-') && (Dum1Str[0] != '\r') && (Dum1Str[0] != 0x1B) && (Dum1Str[0] != '|'))
   {
     /* Send line number through UART. */
     printf("[%7u]", LineNumber);
@@ -16878,7 +16819,7 @@ void uart_send(UINT LineNumber, UCHAR *String)
   }
 
   /* Send string through UART. */
-  printf(String);
+  printf(Dum1Str);
 
   return;
 }
@@ -16887,32 +16828,64 @@ void uart_send(UINT LineNumber, UCHAR *String)
 
 
 
+/* $PAGE */
+/* $TITLE=uint64_to_binary_string() */
+/* ---------------------------------------------------------------- *\
+     Return the string representing the uint64_t value in binary.
+\* ---------------------------------------------------------------- */
+void uint64_to_binary_string(UINT64 Value, UINT8 StringLength, UCHAR *BinaryString)
+{
+  UINT8 Loop1UInt8;
+
+  /* Initialize binary string with all zeroes. */
+  for (Loop1UInt8 = 0; Loop1UInt8 < StringLength; ++Loop1UInt8)
+    BinaryString[Loop1UInt8] = '0';
+  BinaryString[Loop1UInt8] = 0x00;  // end-of-string
+
+
+  /***
+  uart_send(__LINE__, "=============================================================================\r");
+  uart_send(__LINE__, "Converting value %10llu [0x%8.8llX] to Binary string %u\r\r", Value, Value, StringLength);
+  uart_send(__LINE__, "[%s]\r\r", BinaryString);
+  uart_send(__LINE__, "BinaryString en entry:\r");
+  for (Loop1UInt8 = 0; Loop1UInt8 < 65; ++Loop1UInt8)
+  {
+    printf("0x%2.2X   ", BinaryString[Loop1UInt8]);
+  }
+  printf("\r\r");
+  ***/
+
+
+  /* Replace a '0' with a '1' where it must be replaced. */
+  for (Loop1UInt8 = 0; Loop1UInt8 < StringLength; ++Loop1UInt8)
+  {
+    if (Value & (1 << Loop1UInt8)) BinaryString[StringLength - (Loop1UInt8 + 1)] = '1';
+    // uart_send(__LINE__, "Value to convert: %10llu (0x%8.8llX)  Bit number: %2u   Binary string so far: [%s]\r", Value, Value, Loop1UInt8, BinaryString);
+  }
+
+  return;
+}
+
+
+
+
+/* $PAGE */
+/* $TITLE=update_dst_status()) */
 /* ---------------------------------------------------------------- *\
           Set DST parameters (FlagSummerTime and Timezone)
       according to current DST setting and current date and time.
 \* ---------------------------------------------------------------- */
 void update_dst_status()
 {
-  UCHAR DayToday[10];
-  UCHAR DayStart[10];
-  UCHAR DayEnd[10];
   UCHAR Dum1UChar;
   UCHAR String[256];
 
+  int8_t UtcDisplayTime;
   int8_t UtcTime;
 
 
   /* Initializations. */
   FlagDaylightSavingTime = 0x55;  // undefined value.
-
-  sprintf(DayToday, DayName[FlashConfig.Language][CurrentDayOfWeek]);
-  DayToday[3] = 0x00;  // to generate short name.
-      
-  sprintf(DayStart, DayName[FlashConfig.Language][DstParameters[FlashConfig.DaylightSavingTime].StartDayOfWeek]);
-  DayStart[3] = 0x00;  // to generate short name.
-
-  sprintf(DayEnd, DayName[FlashConfig.Language][DstParameters[FlashConfig.DaylightSavingTime].EndDayOfWeek]);
-  DayEnd[3] = 0x00;  // to generate short name.
 
   /* Get DayOfYear for current date. */  
   CurrentDayOfYear = get_day_of_year(CurrentYear, CurrentMonth, CurrentDayOfMonth);
@@ -16921,11 +16894,14 @@ void update_dst_status()
   if (DebugBitMask & DEBUG_DST)
   {
     Dum1UChar = ' ';
-    if (FlashConfig.Timezone > 0) Dum1UChar = '+';
+    if (FlashConfig.Timezone >= 0) Dum1UChar = '+';
 
-    sprintf(String, "DST check (%u): %8s  %2u-%s-%4.4u  (DayOfYear: %3u)  Hour: %2uh00 (UTC %c%d) ", 
-            FlashConfig.DaylightSavingTime, DayName[FlashConfig.Language][CurrentDayOfWeek], CurrentDayOfMonth, ShortMonth[ENGLISH][CurrentMonth], CurrentYear, CurrentDayOfYear, CurrentHour, Dum1UChar, FlashConfig.Timezone);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Entering update_dst_status()\r");
+    uart_send(__LINE__, "DST country setting in flash memory:       %2u\r",     FlashConfig.DSTCountry);
+    uart_send(__LINE__, "Timezone setting in flash memory:         %3d\r",      FlashConfig.Timezone);
+    uart_send(__LINE__, "FlagSummerTime status in flash memory:    %3d\r",      FlashConfig.FlagSummerTime);
+    uart_send(__LINE__, "DST check:    %8s %2u-%s-%4.4u   DoY: %3u\r",          DayName[FlashConfig.Language][CurrentDayOfWeek], CurrentDayOfMonth, ShortMonth[ENGLISH][CurrentMonth], CurrentYear, CurrentDayOfYear);
+    uart_send(__LINE__, "Local hour: %2u:%2.2u    Delta with UTC time: %c%d\r", CurrentHour, CurrentMinute, Dum1UChar, FlashConfig.Timezone);
   }
 
 
@@ -16933,11 +16909,11 @@ void update_dst_status()
   /* ------------------------------------------------------------------ *\
       Do not spend more time if Daylight Saving Time is not supported.
   \* ------------------------------------------------------------------ */
-  if (FlashConfig.DaylightSavingTime == DST_NONE)
+  if (FlashConfig.DSTCountry == DST_NONE)
   {
     /* DST is set to be ignored. */
     if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> DST not supported\r");
+      uart_send(__LINE__, " -> DST not supported.\r");
 
     return;
   }
@@ -16945,49 +16921,53 @@ void update_dst_status()
 
 
   /* ------------------------------------------------------------------ *\
-                   Check if we are during Summer time.
+       Check Northern countries for main periods between time change.
   \* ------------------------------------------------------------------ */
-  /* ... for northern countries. */
-  if ((DstParameters[FlashConfig.DaylightSavingTime].StartMonth < DstParameters[FlashConfig.DaylightSavingTime].EndMonth) && (CurrentDayOfYear > DstParameters[FlashConfig.DaylightSavingTime].StartDayOfYear) && (CurrentDayOfYear < DstParameters[FlashConfig.DaylightSavingTime].EndDayOfYear))
+  if (DstParameters[FlashConfig.DSTCountry].StartMonth < DstParameters[FlashConfig.DSTCountry].EndMonth)  // Northern countries
   {
-    if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> Currently Summer Time ");
+    /* Check if we are during Summer time. */
+    if ((CurrentDayOfYear > DstParameters[FlashConfig.DSTCountry].StartDayOfYear) && (CurrentDayOfYear < DstParameters[FlashConfig.DSTCountry].EndDayOfYear))
+    {
+      if (DebugBitMask & DEBUG_DST)
+        uart_send(__LINE__, " -> Currently Summer Time.\r");
 
-    FlagDaylightSavingTime = FLAG_ON;
-  }
+      FlagDaylightSavingTime = FLAG_ON;
+    }
 
+    /* Check if we are during Winter time. */
+    if ((CurrentDayOfYear > DstParameters[FlashConfig.DSTCountry].EndDayOfYear) || (CurrentDayOfYear < DstParameters[FlashConfig.DSTCountry].StartDayOfYear))
+    {
+      if (DebugBitMask & DEBUG_DST)
+        uart_send(__LINE__, " -> Currently Winter Time.\r");
 
-  /* ... for southern countries. */
-  if ((DstParameters[FlashConfig.DaylightSavingTime].StartMonth > DstParameters[FlashConfig.DaylightSavingTime].EndMonth) && ((CurrentDayOfYear > DstParameters[FlashConfig.DaylightSavingTime].StartDayOfYear) || (CurrentDayOfYear < DstParameters[FlashConfig.DaylightSavingTime].EndDayOfYear)))
-  {
-    if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> Currently Summer Time ");
-
-    FlagDaylightSavingTime = FLAG_ON;
+      FlagDaylightSavingTime = FLAG_OFF;
+    }
   }
 
 
 
   /* ------------------------------------------------------------------ *\
-                   Check if we are during Winter time.
+       Check Southern countries for main periods between time change.
   \* ------------------------------------------------------------------ */
-  /* ... for northern countries. */
-  if ((DstParameters[FlashConfig.DaylightSavingTime].StartMonth < DstParameters[FlashConfig.DaylightSavingTime].EndMonth) && ((CurrentDayOfYear > DstParameters[FlashConfig.DaylightSavingTime].EndDayOfYear) || (CurrentDayOfYear < DstParameters[FlashConfig.DaylightSavingTime].StartDayOfYear)))
+  if (DstParameters[FlashConfig.DSTCountry].StartMonth > DstParameters[FlashConfig.DSTCountry].EndMonth)  // Southern countries.
   {
-    if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> Currently Winter Time ");
+    /* Check if we are during Summer time. */
+    if ((CurrentDayOfYear > DstParameters[FlashConfig.DSTCountry].StartDayOfYear) || (CurrentDayOfYear < DstParameters[FlashConfig.DSTCountry].EndDayOfYear))
+    {
+      if (DebugBitMask & DEBUG_DST)
+        uart_send(__LINE__, " -> Currently Summer Time.\r");
 
-    FlagDaylightSavingTime = FLAG_OFF;
-  }
+      FlagDaylightSavingTime = FLAG_ON;
+    }
 
+    /* Check if we are during Winter time. */
+    if ((CurrentDayOfYear > DstParameters[FlashConfig.DSTCountry].EndDayOfYear) && (CurrentDayOfYear < DstParameters[FlashConfig.DSTCountry].StartDayOfYear))
+    {
+      if (DebugBitMask & DEBUG_DST)
+        uart_send(__LINE__, " -> Currently Winter Time.\r");
 
-  /* ... for southern countries. */
-  if ((DstParameters[FlashConfig.DaylightSavingTime].StartMonth > DstParameters[FlashConfig.DaylightSavingTime].EndMonth) && ((CurrentDayOfYear > DstParameters[FlashConfig.DaylightSavingTime].EndDayOfYear) && (CurrentDayOfYear < DstParameters[FlashConfig.DaylightSavingTime].StartDayOfYear)))
-  {
-    if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> Currently Winter Time ");
-
-    FlagDaylightSavingTime = FLAG_OFF;
+      FlagDaylightSavingTime = FLAG_OFF;
+    }
   }
 
 
@@ -16995,29 +16975,37 @@ void update_dst_status()
   /* ------------------------------------------------------------------ *\
                    Check if today is the date to change 
                      from Winter Time to Summer Time.
+          Current time can't be in the period from "Start Hour" to
+                      "Start Hour + Switch Minutes".
   \* ------------------------------------------------------------------ */
-  if (CurrentDayOfYear == DstParameters[FlashConfig.DaylightSavingTime].StartDayOfYear)
+  if (CurrentDayOfYear == DstParameters[FlashConfig.DSTCountry].StartDayOfYear)
   {
-    /* Today is the day we change from Winter Time to Summer Time. */
+    /* Today is the day we change from Summer Time to Winter Time... */
     if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> Today change ");
-                  
-    switch (FlashConfig.DaylightSavingTime)
+      uart_send(__LINE__, " -> Today is time to change from Winter Time to Summer Time.\r");
+
+
+    switch (FlashConfig.DSTCountry)
     {
       case (DST_EUROPE):
-        /* Special case for countries where Spring-forward is based on UTC. */
+        /* Special case for countries where Spring-Forward is based on UTC. */
         UtcTime = CurrentHour - FlashConfig.Timezone;
-        if ((UtcTime < 0) || (UtcTime < DstParameters[FlashConfig.DaylightSavingTime].StartHour))
+        UtcDisplayTime = UtcTime;
+        if (UtcDisplayTime < 0) UtcDisplayTime += 24;  // UTC time is still "Yesterday".
+        if (DebugBitMask & DEBUG_DST)
+          uart_send(__LINE__, " -> Handling European countries. Time change occurs at UTC time = 1h00 (current UTC time: %d:%2.2u).\r", UtcDisplayTime, CurrentMinute);
+
+        if ((UtcTime < 0) || (UtcTime < DstParameters[FlashConfig.DSTCountry].StartHour))
         {
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Still Winter Time ");
+            uart_send(__LINE__, " -> Still Winter Time.\r");
 
           FlagDaylightSavingTime = FLAG_OFF;
         }
         else
         {
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Now Summer Time ");
+            uart_send(__LINE__, " -> Now Summer Time.\r");
 
           FlagDaylightSavingTime = FLAG_ON;
         }
@@ -17025,10 +17013,10 @@ void update_dst_status()
 
       case (DST_CHILE):
         /* Chile is a special case since time change happens at "24h00. */
-        if (CurrentHour < DstParameters[FlashConfig.DaylightSavingTime].StartHour)
+        if (CurrentHour < DstParameters[FlashConfig.DSTCountry].StartHour)
         {
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Still Winter Time ");
+            uart_send(__LINE__, " -> Still Winter Time.\r");
 
           FlagDaylightSavingTime = FLAG_OFF;
         }
@@ -17036,17 +17024,17 @@ void update_dst_status()
 
       default:
         /* Other countries change from Winter Time to Summer Time based on local time (not UTC). */
-        if (CurrentHour < DstParameters[FlashConfig.DaylightSavingTime].StartHour)
+        if (CurrentHour < DstParameters[FlashConfig.DSTCountry].StartHour)
         {
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Still Winter Time ");
+            uart_send(__LINE__, " -> Still Winter Time.\r");
 
           FlagDaylightSavingTime = FLAG_OFF;
         }
         else
         {
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Now Summer Time ");
+            uart_send(__LINE__, " -> Now Summer Time.\r");
 
           FlagDaylightSavingTime = FLAG_ON;
         }
@@ -17056,34 +17044,79 @@ void update_dst_status()
 
 
 
-  /* ------------------------------------------------------------------ *\
-                   Check if today is the date to change 
-                     from Summer Time to Winter Time.
-  \* ------------------------------------------------------------------ */
-  if (CurrentDayOfYear == DstParameters[FlashConfig.DaylightSavingTime].EndDayOfYear)
+  /* ------------------------------------------------------------------------------------------------------------------ *\
+                            Check if today is the date to change from Summer Time to Winter Time.
+                 If current time is during the period from "Start Hour" to "Start Hour + Switch Minutes":
+           1) If the clock is running normally (CurrentClockMode = MODE_DISPLAY_TIME), update DST accordingly.
+           2) If the clock is being powered-up, there is no way to know if hour change has already been done or not. 
+              In this case, let's assume that FlashConfig.FlagSummerTime is right.
+  \* ------------------------------------------------------------------------------------------------------------------ */
+  if (CurrentDayOfYear == DstParameters[FlashConfig.DSTCountry].EndDayOfYear)
   {
     /* Today is the day we change from Summer Time to Winter Time... */
     if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> Today change ");
+      uart_send(__LINE__, " -> Today is time to change from Summer Time to Winter Time.\r");
 
-    switch (FlashConfig.DaylightSavingTime)
+
+    switch (FlashConfig.DSTCountry)
     {
       case (DST_EUROPE):
-        /* Special case for countries where Fall-back is based on UTC. */
+        /* Special case for countries where Fall-Back is based on UTC time. */
         UtcTime = CurrentHour - FlashConfig.Timezone;
-        if ((UtcTime < 0) || (UtcTime < DstParameters[FlashConfig.DaylightSavingTime].EndHour))
+        UtcDisplayTime = UtcTime;
+        if (UtcDisplayTime < 0) UtcDisplayTime += 24;
+        if (DebugBitMask & DEBUG_DST)
+          uart_send(__LINE__, " -> Handling European countries. Time change occurs at UTC time = 1h00 (current UTC time: %d:%2.2u).\r", UtcDisplayTime, CurrentMinute);
+
+        if (UtcTime > DstParameters[FlashConfig.DSTCountry].EndHour)
         {
+          /* We are sure that we are in Winter Time. */
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Still Summer Time ");
+            uart_send(__LINE__, " -> Now Winter Time.\r");
+
+          FlagDaylightSavingTime = FLAG_OFF;
+        }
+
+        if (UtcTime < (int8_t)(DstParameters[FlashConfig.DSTCountry].EndHour - 1))
+        {
+          /* Soon enough to be sure we are still in Summer Time. */
+          if (DebugBitMask & DEBUG_DST)
+            uart_send(__LINE__, " -> Still Summer Time.\r");
 
           FlagDaylightSavingTime = FLAG_ON;
         }
-        else
-        {
-          /* Check special case if DST may or may not have just changed to Winter Time. */
-          if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Now Winter Time ");
 
+        /* We reach one hour before time change to Winter Time, we need to check if it has already occured one hour ago. */
+        if (UtcTime == (DstParameters[FlashConfig.DSTCountry].EndHour - 1))
+        {
+          if (FlashConfig.FlagSummerTime == FLAG_OFF)
+          {
+            /* Hour change already occured one hour ago.*/
+            FlagDaylightSavingTime = FLAG_OFF;
+            uart_send(__LINE__, " -> Time change occured one hour ago. Now Winter Time.\r");
+          }
+          else
+          {
+            /* Hour change did not occur yet. Will be in one hour. */
+            FlagDaylightSavingTime = FLAG_ON;
+            uart_send(__LINE__, " -> Time change will occur in one hour. Now still Summer Time.\r");
+          }
+        }
+      
+        /* We reach hour to change to Winter Time, we need to check if it has already occured one hour ago. */
+        if (UtcTime == DstParameters[FlashConfig.DSTCountry].EndHour)
+        {
+          if (FlashConfig.FlagSummerTime == FLAG_OFF)
+          {
+            if (DebugBitMask & DEBUG_DST)
+              uart_send(__LINE__, " -> Time change already occured one hour ago.\r");
+          }
+          else
+          {
+            /* Either we are during normal clock mode, either we are during power-up and hour change has not occured yet. */
+            if (DebugBitMask & DEBUG_DST)
+              uart_send(__LINE__, " -> Now time to change to Winter Time.\r");
+          }
           FlagDaylightSavingTime = FLAG_OFF;
         }
       break;
@@ -17096,7 +17129,7 @@ void update_dst_status()
           FlagDaylightSavingTime = FLAG_ON;
 
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Still Summer Time ");
+            uart_send(__LINE__, " -> Still Summer Time.\r");
         }
         else
         {
@@ -17106,7 +17139,7 @@ void update_dst_status()
             FlagDaylightSavingTime = FLAG_ON;
     
             if (DebugBitMask & DEBUG_DST)
-              uart_send(__LINE__, "-> Still Summer Time ");
+              uart_send(__LINE__, " -> Still Summer Time.\r");
           }
           else
           {
@@ -17114,26 +17147,62 @@ void update_dst_status()
             FlagDaylightSavingTime = FLAG_OFF;
   
             if (DebugBitMask & DEBUG_DST)
-              uart_send(__LINE__, "-> Now Winter Time ");
+              uart_send(__LINE__, " -> Now Winter Time.\r");
           }
         }
       break;
 
       default:
         /* Other countries change time based on local time (not UTC) */
-        if (CurrentHour < DstParameters[FlashConfig.DaylightSavingTime].EndHour)
+        if (CurrentHour > DstParameters[FlashConfig.DSTCountry].EndHour)
         {
+          /* We are sure that we are in Winter Time. */
           if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Still Summer Time ");
+            uart_send(__LINE__, " -> Now Winter Time.\r");
+
+          FlagDaylightSavingTime = FLAG_OFF;
+        }
+
+        if (CurrentHour < (DstParameters[FlashConfig.DSTCountry].EndHour - 1))
+        {
+          /* Soon enough to be sure we are still in Summer Time. */
+          if (DebugBitMask & DEBUG_DST)
+            uart_send(__LINE__, " -> Still Summer Time.\r");
 
           FlagDaylightSavingTime = FLAG_ON;
         }
-        else
-        {
-          /* Check special case if DST may or may not have just changed to Winter Time. */
-          if (DebugBitMask & DEBUG_DST)
-            uart_send(__LINE__, "-> Now Winter Time ");
 
+        /* We reach one hour before time change to Winter Time, we need to check if it has already occured one hour ago. */
+        if (CurrentHour == (DstParameters[FlashConfig.DSTCountry].EndHour - 1))
+        {
+          if (FlashConfig.FlagSummerTime == FLAG_OFF)
+          {
+            /* Hour change already occured one hour ago.*/
+            FlagDaylightSavingTime = FLAG_OFF;
+            uart_send(__LINE__, " -> Time change occured one hour ago. Now Winter Time.\r");
+          }
+          else
+          {
+            /* Hour change did not occur yet. Will be in one hour. */
+            FlagDaylightSavingTime = FLAG_ON;
+            uart_send(__LINE__, " -> Time change will occur in one hour. Now still Summer Time.\r");
+          }
+        }
+
+        /* We reach hour to change to Winter Time, we need to check if it has already occured one hour ago. */
+        if (CurrentHour == DstParameters[FlashConfig.DSTCountry].EndHour)
+        {
+          if (FlashConfig.FlagSummerTime == FLAG_OFF)
+          {
+            if (DebugBitMask & DEBUG_DST)
+              uart_send(__LINE__, " -> Time change already occured one hour ago.\r");
+          }
+          else
+          {
+            /* Either we are during normal clock mode, either we are during power-up and hour change has not occured yet. */
+            if (DebugBitMask & DEBUG_DST)
+              uart_send(__LINE__, " -> Now time to change to Winter Time.\r");
+          }
           FlagDaylightSavingTime = FLAG_OFF;
         }
       break;
@@ -17142,39 +17211,53 @@ void update_dst_status()
 
 
 
+  if (FlagDaylightSavingTime == 0x55)
+    if (DebugBitMask & DEBUG_DST)
+      uart_send(__LINE__, " -> CASE NOT COVERED... Please report this problem and how to reproduce it.\r");
+
+
+
   /* ------------------------------------------------------------------ *\
          Now that we know if we are in Summer Time or Winter Time,
            set the Daylight Saving Time parameters accordingly.
   \* ------------------------------------------------------------------ */
-  if (FlagDaylightSavingTime == 0x55)
-    if (DebugBitMask & DEBUG_DST)
-      uart_send(__LINE__, "-> NOT COVERED ");
-
- 
   if (FlagDaylightSavingTime == FLAG_ON)
   {
     if (FlashConfig.FlagSummerTime == FLAG_OFF)
     {
-      if (DebugBitMask & DEBUG_DST)
-        uart_send(__LINE__, "-> Flash update required ");
-          
-      /* We are in Summer Time, but flash indicates that we are in Winter Time... We need to adjust DST parameters. */
+      /* We are in Summer Time, but flash indicates that we are still in Winter Time... We need to adjust Timezone and clock time. */
       ++FlashConfig.Timezone;
 
-      /* Check shift minutes, just in case we have to cover other than 60 minutes shifts later on. */
-      if (DstParameters[FlashConfig.DaylightSavingTime].ShiftMinutes == 60)
+      if (DebugBitMask & DEBUG_DST)
       {
+        uart_send(__LINE__, "  --------------------------------------------------------===> Changing from Winter Time to Summer Time.\r");
+        uart_send(__LINE__, "DST country code: %u   Number of minutes to shift: %u\r", 
+                             FlashConfig.DSTCountry, DstParameters[FlashConfig.DSTCountry].ShiftMinutes);
+      }
+
+      /* Check shift minutes, just in case we have to cover other than 60 minutes shifts later on. */
+      if (DstParameters[FlashConfig.DSTCountry].ShiftMinutes == 60)
+      {
+        if (DebugBitMask & DEBUG_DST)
+          uart_send(__LINE__, "Current Hour that will be incremented: %u:%2.2u\r", CurrentHour, CurrentMinute);
+
         ++CurrentHour;
-        ++CurrentHourSetting;
+        CurrentHourSetting = CurrentHour;
         set_hour(CurrentHourSetting);
       }
       else
       {
-        CurrentMinute += DstParameters[FlashConfig.DaylightSavingTime].ShiftMinutes;
-        set_minute(CurrentMinute);
+        if (DebugBitMask & DEBUG_DST)
+          uart_send(__LINE__, "Current minutes that will be incremented: %u\r", CurrentHour);
+
+        CurrentMinute += DstParameters[FlashConfig.DSTCountry].ShiftMinutes;
+        CurrentMinuteSetting = CurrentMinute;
+        set_minute(CurrentMinuteSetting);
+        if (DebugBitMask & DEBUG_DST)
+          uart_send(__LINE__, "Current Time after hour change: %u:%2.2u\r", CurrentHour, CurrentMinute);
       }
+      show_time();  // update clock display to show time change.
     }
-  
     FlashConfig.FlagSummerTime = FLAG_ON;
   }
 
@@ -17184,11 +17267,15 @@ void update_dst_status()
   {
     if (FlashConfig.FlagSummerTime == FLAG_ON)
     {
+      /* We are in Winter Time, but flash indicates that we are still in Summer Time... We need to adjust Timezone and clock time. */
       if (DebugBitMask & DEBUG_DST)
-        uart_send(__LINE__, "-> Flash update required ");
-
+      {
+        uart_send(__LINE__, " ---------------------------------------------------------===> Changing from Summer Time to Winter Time.\r");
+        uart_send(__LINE__, "DST country code: %u   Number of minutes to shift: %u\r", 
+                             FlashConfig.DSTCountry, DstParameters[FlashConfig.DSTCountry].ShiftMinutes);
+      }
           
-      switch (FlashConfig.DaylightSavingTime)
+      switch (FlashConfig.DSTCountry)
       {
         case (DST_CHILE):
           /* Special case for Chile since they are changing time at "24h00", whereas we are already "tomorrow". */
@@ -17201,7 +17288,8 @@ void update_dst_status()
             CurrentDayOfMonth = get_month_days(CurrentYear, CurrentMonth);
           }
 
-          set_hour(CurrentHour);
+          CurrentHourSetting = CurrentHour;
+          set_hour(CurrentHourSetting);
           set_day_of_month(CurrentDayOfMonth);
           set_month(CurrentMonth);
 
@@ -17222,7 +17310,8 @@ void update_dst_status()
             CurrentDayOfMonth = get_month_days(CurrentYear, CurrentMonth);
           }
 
-          set_hour(CurrentHour);
+          CurrentHourSetting = CurrentHour;
+          set_hour(CurrentHourSetting);
           set_day_of_month(CurrentDayOfMonth);
           set_month(CurrentMonth);
 
@@ -17231,25 +17320,42 @@ void update_dst_status()
         break;
 
         default:
+          if (DebugBitMask & DEBUG_DST)
+            uart_send(__LINE__, "Current Hour that will be decremented: %u:%2.2u\r", CurrentHour, CurrentMinute);
+
           /* We are in Winter Time, but flash indicates that we are in Summer Time... We need to adjust DST parameters. */
           --FlashConfig.Timezone;
 
           /* Check shift minutes, just in case we have to cover other than 60 minutes shifts later on. */
-          if (DstParameters[FlashConfig.DaylightSavingTime].ShiftMinutes == 60)
+          if (DstParameters[FlashConfig.DSTCountry].ShiftMinutes == 60)
           {
             --CurrentHour;
-            set_hour(CurrentHour);
+            CurrentHourSetting = CurrentHour;
+            set_hour(CurrentHourSetting);
           }
           else
           {
-            CurrentMinute -= DstParameters[FlashConfig.DaylightSavingTime].ShiftMinutes;
-            set_minute(CurrentMinute);
+            if (DebugBitMask & DEBUG_DST)
+              uart_send(__LINE__, "Current Minute that will be decremented: %u:%2.2u\r", CurrentHour, CurrentMinute);
+
+            CurrentMinute -= DstParameters[FlashConfig.DSTCountry].ShiftMinutes;
+            if (CurrentMinute > 59)  // went below 0.
+            {
+              CurrentMinute += 60;
+              --CurrentHour;
+            }
+            CurrentHourSetting   = CurrentHour;
+            CurrentMinuteSetting = CurrentMinute;
+            set_hour(CurrentHourSetting);
+            set_minute(CurrentMinuteSetting);
+            if (DebugBitMask & DEBUG_DST)
+              uart_send(__LINE__, "Current Time after hour change: %u:%2.2u\r", CurrentHour, CurrentMinute);
           }
         break;
       }
-  
-      FlashConfig.FlagSummerTime = FLAG_OFF;
+      show_time();  // update clock display to show time change.
     }
+    FlashConfig.FlagSummerTime = FLAG_OFF;
   }
 
   uart_send(__LINE__, "\r");
@@ -17280,11 +17386,7 @@ void update_left_indicators(void)
     IndicatorScrollOn;
 
   if (DebugBitMask & DEBUG_INDICATORS)
-  {
-    sprintf(String, "FlagScrollEnable:   0x%2.2X\r", FlashConfig.FlagScrollEnable);
-    uart_send(__LINE__, String);
-  }
-
+    uart_send(__LINE__, "FlagScrollEnable:   0x%2.2X\r", FlashConfig.FlagScrollEnable);
 
 
   /* ---------------------------------------------------------------- *\
@@ -17295,10 +17397,7 @@ void update_left_indicators(void)
     if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_ON)
     {
       if (DebugBitMask & DEBUG_INDICATORS)
-      {
-        sprintf(String, "Alarm[%1u]:   0x%2.2X\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8]);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Alarm[%1u]:   0x%2.2X\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8]);
 
       IndicatorAlarmOn;
       break; // get out of for loop as soon as alarm indicator is On.
@@ -17322,11 +17421,7 @@ void update_left_indicators(void)
   }
 
   if (DebugBitMask & DEBUG_INDICATORS)
-  {
-    sprintf(String, "Temperature unit:   0x%2.2X\r", FlashConfig.TemperatureUnit);
-    uart_send(__LINE__, String);
-  }
-
+    uart_send(__LINE__, "Temperature unit:   0x%2.2X\r", FlashConfig.TemperatureUnit);
 
 
   /* ---------------------------------------------------------------- *\
@@ -17348,10 +17443,7 @@ void update_left_indicators(void)
   }
 
   if (DebugBitMask & DEBUG_INDICATORS)
-  {
-    sprintf(String, "ChimeMode:             %u\r", FlashConfig.ChimeMode);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "ChimeMode:             %u\r", FlashConfig.ChimeMode);
 
 
 
@@ -17362,10 +17454,7 @@ void update_left_indicators(void)
     IndicatorAutoLightOn;
 
   if (DebugBitMask & DEBUG_INDICATORS)
-  {
-    sprintf(String, "FlagAutoBrightness: 0x%2.2X\r\r", FlashConfig.FlagAutoBrightness);
-    uart_send(__LINE__, String);
-  }
+    uart_send(__LINE__, "FlagAutoBrightness: 0x%2.2X\r\r", FlashConfig.FlagAutoBrightness);
   
   return;
 }
@@ -17383,19 +17472,7 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
 {
   if (Flag == FLAG_ON)
   {
-    /* First, turn Off all day-of-week indicators. */
-    /*** Negative side effect in "days-of-week alarm setting". ***
-    DisplayBuffer[16] &= ~((1 << 5) | (1 << 6));  // Sunday
-    DisplayBuffer[0]  &= ~((1 << 3) | (1 << 4));  // Monday
-    DisplayBuffer[0]  &= ~((1 << 6) | (1 << 7));  // Tuesday
-    DisplayBuffer[8]  &= ~((1 << 1) | (1 << 2));  // Wednesday
-    DisplayBuffer[8]  &= ~((1 << 4) | (1 << 5));  // Thursday
-    DisplayBuffer[8]  &= ~(1 << 7);               // Friday - a
-    DisplayBuffer[16] &= ~(1 << 0);               // Friday - b
-    DisplayBuffer[16] &= ~((1 << 2) | (1 << 3));  // Saturday
-    ***/
-
-    /* Then, turn On specified DayOfWeek. */
+    /* Turn On specified DayOfWeek. */
     switch (DayOfWeek)
     {
       case (SUN):

@@ -42,8 +42,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
   if (DebugBitMask & DEBUG_IR_COMMAND)
   {
     printf("\r");
-    sprintf(String, "Total number of logic level changes (Steps): %2u (should be 73)\r", IrStepCount);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Total number of logic level changes (Steps): %2u (should be 73)\r", IrStepCount);
   }
 
 
@@ -52,11 +51,8 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
   if (DebugBitMask & DEBUG_IR_COMMAND)
   {
     /* Display debug header. */
-    sprintf(String, "Event   Bit   Level  Duration  Level  Duration  Result\r");
-    uart_send(__LINE__, String);
-
-    sprintf(String, "number number\r");
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Event   Bit   Level  Duration  Level  Duration  Result\r");
+    uart_send(__LINE__, "number number\r");
   }
 
   for (Loop1UInt16 = 0; Loop1UInt16 < IrStepCount; Loop1UInt16 += 2)
@@ -65,12 +61,9 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 
     if (Loop1UInt16 < 2)
     {
+      /* Display two <Get ready> levels from IR burst. */
       if (DebugBitMask & DEBUG_IR_COMMAND)
-      {
-        /* Display two <Get ready> levels from IR burst. */
-        sprintf(String, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
       continue;
     }
           
@@ -80,23 +73,17 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
       DataBuffer <<= 1;
       if (IrResultValue[Loop1UInt16 + 1] > 1400) ++DataBuffer;
   
+      /* Display 32 data bits. */
       if (DebugBitMask & DEBUG_IR_COMMAND)
-      {
-        /* Display 32 data bits. */
-        sprintf(String, " [%2u]   %3u     %c     %5lu      %c     %5lu      Data: 0x%8.8X\r", Loop1UInt16, BitNumber, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1], DataBuffer);
-        uart_send(__LINE__, String);
-      }
+         uart_send(__LINE__, " [%2u]   %3u     %c     %5lu      %c     %5lu      Data: 0x%8.8X\r", Loop1UInt16, BitNumber, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1], DataBuffer);
     }
 
 
     if (BitNumber > 32)
     {
+      /* Display extra bits. */
       if (DebugBitMask & DEBUG_IR_COMMAND)
-      {
-        /* Display extra bits. */
-        sprintf(String, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, " [%2u]    --     %c     %5lu      %c     %5lu\r", Loop1UInt16, IrLevel[Loop1UInt16], IrResultValue[Loop1UInt16], IrLevel[Loop1UInt16 + 1], IrResultValue[Loop1UInt16 + 1]);
     }
   
   
@@ -107,10 +94,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
       /// break;
     
       if (DebugBitMask & DEBUG_IR_COMMAND)
-      {
-        sprintf(String, " Reaching end of IR burst > 10000 at IrStep %u\r", Loop1UInt16);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, " Reaching end of IR burst > 10000 at IrStep %u\r", Loop1UInt16);
     }
     else
     {
@@ -124,10 +108,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
             FlagError = FLAG_ON;
 
             if (DebugBitMask & DEBUG_IR_COMMAND)
-            {
-              sprintf(String, "decode_ir_command() - Error IrLevel <L>   Event number: %u   IrResultValue: %lu\r", Loop1UInt16 + Loop2UInt16, IrResultValue[Loop1UInt16 + Loop2UInt16]);
-              uart_send(__LINE__, String);
-            }
+              uart_send(__LINE__, "decode_ir_command() - Error IrLevel <L>   Event number: %u   IrResultValue: %lu\r", Loop1UInt16 + Loop2UInt16, IrResultValue[Loop1UInt16 + Loop2UInt16]);
           }
         }
         else
@@ -150,11 +131,8 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
 
   if (DebugBitMask & DEBUG_IR_COMMAND)
   {
-    sprintf(String, "Final data: 0x%8.8X\r", DataBuffer);
-    uart_send(__LINE__, String);
-  
-    sprintf(String, "Final step count: %2u (should be 73)\r\r", IrStepCount);
-    uart_send(__LINE__, String);
+    uart_send(__LINE__, "Final data: 0x%8.8X\r", DataBuffer);
+    uart_send(__LINE__, "Final step count: %2u (should be 73)\r\r", IrStepCount);
   }
 
 
@@ -339,10 +317,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
     default:
       /* Unrecognized. */
       if (DebugBitMask & DEBUG_IR_COMMAND)
-      {
-        sprintf(String, "Unrecognized IR command: 0x%8.8X\r", DataBuffer);
-        uart_send(__LINE__, String);
-      }
+        uart_send(__LINE__, "Unrecognized IR command: 0x%8.8X\r", DataBuffer);
       FlagError = FLAG_ON;
     break;
   }
@@ -464,9 +439,7 @@ UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand)
   if (FlagError == FLAG_ON)
   {
     if (DebugBitMask & DEBUG_IR_COMMAND)
-    {
       uart_send(__LINE__, "decode_ir_command(): Error\r");
-    }
 
     /***
     if (IrStepCount > 60)
