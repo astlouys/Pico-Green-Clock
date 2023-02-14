@@ -1,9 +1,14 @@
 # Pico Green Clock
-Firmware Version 8.02 released 21-JAN-2023
+Firmware Version 9.00 released 14-FEB-2023
 
 Firmware Hilights:
 
-- Version 8.02 fix a bug with day-of-week logic.
+- User Guide updated to cover Firmware Version 9.00.
+- Version 9.00 adds Network Time Protocol ("NTP"). When using a Pico W, the Green Clock will re-synchronize itself from a time server over Internet.
+- Add a function to "set-and-save" Wi-Fi credentials to Pico W's flash memory for NTP Wi-Fi access.
+- Count-down timer alarm will now ring periodically for 30 minutes or until user presses the top button, whichever happens first.
+- Improve clock precision independantly of real-time IC and NTP by better synchronization of callback period time.
+- Modify algorithm of the "Chime Hour Count" so that it is less "aggressive" than the original version (thanks to Ewan Harrow for his collaboration).
 - Add auto detection of microcontroller type (Pico or Pico W).
 - Add an option so that Hourly Chime corresponds to the 12-hour format current value (needs to be turned On in the code).
 - Change clock display brightness algorithm. It is now driven by a PWM signal from the Pico.
@@ -35,7 +40,6 @@ Firmware Hilights:
 - Implement 5 X 7 character set with variable width to allow scrolling of text on clock display (date scrolling uses it for day-of-week and month).
 - "Calendar Events" may be configured at compile time. They will scroll on clock display every 30 minutes (for a 24-hour period) during the target date.
 - Sequential test of LED matrix (and optional devices if added by user) during power-up sequence.
-- User Guide updated to cover Firmware Version 8.00
 
 This project provides Firmware for the "Pico Green Clock" product from Waveshare (The clock is available directly from Waveshare website, or from Amazon).
 It is based on a Raspberry Pi Pico microcontroller.
