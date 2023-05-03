@@ -4,7 +4,7 @@
    astlouys@gmail.com
    Revision 14-FEV-2023
    Compiler: arm-none-eabi-gcc 7.3.1
-   Version 9.00
+   Version 9.10
 
    Raspberry Pi Pico firmware to drive the Waveshare Pico-Green-Clock.
    From an original software version 1.00 by Waveshare
@@ -200,6 +200,7 @@
                     - Implement NTP (Network Time Protocol). Green Clock will now resync its time periodically from Internet. (Requires Pico W).
                     - Improve clock precision independantly of real-time IC by better synchronization of callback period time.
                     - Add a function to "set-and-save" Wi-Fi credentials to flash.
+   28-APR-2023 9.10 - Added czech language.
 
 
 \* ================================================================== */
@@ -547,7 +548,8 @@
 #define ENGLISH           0x01
 #define FRENCH            0x02
 #define SPANISH           0x03  // just a placeholder for now. Spanish is not implemented yet.
-#define LANGUAGE_HI_LIMIT 0x04
+#define CZECH             0x04
+#define LANGUAGE_HI_LIMIT 0x05
 
 
 /* List of commands to be processed by command queue handler (while in the "main()" thread context). */
@@ -1188,32 +1190,40 @@ semaphore_t SemSync; // semaphore used to synchronize minutes and seconds displa
 
 uart_inst_t *Uart;   // Pico's UART used to serially transfer debug data to a VT100-type monitor or to a PC.
 
-UCHAR MonthName[3][13][10] =
+UCHAR MonthName[5][13][10] =
 {
   {{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
   {{}, {"January"}, {"February"}, {"March"}, {"April"}, {"May"}, {"June"}, {"July"}, {"August"}, {"September"}, {"October"}, {"November"}, {"December"}},
-  {{}, {"Janvier"}, {"Fevrier"}, {"Mars"}, {"Avril"}, {"Mai"}, {"Juin"}, {"Juillet"}, {"Aout"}, {"Septembre"}, {"Octobre"}, {"Novembre"}, {"Decembre"}}
+  {{}, {"Janvier"}, {"Fevrier"}, {"Mars"}, {"Avril"}, {"Mai"}, {"Juin"}, {"Juillet"}, {"Aout"}, {"Septembre"}, {"Octobre"}, {"Novembre"}, {"Decembre"}},
+  {{}, {"January"}, {"February"}, {"March"}, {"April"}, {"May"}, {"June"}, {"July"}, {"August"}, {"September"}, {"October"}, {"November"}, {"December"}}, // SPANISH line, not translated, only placeholder
+  {{}, {"leden"}, {"unor"}, {"brezen"}, {"duben"}, {"kveten"}, {"cerven"}, {"cervenec"}, {"srpen"}, {"zari"}, {"rijen"}, {"listopad"}, {"prosinec"}}
 };
 
-UCHAR ShortMonth[3][13][4] =
+UCHAR ShortMonth[5][13][4] =
 {
   {{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
   {{}, {"JAN"}, {"FEB"}, {"MAR"}, {"APR"}, {"MAY"}, {"JUN"}, {"JUL"}, {"AUG"}, {"SEP"}, {"OCT"}, {"NOV"}, {"DEC"}},
-  {{}, {"JAN"}, {"FEV"}, {"MAR"}, {"AVR"}, {"MAI"}, {"JUN"}, {"JUL"}, {"AOU"}, {"SEP"}, {"OCT"}, {"NOV"}, {"DEC"}}
+  {{}, {"JAN"}, {"FEV"}, {"MAR"}, {"AVR"}, {"MAI"}, {"JUN"}, {"JUL"}, {"AOU"}, {"SEP"}, {"OCT"}, {"NOV"}, {"DEC"}},
+  {{}, {"JAN"}, {"FEB"}, {"MAR"}, {"APR"}, {"MAY"}, {"JUN"}, {"JUL"}, {"AUG"}, {"SEP"}, {"OCT"}, {"NOV"}, {"DEC"}}, // SPANISH line, not translated, only placeholder
+  {{}, {"led."}, {"uno."}, {"bre."}, {"dub."}, {"kve."}, {"cvn."}, {"cvc."}, {"srp."}, {"zar."}, {"rij."}, {"lis."}, {"pro."}}
 };
 
-UCHAR DayName[3][8][10] =
+UCHAR DayName[5][8][10] =
 {
   {{}, {}, {}, {}, {}, {}, {}, {}},
   {{}, {"Sunday"}, {"Monday"}, {"Tuesday"}, {"Wednesday"}, {"Thursday"}, {"Friday"}, {"Saturday"}},
-  {{}, {"Dimanche"}, {"Lundi"}, {"Mardi"}, {"Mercredi"}, {"Jeudi"}, {"Vendredi"}, {"Samedi"}}
+  {{}, {"Dimanche"}, {"Lundi"}, {"Mardi"}, {"Mercredi"}, {"Jeudi"}, {"Vendredi"}, {"Samedi"}},
+  {{}, {"Sunday"}, {"Monday"}, {"Tuesday"}, {"Wednesday"}, {"Thursday"}, {"Friday"}, {"Saturday"}}, // SPANISH line, not translated, only placeholder
+  {{}, {"nedele"}, {"pondeli"}, {"utery"}, {"streda"}, {"ctvrtek"}, {"patek"}, {"sobota"}}
 };
 
-UCHAR ShortDay[3][8][10] =
+UCHAR ShortDay[5][8][10] =
 {
   {{}, {}, {}, {}, {}, {}, {}, {}},
   {{}, {"SUN"}, {"MON"}, {"TUE"}, {"WED"}, {"THU"}, {"FRI"}, {"SAT"}},
-  {{}, {"DIM"}, {"LUN"}, {"MAR"}, {"MER"}, {"JEU"}, {"VEN"}, {"SAM"}}
+  {{}, {"DIM"}, {"LUN"}, {"MAR"}, {"MER"}, {"JEU"}, {"VEN"}, {"SAM"}},
+  {{}, {"SUN"}, {"MON"}, {"TUE"}, {"WED"}, {"THU"}, {"FRI"}, {"SAT"}}, // SPANISH line, not translated, only placeholder
+  {{}, {"po"}, {"ut"}, {"st"}, {"ct"}, {"pa"}, {"so"}, {"ne"}}
 };
 
 
@@ -1658,6 +1668,9 @@ int main(void)
 
   time_t TimeStamp;
 
+  /* ---------------------------------------------------------------- *\
+            Localization of days and months
+  \* ---------------------------------------------------------------- */
 
   /* Add accents to some French characters. */
   MonthName[FRENCH][FEB][1] = (UCHAR)31; // accent aigu sur fevrier.
@@ -1667,6 +1680,42 @@ int main(void)
   ShortMonth[FRENCH][FEB][1] = (UCHAR)31; // accent aigu sur FEV.
   ShortMonth[FRENCH][AUG][2] = (UCHAR)30; // accent circonflexe sur AOU.
   ShortMonth[FRENCH][DEC][1] = (UCHAR)31; // accent aigu sur DEC.
+
+  /* Add accents to some Czech days. */
+  DayName[CZECH][MON][4] = (UCHAR)130; // e-caron
+  DayName[CZECH][MON][6] = (UCHAR)131; // i-acute
+  DayName[CZECH][TUE][0] = (UCHAR)133; // u-acute
+  DayName[CZECH][TUE][4] = (UCHAR)132; // y-acute
+  DayName[CZECH][WED][2] = (UCHAR)135; // r-caron
+  DayName[CZECH][THU][0] = (UCHAR)136; // c-caron
+  DayName[CZECH][FRI][1] = (UCHAR)129; // a-acute
+  DayName[CZECH][SUN][3] = (UCHAR)130; // e-caron
+
+  ShortDay[CZECH][TUE][0] = (UCHAR)133; // u-acute
+  ShortDay[CZECH][THU][0] = (UCHAR)136; // c-caron
+  ShortDay[CZECH][FRI][1] = (UCHAR)129; // a-acute
+  ShortDay[CZECH][SUN][3] = (UCHAR)130; // e-caron
+
+  /* Add accents to some Czech months. */
+  MonthName[CZECH][FEB][0] = (UCHAR)133; // u-acute
+  MonthName[CZECH][MAR][1] = (UCHAR)135; // r-caron
+  MonthName[CZECH][MAY][2] = (UCHAR)130; // e-caron
+  MonthName[CZECH][JUN][0] = (UCHAR)136; // c-caron
+  MonthName[CZECH][JUL][0] = (UCHAR)136; // c-caron
+  MonthName[CZECH][SEP][1] = (UCHAR)129; // a-acute
+  MonthName[CZECH][SEP][2] = (UCHAR)135; // r-caron
+  MonthName[CZECH][OCT][0] = (UCHAR)135; // r-caron
+  MonthName[CZECH][OCT][1] = (UCHAR)131; // i-acute
+
+  ShortMonth[CZECH][FEB][0] = (UCHAR)133; // u-acute
+  ShortMonth[CZECH][MAR][1] = (UCHAR)135; // r-caron
+  ShortMonth[CZECH][MAY][2] = (UCHAR)130; // e-caron
+  ShortMonth[CZECH][JUN][0] = (UCHAR)136; // c-caron
+  ShortMonth[CZECH][JUL][0] = (UCHAR)136; // c-caron
+  ShortMonth[CZECH][SEP][1] = (UCHAR)129; // a-acute
+  ShortMonth[CZECH][SEP][2] = (UCHAR)135; // r-caron
+  ShortMonth[CZECH][OCT][0] = (UCHAR)135; // r-caron
+  ShortMonth[CZECH][OCT][1] = (UCHAR)131; // i-acute
 
 
 
@@ -2222,10 +2271,10 @@ int main(void)
 
 
   /* ---------------------------------------------------------------- *\
-           "Setup order" in French (for Month and DayOfMonth)
-                   is different than it is in English.
+           "Setup order" in most languages is Day-Month(-Year),
+                   contrary to English Month-Day(-Year).
   \* ---------------------------------------------------------------- */
-  if (FlashConfig.Language == FRENCH)
+  if (FlashConfig.Language == FRENCH || FlashConfig.Language == CZECH || FlashConfig.Language == SPANISH)
   {
     SETUP_DAY_OF_MONTH = 0x03;
     SETUP_MONTH        = 0x04;
@@ -2615,7 +2664,14 @@ int main(void)
   /* ---------------------------------------------------------------- *\
                         Scroll firmware version.
   \* ---------------------------------------------------------------- */
-  sprintf(String, "Pico Green Clock - Firmware Version %s    ", FIRMWARE_VERSION);
+  if (FlashConfig.Language == CZECH)
+  {
+    sprintf(String, "Pico Green Clock - verze firmwaru %s    ", FIRMWARE_VERSION);
+  }
+  else // For English and other languages:
+  {
+    sprintf(String, "Pico Green Clock - Firmware Version %s    ", FIRMWARE_VERSION);
+  }
   scroll_string(24, String);
 
  
@@ -2624,15 +2680,18 @@ int main(void)
   \* ---------------------------------------------------------------- */
   #ifdef SOUND_DISABLED
   /* Special warning if sound has been cut-off in source code. */
-  switch (FlashConfig.Language)
+  if (FlashConfig.Language == FRENCH)
   {
-    case (ENGLISH):
-      scroll_string(24, "WARNING - SOUND CUT-OFF    ");
-    break;
-
-    case (FRENCH):
-      scroll_string(24, "ATTENTION - PAS DE SON    ");
-    break;
+    scroll_string(24, "ATTENTION - PAS DE SON    ");
+  }
+  else if (FlashConfig.Language == CZECH)
+  {
+    scroll_string(24, "POZOR - BEZ ZVUKU!    ");
+  }
+  else // For English and other languages:
+  {
+    scroll_string(24, "WARNING - SOUND CUT-OFF    ");
+  }
   }
   #endif  // SOUND_DISABLED
 
@@ -2642,15 +2701,17 @@ int main(void)
   \* ---------------------------------------------------------------- */
   if (DebugBitMask)
   {
-    switch (FlashConfig.Language)
+    if (FlashConfig.Language == FRENCH)
     {
-      case (ENGLISH):
-        scroll_string(24, "SOME DEBUG ON    ");
-      break;
-
-      case (FRENCH):
-        scroll_string(24, "DES DEBUG SONT ACTIFS    ");
-      break;
+      scroll_string(24, "DES DEBUG SONT ACTIFS    ");
+    }
+    else if (FlashConfig.Language == CZECH)
+    {
+      scroll_string(24, "DEBUG ZAPNUT!    ");
+    }
+    else // For English and other languages:
+    {
+      scroll_string(24, "SOME DEBUG ON    ");
     }
   }
 
@@ -2665,15 +2726,19 @@ int main(void)
   Bme280Data.Bme280ReadCycles = 0l;  // reset number of read cycles on entry.
   if (bme280_init())
   {
-    switch (FlashConfig.Language)
+    if (FlashConfig.Language == FRENCH)
     {
-      case (ENGLISH):
-        scroll_string(24, "BME280 initialization error    ");
-      break;
-
-      case (FRENCH):
-        scroll_string(24, "BME280 erreur d'initialisation    ");
-      break;
+      scroll_string(24, "BME280 erreur d'initialisation    ");
+    }
+    else if  (FlashConfig.Language == CZECH)
+    {
+      sprintf(String, "Chyba nastaveni BME280.    ");
+      String[14] = (UINT8)131; // i-acute
+      scroll_string(24, String);
+    }
+    else // For English and other languages:
+    {
+      scroll_string(24, "BME280 initialization error    ");
     }
   }
   else
@@ -2786,15 +2851,17 @@ int main(void)
   /* Read back answer (success or failure) from core 1. Data has been saved in a structure global to both cores. */
   if (core_unqueue(0) == CORE0_DHT_ERROR)
   {
-    switch (FlashConfig.Language)
+    if (FlashConfig.Language == FRENCH)
     {
-      case (ENGLISH):
-        scroll_string(24, "DHT22 communication error    ");
-      break;
-
-      case (FRENCH):
-        scroll_string(24, "DHT22 erreur de communication    ");
-      break;
+      scroll_string(24, "DHT22 erreur de communication    ");
+    }
+    else if (FlashConfig.Language == CZECH)
+    {
+      scroll_string(24, "Chyba v komunikaci s DHT22.    ");
+    }
+    else // For English and other languages:
+    {
+      scroll_string(24, "DHT22 communication error    ");
     }
   }
   else
@@ -4928,8 +4995,8 @@ UINT16 fill_display_buffer_5X7(UINT8 Column, UINT8 AsciiCharacter)
   if (AsciiCharacter == 0x00) AsciiCharacter = 32; // blank ("space") character.
 
 
-  /* Determine the digit bitmap corresponding to the character we want to display. */
-  if ((AsciiCharacter >= 0x1E) && (AsciiCharacter <= 0x81))
+  /* Determine the digit bitmap corresponding to the character we want to display.*/
+  if ((AsciiCharacter >= 0x1E) && (AsciiCharacter <= 0x92))
   {
     TableOffset = (UINT16)((AsciiCharacter - 0x1E) * 7);
     Width       = CharWidth[AsciiCharacter - 0x1E];
@@ -5184,7 +5251,7 @@ UINT8 flash_display_config(void)
   uart_send(__LINE__, "NOTE: sizeof(FlashConfig.Reserved2): 0x%3.3X (%3u)\r\r", sizeof(FlashConfig.Reserved2), sizeof(FlashConfig.Reserved2));
   uart_send(__LINE__, "[%X] Firmware version:         %c%c%c%c\r", &FlashConfig.Version, FlashConfig.Version[0], FlashConfig.Version[1], FlashConfig.Version[2], FlashConfig.Version[3]);
   uart_send(__LINE__, "[%X] CurrentYearCentile:        %3u\r", &FlashConfig.CurrentYearCentile, FlashConfig.CurrentYearCentile);
-  uart_send(__LINE__, "[%X] Language:                  %3u     (01 = Eng   02 = Fre  03 = Spa - not implemented)\r", &FlashConfig.Language, FlashConfig.Language);
+  uart_send(__LINE__, "[%X] Language:                  %3u     (01 = Eng   02 = Fre  03 = Spa (not implemented) 04 = Cze)\r", &FlashConfig.Language, FlashConfig.Language);
   uart_send(__LINE__, "[%X] DSTCountry:                %3u     ( 0 = No DST support   Refer to user guide for all others)\r", &FlashConfig.DSTCountry, FlashConfig.DSTCountry);
   uart_send(__LINE__, "[%X] Timezone:                  %3d\r", &FlashConfig.Timezone, FlashConfig.Timezone);
   uart_send(__LINE__, "[%X] Flag Summer Time status:  0x%2.2X   (0x00 = inactive   0x01 = active)\r", &FlashConfig.FlagSummerTime, FlashConfig.FlagSummerTime);
@@ -5737,21 +5804,29 @@ void format_temp(UCHAR *TempString, UCHAR *PreString, float Temperature, float H
 
   if (Humidity != 0)
   {
-    sprintf(&TempString[strlen(TempString)], "  Hum: %2.2f%%", Humidity);
+    if (FlashConfig.Language == CZECH)
+    {
+      sprintf(&TempString[strlen(TempString)], "  vlh: %2.2f%%", Humidity);
+    }
+    else // For English and other languages:
+    {
+      sprintf(&TempString[strlen(TempString)], "  Hum: %2.2f%%", Humidity);
+    }
   }
 
   if (Pressure != 0)
   {
-    switch (FlashConfig.Language)
+    if (FlashConfig.Language == FRENCH)
     {
-      case (FRENCH):
-        sprintf(&TempString[strlen(TempString)], "  Pression: %2.2f%% hPa", Pressure);
-      break;
-
-      case (ENGLISH):
-      default:
-        sprintf(&TempString[strlen(TempString)], "  Pressure: %2.2f%% hPa", Pressure);
-      break;
+      sprintf(&TempString[strlen(TempString)], "  Pression: %2.2f%% hPa", Pressure);
+    }
+    else if (FlashConfig.Language == CZECH)
+    {
+      sprintf(&TempString[strlen(TempString)], "  tlak: %2.2f%% hPa.", Pressure);
+    }
+    else // For English and other languages:
+    {
+      sprintf(&TempString[strlen(TempString)], "  Pressure: %2.2f%% hPa", Pressure);
     }
   }
 
@@ -5830,7 +5905,38 @@ void get_date_string(UCHAR *String)
   DumYearLowPart   = bcd_to_byte(Time_RTC.year);
   CurrentDayOfWeek = get_day_of_week(((FlashConfig.CurrentYearCentile * 100) + DumYearLowPart), DumMonth, DumDayOfMonth);
 
-  if (FlashConfig.Language == ENGLISH)
+  if (FlashConfig.Language == FRENCH)
+  {
+    /* Day-of-week name. */
+    sprintf(String, "%s ", DayName[FlashConfig.Language][CurrentDayOfWeek]);
+
+    /* Add Day-of-month. */
+    if (Time_RTC.dayofmonth == 1)
+      sprintf(&String[strlen(String)], "%Xer ", Time_RTC.dayofmonth);  // premier du mois.
+    else
+      sprintf(&String[strlen(String)], "%X ", Time_RTC.dayofmonth);    // autres dates.
+
+    /* Add month name. */
+    sprintf(&String[strlen(String)], "%s ", MonthName[FlashConfig.Language][DumMonth]);
+
+    /* Add 4-digits year. */
+    sprintf(&String[strlen(String)], " %2.2u%2.2u  ", FlashConfig.CurrentYearCentile, CurrentYearLowPart);
+  }
+  else if (FlashConfig.Language == CZECH)
+  {
+    /* Day-of-week name. */
+    sprintf(String, "%s ", DayName[FlashConfig.Language][CurrentDayOfWeek]);
+
+    /* Add Day-of-month. */
+    sprintf(&String[strlen(String)], "%X.", Time_RTC.dayofmonth);
+
+    /* Add month number. */
+    sprintf(&String[strlen(String)], "%u.", DumMonth);
+
+    /* Add 4-digits year. */
+    sprintf(&String[strlen(String)], "%2.2u%2.2u  ", FlashConfig.CurrentYearCentile, CurrentYearLowPart);
+  }
+  else // For English and other languages:
   {
     /* DayOfWeek and month name. */
     sprintf(String, "%s %s", DayName[FlashConfig.Language][CurrentDayOfWeek], MonthName[FlashConfig.Language][DumMonth]);
@@ -5861,24 +5967,6 @@ void get_date_string(UCHAR *String)
 
     /* DayOfMonth and its suffix, then the 4-digits year. */
     sprintf(&String[strlen(String)], " %X%s %2.2u%2.2u ", Time_RTC.dayofmonth, Suffix, FlashConfig.CurrentYearCentile, CurrentYearLowPart);
-  }
-
-  if (FlashConfig.Language == FRENCH)
-  {
-    /* Day-of-week name. */
-    sprintf(String, "%s ", DayName[FlashConfig.Language][CurrentDayOfWeek]);
-
-    /* Add Day-of-month. */
-    if (Time_RTC.dayofmonth == 1)
-      sprintf(&String[strlen(String)], "%Xer ", Time_RTC.dayofmonth);  // premier du mois.
-    else
-      sprintf(&String[strlen(String)], "%X ", Time_RTC.dayofmonth);    // autres dates.
-
-    /* Add month name. */
-    sprintf(&String[strlen(String)], "%s ", MonthName[FlashConfig.Language][DumMonth]);
-
-    /* Add 4-digits year. */
-    sprintf(&String[strlen(String)], " %2.2u%2.2u  ", FlashConfig.CurrentYearCentile, CurrentYearLowPart);
   }
 
   return;
@@ -7836,14 +7924,27 @@ void process_ir_command(UINT8 IrCommand)
 
     SilencePeriod += (SILENCE_PERIOD_UNIT * 60);
 
-    if (FlashConfig.Language == ENGLISH)
-    {
-      sprintf(String, "Silence period: %u minutes", (int)(SilencePeriod / 60));
-    }
-    else if (FlashConfig.Language == FRENCH)
+    if (FlashConfig.Language == FRENCH)
     {
       sprintf(String, "Periode de silence: %u minutes", (int)(SilencePeriod / 60));
       String[1] = (UINT8)31; // e accent aigu.
+    }
+    else if (FlashConfig.Language == CZECH)
+    {
+      if ((int)(SilencePeriod / 60) == 1)
+      {
+        sprintf(String, "Obdobi klidu: %u minuta.", (int)(SilencePeriod / 60));
+        String[5] = (UINT8)131; // i-acute
+      }
+      else
+      {
+        sprintf(String, "Obdobi klidu: %u minut.", (int)(SilencePeriod / 60));
+        String[5] = (UINT8)131; // i-acute
+      }
+    }
+    else // For English and other languages:
+    {
+      sprintf(String, "Silence period: %u minutes", (int)(SilencePeriod / 60));
     }
     scroll_string(24, String);
   }
@@ -7921,79 +8022,92 @@ void process_ir_command(UINT8 IrCommand)
 
         case (0x07):  // SETUP_KEYCLICK
           /* Beep (keyclick). */
-          if (FlashConfig.Language == ENGLISH)
-          {
-            if (FlashConfig.FlagKeyclick == FLAG_ON)
-            {
-              sprintf(String, "Keyclick On - Duration: %u ms Repeat1: %u Repeat2: %u", TONE_KEYCLICK_DURATION, TONE_KEYCLICK_REPEAT1, TONE_KEYCLICK_REPEAT2);
-              scroll_string(24, String);
-            }
-            else
-            {
-              scroll_string(24, "Keyclick Off");
-            }
-          }
-
           if (FlashConfig.Language == FRENCH)
           {
             if (FlashConfig.FlagKeyclick == FLAG_ON)
             {
               sprintf(String, "Keyclick On - Duree %u ms Repeat1: %u Repeat2: %u", TONE_KEYCLICK_DURATION, TONE_KEYCLICK_REPEAT1, TONE_KEYCLICK_REPEAT2);
               String[17] = (UINT8)31; // e accent aigu.
-              scroll_string(24, String);
             }
             else
             {
-              scroll_string(24, "Keyclick Off");
+              sprintf(String, "Keyclick Off");
             }
           }
-        break;
+          else if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.FlagKeyclick == FLAG_ON)
+            {
+              sprintf(String, "opakovani");
+              String[6] = (UINT8)129; // a-acute
+              String[8] = (UINT8)131; // i-acute
+              sprintf(String, "Zvuk klaves zapnut - doba %u ms, %s 1: %u %s 2: %u.", TONE_KEYCLICK_DURATION, String, TONE_KEYCLICK_REPEAT1, String, TONE_KEYCLICK_REPEAT2);
+              String[7] = (UINT8)129; // a-acute
+            }
+            else
+            {
+              sprintf(String, "Zvuk klaves vypnut.");
+              String[7] = (UINT8)129; // a-acute
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.FlagKeyclick == FLAG_ON)
+            {
+              sprintf(String, "Keyclick On - Duration: %u ms Repeat1: %u Repeat2: %u", TONE_KEYCLICK_DURATION, TONE_KEYCLICK_REPEAT1, TONE_KEYCLICK_REPEAT2);
+            }
+            else
+            {
+              sprintf(String, "Keyclick Off");
+            }
+          }
+          scroll_string(24, String);
 
         case (0x08):  // SETUP_SCROLLING
           /* Display scroll. */
-          if (FlashConfig.Language == ENGLISH)
-          {
-            if (FlashConfig.FlagScrollEnable == FLAG_ON)
-            {
-              sprintf(String, "Scrolling On - Frequency: %u minutes   Dot speed: %u msec.", SCROLL_PERIOD_MINUTE, SCROLL_DOT_TIME);
-              scroll_string(24, String);
-            }
-            else
-            {
-              scroll_string(24, "Scrolling Off.");
-            }
-          }
-
           if (FlashConfig.Language == FRENCH)
           {
             if (FlashConfig.FlagScrollEnable == FLAG_ON)
             {
               sprintf(String, "Scrolling On - Periode: %u minutes   Vitesse des dots: %u msec.", SCROLL_PERIOD_MINUTE, SCROLL_DOT_TIME);
               String[16] = (UINT8)31;  // e accent aigu.
-              scroll_string(24, String);
             }
             else
             {
-              scroll_string(24, "Scrolling OFF.");
+              sprintf(String, "Scrolling OFF.");
             }
           }
+          else if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.FlagScrollEnable == FLAG_ON)
+            {
+              sprintf(String, "tecek: %u ms.", SCROLL_DOT_TIME);
+              String[2] = (UINT8)136; // c-caron
+              sprintf(String, "Posuv zapnut - opakovani: %u minut   rychlost %s", SCROLL_PERIOD_MINUTE, String);
+              String[17] = (UINT8)129; // a-acute
+              String[24] = (UINT8)131; // i-acute
+            }
+            else
+            {
+              sprintf(String, "Posuv vypnut.");
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.FlagScrollEnable == FLAG_ON)
+            {
+              sprintf(String, "Scrolling On - Frequency: %u minutes   Dot speed: %u msec.", SCROLL_PERIOD_MINUTE, SCROLL_DOT_TIME);
+            }
+            else
+            {
+              sprintf(String, "Scrolling Off.");
+            }
+          }
+          scroll_string(24, String);
         break;
 
         case (0x09):  // SETUP_TEMP_UNIT
           /* Temperature unit. */
-          if (FlashConfig.Language == ENGLISH)
-          {
-            if (FlashConfig.TemperatureUnit == CELSIUS)
-            {
-              scroll_string(24, "Temperature unit is Celsius   ");
-            }
-            else
-            {
-              scroll_string(24, "Temperature unit is Fahrenheit   ");
-            }
-          }
-
-
           if (FlashConfig.Language == FRENCH)
           {
             if (FlashConfig.TemperatureUnit == CELSIUS)
@@ -8001,16 +8115,41 @@ void process_ir_command(UINT8 IrCommand)
               sprintf(String, "Unite de temperature: Celsius   ");
               String[4]  = (UINT8)31;  // e accent aigu.
               String[13] = (UINT8)31;  // e accent aigu.
-              scroll_string(24, String);
             }
             else
             {
               sprintf(String, "Unite de temperature: Fahrenheit   ");
               String[4]  = (UINT8)31;  // e accent aigu.
               String[13] = (UINT8)31;  // e accent aigu.
-              scroll_string(24, String);
             }
           }
+          if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.TemperatureUnit == CELSIUS)
+            {
+              sprintf(String, "Jedn. teploty: Celsius.   ");
+              String[4]  = (UINT8)31;  // e accent aigu.
+              String[13] = (UINT8)31;  // e accent aigu.
+            }
+            else
+            {
+              sprintf(String, "Jedn. teploty: Fahrenheit.   ");
+              String[4]  = (UINT8)31;  // e accent aigu.
+              String[13] = (UINT8)31;  // e accent aigu.
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.TemperatureUnit == CELSIUS)
+            {
+              sprintf(String, "Temperature unit is Celsius   ");
+            }
+            else
+            {
+              sprintf(String, "Temperature unit is Fahrenheit   ");
+            }
+          }
+          scroll_string(24, String);
           scroll_queue(TAG_DS3231_TEMP);
           scroll_queue(TAG_BME280_TEMP);
           scroll_queue(TAG_DHT22_TEMP);
@@ -8018,139 +8157,190 @@ void process_ir_command(UINT8 IrCommand)
 
         case (0x0A): // SETUP_LANGUAGE
           /* Language. */
-          if (FlashConfig.Language == ENGLISH)
-            scroll_string(24, "Language is English");
-
           if (FlashConfig.Language == FRENCH)
+          {
             scroll_string(24, "La langue est le francais");
+          }
+          if (FlashConfig.Language == CZECH)
+          {
+            sprintf(String, "Jazyk je cestina");
+            String[9] = (UINT8)136;
+          }
+          else // For English and other languages:
+          {
+            sprintf(String, "Language is English");
+          }
+          scroll_string(24, String);
         break;
 
         case (0x0B): // SETUP_TIME_FORMAT
           /* Time display format. */
-          if (FlashConfig.Language == ENGLISH)
-          {
-            if (FlashConfig.TimeDisplayMode == H12)
-            {
-              scroll_string(24, "Time display format: 12-hours");
-            }
-            else
-            {
-              scroll_string(24, "Time display format: 24-hours");
-            }
-          }
-
           if (FlashConfig.Language == FRENCH)
           {
             if (FlashConfig.TimeDisplayMode == H12)
             {
-              scroll_string(24, "Format d'affichage de l'heure: 12 heures");
+              sprintf(String, "Format d'affichage de l'heure: 12 heures");
             }
             else
             {
-              scroll_string(24, "Format d'affichage de l'heure: 24 heures");
+              sprintf(String, "Format d'affichage de l'heure: 24 heures");
             }
           }
+          else if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.TimeDisplayMode == H12)
+            {
+              sprintf(String, "12hodinove zobrazeni casu.");
+              String[9] = (UINT8)138; // e-acute
+              String[19] = (UINT8)131; // i-acute
+              String[21] = (UINT8)136; // c-caron
+            }
+            else
+            {
+              sprintf(String, "24hodinove zobrazeni casu.");
+              String[9] = (UINT8)138; // e-acute
+              String[19] = (UINT8)131; // i-acute
+              String[21] = (UINT8)136; // c-caron
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.TimeDisplayMode == H12)
+            {
+              sprintf(String, "Time display format: 12-hours");
+            }
+            else
+            {
+              sprintf(String, "Time display format: 24-hours");
+            }
+          }
+          scroll_string(24, String);
+
         break;
 
         case (0x0C): // SETUP_HOURLY_CHIME
           /* Hourly chime. */
-          if (FlashConfig.Language == ENGLISH)
-          {
-            if (FlashConfig.ChimeMode == CHIME_OFF)
-            {
-              scroll_string(24, "Hourly chime is Off");
-            }
-            else if (FlashConfig.ChimeMode == CHIME_ON)
-            {
-              scroll_string(24, "Hourly chime is On");
-            }
-            else if (FlashConfig.ChimeMode == CHIME_DAY)
-            {
-              sprintf(String, "Hourly chime is intermittent, from %u:00 to %u:00", FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff);
-              scroll_string(24, String);
-            }
-          }
-
           if (FlashConfig.Language == FRENCH)
           {
             if (FlashConfig.ChimeMode == CHIME_OFF)
             {
-              scroll_string(24, "Le signal horaire est a Off");
+              sprintf(String, "Le signal horaire est a Off");
             }
             else if (FlashConfig.ChimeMode == CHIME_ON)
             {
-              scroll_string(24, "Le signal horaire est a On");
+              sprintf(String, "Le signal horaire est a On");
             }
             else if (FlashConfig.ChimeMode == CHIME_DAY)
             {
               sprintf(String, "Le signal horaire est intermittent, de %u:00 a %u:00", FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff);
-              scroll_string(24, String);
             }
           }
+          else if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.ChimeMode == CHIME_OFF)
+            {
+              sprintf(String, "Hodinovy zvuk je vypnut.");
+              String[7] = (UINT8)132; // y-acute
+            }
+            else if (FlashConfig.ChimeMode == CHIME_ON)
+            {
+              sprintf(String, "Hodinovy zvuk je zapnut.");
+              String[7] = (UINT8)132; // y-acute
+            }
+            else if (FlashConfig.ChimeMode == CHIME_DAY)
+            {
+              sprintf(String, "Hodinovy zvuk zapnut jen od %u:00 do %u:00.", FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff);
+              String[7] = (UINT8)132; // y-acute
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.ChimeMode == CHIME_OFF)
+            {
+              sprintf(String, "Hourly chime is Off");
+            }
+            else if (FlashConfig.ChimeMode == CHIME_ON)
+            {
+              sprintf(String, "Hourly chime is On");
+            }
+            else if (FlashConfig.ChimeMode == CHIME_DAY)
+            {
+              sprintf(String, "Hourly chime is intermittent, from %u:00 to %u:00", FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff);
+            }
+          }
+          scroll_string(24, String);
         break;
 
         case (0x0F): // SETUP_NIGHT_LIGHT
           /* Night light. */
-          if (FlashConfig.Language == ENGLISH)
-          {
-            if (FlashConfig.NightLightMode == NIGHT_LIGHT_OFF)
-            {
-              scroll_string(24, "Night light is Off");
-            }
-            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_ON)
-            {
-              scroll_string(24, "Night light is On");
-            }
-            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT)
-            {
-              sprintf(String, "Night light is intermittent, from %u:00 to %u:00", FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOff);
-              scroll_string(24, String);
-            }
-            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_AUTO)
-            {
-              sprintf(String, "Night light is automatic");
-              scroll_string(24, String);
-            }
-          }
-
           if (FlashConfig.Language == FRENCH)
           {
             if (FlashConfig.NightLightMode == NIGHT_LIGHT_OFF)
             {
-              scroll_string(24, "La veilleuse de nuit est a Off");
+              sprintf(String, "La veilleuse de nuit est a Off");
             }
             else if (FlashConfig.NightLightMode == NIGHT_LIGHT_ON)
             {
-              scroll_string(24, "La veilleuse de nuit est a On");
+              sprintf(String, "La veilleuse de nuit est a On");
             }
             else if (FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT)
             {
               sprintf(String, "La veilleuse de nuit est intermittente, de %u:00 a %u:00", FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOff);
-              scroll_string(24, String);
             }
             else if (FlashConfig.NightLightMode == NIGHT_LIGHT_AUTO)
             {
               sprintf(String, "La veilleuse de nuit est automatique");
-              scroll_string(24, String);
             }
           }
+          else if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.NightLightMode == NIGHT_LIGHT_OFF)
+            {
+              sprintf(String, "Nocni svetlo je vypnuto.");
+              String[3] = (UINT8)136; // c-caron
+              String[4] = (UINT8)131; // i-acute
+              String[8] = (UINT8)130; // e-caron
+            }
+            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_ON)
+            {
+              sprintf(String, "Nocni svetlo je zapnuto.");
+              String[3] = (UINT8)136; // c-caron
+              String[4] = (UINT8)131; // i-acute
+              String[8] = (UINT8)130; // e-caron
+            }
+            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT)
+            {
+              sprintf(String, "Nocni svetlo zapnuto jen od %u:00 do %u:00.", FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOff);
+            }
+            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_AUTO)
+            {
+              sprintf(String, "Nocni svetlo je zapnuto automaticky.");
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.NightLightMode == NIGHT_LIGHT_OFF)
+            {
+              sprintf(String, "Night light is Off");
+            }
+            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_ON)
+            {
+              sprintf(String, "Night light is On");
+            }
+            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT)
+            {
+              sprintf(String, "Night light is intermittent, from %u:00 to %u:00", FlashConfig.NightLightTimeOn, FlashConfig.NightLightTimeOff);
+            }
+            else if (FlashConfig.NightLightMode == NIGHT_LIGHT_AUTO)
+            {
+              sprintf(String, "Night light is automatic");
+            }
+          }
+          scroll_string(24, String);
         break;
 
         case (0x12): // SETUP_AUTO_BRIGHT
           /* Light level. */
-          if (FlashConfig.Language == ENGLISH)
-          {
-            if (FlashConfig.FlagAutoBrightness == FLAG_ON)
-            {
-              sprintf(String, "Auto brightness is On   Light level: %u   Hysteresis: %u   Display: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
-              scroll_string(24, String);
-            }
-            else
-            {
-              scroll_string(24, "Auto brightness is Off");
-            }
-          }
-
           if (FlashConfig.Language == FRENCH)
           {
             if (FlashConfig.FlagAutoBrightness == FLAG_ON)
@@ -8158,15 +8348,42 @@ void process_ir_command(UINT8 IrCommand)
               sprintf(String, "Intensite automatique est a On   Luminosite: %u   Hysteresis: %u   Affichage: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
               String[8]  = (UINT8)31;  // e accent aigu.
               String[41] = (UINT8)31;  // e accent aigu.
-              scroll_string(24, String);
             }
             else
             {
               sprintf(String, "Intensite automatique est a Off");
               String[8] = (UINT8)31; // e accent aigu.
-              scroll_string(24, String);
             }
           }
+          else if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.FlagAutoBrightness == FLAG_ON)
+            {
+              sprintf(String, "zobrazeni");
+              String[9] = (UINT8)131;  // i-acute
+              sprintf(String, "Automaticke nastaveni jasu je zapnuto. Jas: %u   hystereze: %u   %s: %u%c.", adc_read_light(), AverageLightLevel, String, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+              String[10] = (UINT8)138;  // e-acute
+              String[20] = (UINT8)131;  // i-acute
+            }
+            else
+            {
+              sprintf(String, "Automaticke nastaveni jasu je vypnuto.");
+              String[10] = (UINT8)138;  // e-acute
+              String[20] = (UINT8)131;  // i-acute
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.FlagAutoBrightness == FLAG_ON)
+            {
+              sprintf(String, "Auto brightness is On   Light level: %u   Hysteresis: %u   Display: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+            }
+            else
+            {
+              sprintf(String, "Auto brightness is Off");
+            }
+          }
+          scroll_string(24, String);
         break;
       }
     }
@@ -8184,25 +8401,18 @@ void process_ir_command(UINT8 IrCommand)
       {
         ++Dum1UInt8;
 
-        if (FlashConfig.Language == ENGLISH)
-          sprintf(String, "%s %u: %s   /   ", MonthName[FlashConfig.Language][CurrentMonth], CurrentDayOfMonth, CalendarEvent[Loop1UInt8].Description);
-
         if (FlashConfig.Language == FRENCH)
+        {
           sprintf(String, "%u %s: %s   /   ", CurrentDayOfMonth, MonthName[FlashConfig.Language][CurrentMonth], CalendarEvent[Loop1UInt8].Description);
-
-        scroll_string(24, String);
-      }
-    }
-
-    if (FlashConfig.Language == ENGLISH)
-    {
-      if (Dum1UInt8 == 0)
-        scroll_string(24, "No event today");
-      else if (Dum1UInt8 == 1)
-        scroll_string(24, "1 event today");
-      else
-      {
-        sprintf(String, "%u events today", Dum1UInt8);
+        }
+        else if (FlashConfig.Language == CZECH)
+        {
+          sprintf(String, "%u. %s.: %s   /   ", CurrentDayOfMonth, CurrentMonth, CalendarEvent[Loop1UInt8].Description);
+        }
+        else // For English and other languages:
+        {
+          sprintf(String, "%s %u: %s   /   ", MonthName[FlashConfig.Language][CurrentMonth], CurrentDayOfMonth, CalendarEvent[Loop1UInt8].Description);
+        }
         scroll_string(24, String);
       }
     }
@@ -8214,7 +8424,6 @@ void process_ir_command(UINT8 IrCommand)
         sprintf(String, "Aucun evenement aujourd'hui");
         String[6] = (UCHAR)31; // e accent aigu.
         String[8] = (UCHAR)31; // e accent aigu
-        scroll_string(24, String);
       }
       else
       {
@@ -8223,17 +8432,50 @@ void process_ir_command(UINT8 IrCommand)
           sprintf(String, "1 evenement aujourd'hui");
           String[2] = (UCHAR)31; // e accent aigu.
           String[4] = (UCHAR)31; // e accent aigu
-          scroll_string(24, String);
         }
         else
         {
           sprintf(String, "%u evenements aujourd'hui", Dum1UInt8);
           String[strlen(String) - 20] = (UCHAR)31; // e accent aigu.
           String[strlen(String) - 22] = (UCHAR)31; // e accent aigu
-          scroll_string(24, String);
         }
       }
     }
+    else if (FlashConfig.Language == CZECH)
+    {
+      if (Dum1UInt8 == 0)
+      {
+        sprintf(String, "Dnes zadna udalost.");
+        String[5] = (UINT8)137; // z-caron
+        String[6] = (UINT8)129; // a-acute
+        String[9] = (UINT8)129; // a-acute
+        String[13] = (UINT8)129; // a-acute
+      }
+      else if (Dum1UInt8 == 1)
+      {
+        sprintf(String, "Dnes 1 udalost.");
+        String[9] = (UINT8)129; // a-acute
+      }
+      else
+      {
+        sprintf(String, "udalosti");
+        String[2] = (UINT8)129; // a-acute
+        sprintf(String, "Dnes %u %s.", Dum1UInt8, String);
+      }
+    }
+    else // For English and other languages:
+    {
+      if (Dum1UInt8 == 0)
+        scroll_string(24, "No event today");
+      else if (Dum1UInt8 == 1)
+        scroll_string(24, "1 event today");
+      else
+      {
+        sprintf(String, "%u events today", Dum1UInt8);
+        scroll_string(24, String);
+      }
+    }
+    scroll_string(24, String);
   }
 
 
@@ -8298,12 +8540,18 @@ void process_ir_command(UINT8 IrCommand)
           if (DebugBitMask & DEBUG_EVENT)
             uart_send(__LINE__, "Match found !\r");
 
-          if (FlashConfig.Language == ENGLISH)
-            sprintf(String, "%s %u: %s   /   ", MonthName[FlashConfig.Language][DumMonth], DumDayOfMonth, CalendarEvent[Loop2UInt8].Description);
-
           if (FlashConfig.Language == FRENCH)
+          {
             sprintf(String, "%u %s: %s   /   ", DumDayOfMonth, MonthName[FlashConfig.Language][DumMonth], CalendarEvent[Loop2UInt8].Description);
- 
+          }
+          else if (FlashConfig.Language == CZECH)
+          {
+            sprintf(String, "%u. %s.: %s   /   ", DumDayOfMonth, DumMonth, CalendarEvent[Loop2UInt8].Description);
+          }
+          else // For English and other languages:
+          {
+            sprintf(String, "%s %u: %s   /   ", MonthName[FlashConfig.Language][DumMonth], DumDayOfMonth, CalendarEvent[Loop2UInt8].Description);
+          }
           scroll_string(24, String);
 
           ++Dum1UInt8;
@@ -8324,24 +8572,6 @@ void process_ir_command(UINT8 IrCommand)
       }
     }
 
-    if (FlashConfig.Language == ENGLISH)
-    {
-      if (Dum1UInt8 == 0)
-        scroll_string(24, "   No event this week");
-      else
-      {
-        if (Dum1UInt8 == 1)
-        {
-          scroll_string(24, "   1 event this week");
-        }
-        else
-        {
-          sprintf(String, "   %u events this week", Dum1UInt8);
-          scroll_string(24, String);
-        }
-      }
-    }
-
     if (FlashConfig.Language == FRENCH)
     {
       if (Dum1UInt8 == 0)
@@ -8349,7 +8579,6 @@ void process_ir_command(UINT8 IrCommand)
         sprintf(String, "   Aucun evenement cette semaine");
         String[9]  = (UCHAR)31; // e accent aigu.
         String[11] = (UCHAR)31; // e accent aigu
-        scroll_string(24, String);
       }
       else
       {
@@ -8358,17 +8587,62 @@ void process_ir_command(UINT8 IrCommand)
           sprintf(String, "   1 evenement cette semaine");
           String[5] = (UCHAR)31; // e accent aigu.
           String[7] = (UCHAR)31; // e accent aigu
-          scroll_string(24, String);
         }
         else
         {
           sprintf(String, "   %u evenements cette semaine", Dum1UInt8);
           String[strlen(String) - 22] = (UCHAR)31; // e accent aigu.
           String[strlen(String) - 24] = (UCHAR)31; // e accent aigu
-          scroll_string(24, String);
         }
       }
     }
+    else if (FlashConfig.Language == CZECH)
+    {
+      if (Dum1UInt8 == 0)
+      {
+        sprintf(String, "   Tento tyden zadna udalost.");
+        String[10] = (UINT8)132; // y-acute
+        String[15] = (UINT8)137; // z-caron
+        String[16] = (UINT8)129; // a-acute
+        String[19] = (UINT8)129; // a-acute
+        String[23] = (UINT8)129; // a-acute
+      }
+      else
+      {
+        if (Dum1UInt8 == 1)
+        {
+          sprintf(String, "   Tento tyden 1 udalost.");
+          String[10] = (UINT8)132; // y-acute
+          String[15] = (UINT8)137; // z-caron
+          String[19] = (UINT8)129; // a-acute
+        }
+        else
+        {
+          sprintf(String, "udalosti");
+          String[2] = (UINT8)129; // a-acute
+          String[8] = (UINT8)131; // i-acute
+          sprintf(String, "   Tento tyden %u %s.", Dum1UInt8, String);
+          String[10] = (UINT8)132; // y-acute
+        }
+      }
+    }
+    else // For English and other languages:
+    {
+      if (Dum1UInt8 == 0)
+        sprintf(String, "   No event this week");
+      else
+      {
+        if (Dum1UInt8 == 1)
+        {
+          sprintf(String, "   1 event this week");
+        }
+        else
+        {
+          sprintf(String, "   %u events this week", Dum1UInt8);
+        }
+      }
+    }
+    scroll_string(24, String);
   }
 
 
@@ -8483,21 +8757,24 @@ void process_scroll_queue(void)
       /* Special cases when tag number is at the end of UINT8 (beginning at 0xFF and counting down). */
       switch (Tag)
       {
-          case (TAG_AMBIENT_LIGHT):
+        case (TAG_AMBIENT_LIGHT):
           /* If we are not currently in setup mode, display ambient light. */
-          switch (FlashConfig.Language)
+          if (FlashConfig.Language == FRENCH)
           {
-            case (FRENCH):
-              sprintf(String, "Luminosite: %u   Hysteresis: %u   Affichage: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
-              String[9] = (UINT8)31; // e accent aigu.
-              scroll_string(24, String);
-            break;
-
-            case (ENGLISH):
-              sprintf(String, "Ambient light: %u   Hysteresis: %u   Display: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
-              scroll_string(24, String);
-            break;
+            sprintf(String, "Luminosite: %u   Hysteresis: %u   Affichage: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+            String[9] = (UINT8)31; // e accent aigu.
           }
+          else if (FlashConfig.Language == CZECH)
+          {
+            sprintf(String, "Jas: %u   hystereze: %u   displej: %u%c.    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+            String[9] = (UINT8)31; // e accent aigu.
+          }
+          else // For English and other languages:
+          {
+            sprintf(String, "Ambient light: %u   Hysteresis: %u   Display: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+            scroll_string(24, String);
+          }
+          scroll_string(24, String);
         break;
 
 
@@ -8530,29 +8807,33 @@ void process_scroll_queue(void)
             if (FlashConfig.TemperatureUnit == CELSIUS)
             {
               // ...in Celsius.
-              switch (FlashConfig.Language)
+              if (FlashConfig.Language = FRENCH)
               {
-                case (ENGLISH):
-                  sprintf(String, "Out: %2.2f%cC  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280Data.TemperatureC, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
-                break;
-
-                case (FRENCH):
-                  sprintf(String, "Ext: %2.2f%cC  Hum: %2.2f%%  Pression: %4.2f hPa ", Bme280Data.TemperatureC, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
-                break;
+                sprintf(String, "Ext: %2.2f%cC  Hum: %2.2f%%  Pression: %4.2f hPa ", Bme280Data.TemperatureC, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
+              }
+              else if (FlashConfig.Language = CZECH)
+              {
+                sprintf(String, "Venku: %2.2f %cC, %2.2f %%, %4.2f hPa.", Bme280Data.TemperatureC, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
+              }
+              else // For English and other languages:
+              {
+                sprintf(String, "Out: %2.2f%cC  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280Data.TemperatureC, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
               }
             }
             else
             {
               // ...or in Fahrenheit.
-              switch (FlashConfig.Language)
+              if (FlashConfig.Language = FRENCH)
               {
-                case (ENGLISH):
-                  sprintf(String, "Out: %2.2f%cF  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280Data.TemperatureF, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
-                break;
-
-                case (FRENCH):
-                  sprintf(String, "Ext: %2.2f%cF  Hum: %2.2f%%  Pression: %4.2f hPa ", Bme280Data.TemperatureF, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
-                break;
+                sprintf(String, "Ext: %2.2f%cF  Hum: %2.2f %%  Pression: %4.2f hPa ", Bme280Data.TemperatureF, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
+              }
+              else if (FlashConfig.Language = CZECH)
+              {
+                sprintf(String, "Venku: %2.2f %cF, %2.2f %%, %4.2f hPa.", Bme280Data.TemperatureF, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
+              }
+              else // For English and other languages:
+              {
+                sprintf(String, "Out: %2.2f%cF  Hum: %2.2f%%  Pressure: %4.2f hPa ", Bme280Data.TemperatureF, 0x80, Bme280Data.Humidity, Bme280Data.Pressure);
               }
             }
 
@@ -8719,188 +9000,301 @@ void process_scroll_queue(void)
              No support = No DST support at all.
              Inactive   = DST is supported, but we are not during DST period of the year.
              Active     = DST is supported and we are during DST period of the year. */
-          switch (FlashConfig.Language)
+          if (FlashConfig.Language == FRENCH)
           {
-            case (ENGLISH):
-              if (FlashConfig.DSTCountry == DST_NONE)
+            if (FlashConfig.DSTCountry == DST_NONE)
+            {
+              sprintf(String, "Heure avancee non supportee    ");
+              String[11] = (UINT8)31;  // e accent aigu.
+              String[25] = (UINT8)31;  // e accent aigu.
+              scroll_string(24, String);
+            }
+            else
+            {
+              switch(FlashConfig.DSTCountry)
               {
-                scroll_string(24, "No support for daylight saving time    ");
+                case (DST_AUSTRALIA):
+                  sprintf(String, "Heure avancee: Australie");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_AUSTRALIA_HOWE):
+                  sprintf(String, "Heure avancee: Australie Howe");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_CHILE):
+                  sprintf(String, "Heure avancee: Chili");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_CUBA):
+                  sprintf(String, "Heure avancee: Cuba");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_EUROPE):
+                  sprintf(String, "Heure avancee: Europe");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_ISRAEL):
+                  sprintf(String, "Heure avancee: Israel");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_LEBANON):
+                  sprintf(String, "Heure avancee: Liban");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_MOLDOVA):
+                  sprintf(String, "Heure avancee: Moldavie");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_NEW_ZEALAND):
+                  sprintf(String, "Heure avancee: Nouvelle-Zelande");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                  String[25] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_NORTH_AMERICA):
+                  sprintf(String, "Heure avancee: Amerique du Nord");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                  String[17] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_PALESTINE):
+                  sprintf(String, "Heure avancee: Palestine");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+
+                case (DST_PARAGUAY):
+                  sprintf(String, "Heure avancee: Paraguay");
+                  String[11] = (UINT8)31;  // e accent aigu.
+                break;
+              }
+              scroll_string(24, String);
+              
+              /* Announce if Daylight Saving Time ("DST") is currently active or inactive, depending of current date. */
+              if (FlashConfig.FlagSummerTime == FLAG_ON)
+              {
+                sprintf(String, "- active    ");
               }
               else
               {
-                switch(FlashConfig.DSTCountry)
-                {
-                  case (DST_AUSTRALIA):
-                    scroll_string(24, "DST setting: Australia");
-                  break;
-
-                  case (DST_AUSTRALIA_HOWE):
-                    scroll_string(24, "DST setting: Australia Howe");
-                  break;
-
-                  case (DST_CHILE):
-                    scroll_string(24, "DST setting: Chile");
-                  break;
-
-                  case (DST_CUBA):
-                    scroll_string(24, "DST setting: Cuba");
-                  break;
-
-                  case (DST_EUROPE):
-                    scroll_string(24, "DST setting: Europe");
-                  break;
-
-                  case (DST_ISRAEL):
-                    scroll_string(24, "DST setting: Israel");
-                  break;
-
-                  case (DST_LEBANON):
-                    scroll_string(24, "DST setting: Lebanon");
-                  break;
-
-                  case (DST_MOLDOVA):
-                    scroll_string(24, "DST setting: Moldova");
-                  break;
-
-                  case (DST_NEW_ZEALAND):
-                    scroll_string(24, "DST setting: New Zealand");
-                  break;
-
-                  case (DST_NORTH_AMERICA):
-                    scroll_string(24, "DST setting: North America");
-                  break;
-
-                  case (DST_PALESTINE):
-                    scroll_string(24, "DST setting: Palestine");
-                  break;
-
-                  case (DST_PARAGUAY):
-                    scroll_string(24, "DST setting: Paraguay");
-                  break;
-                }
-
-                /* Announce if Daily Saving Time ("DST") is currently active or inactive, depending of current date. */
-                if (FlashConfig.FlagSummerTime == FLAG_ON)
-                  scroll_string(24, " - DST active    ");
-                else
-                  scroll_string(24, " - DST inactive    ");
+                sprintf(String, "- inactive    ");
               }
-            break;
-
-            case (FRENCH):
-              if (FlashConfig.DSTCountry == DST_NONE)
+              scroll_string(24, String);
+            }
+          }
+          else if (FlashConfig.Language == CZECH)
+          {
+            if (FlashConfig.DSTCountry == DST_NONE)
+            {
+              sprintf(String, "Funkce letniho casu je vypnuta.");
+              String[11] = (UINT8)131; // i-acute
+              String[15] = (UINT8)136; // c-caron
+              scroll_string(24, String);
+            }
+            else
+            {
+              switch(FlashConfig.DSTCountry)
               {
-                sprintf(String, "Heure avancee non supportee    ");
-                String[11] = (UINT8)31;  // e accent aigu.
-                String[25] = (UINT8)31;  // e accent aigu.
-                scroll_string(24, String);
+                case (DST_AUSTRALIA):
+                  sprintf(String, "Letni cas: Australie");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                  String[16] = (UINT8)129; // a-acute
+                break;
+
+                case (DST_AUSTRALIA_HOWE):
+                  sprintf(String, "Letni cas: Australie Howe");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                  String[16] = (UINT8)129; // a-acute
+                break;
+
+                case (DST_CHILE):
+                  sprintf(String, "Letni cas: Cile");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                  String[12] = (UINT8)136; // c-caron
+                break;
+
+                case (DST_CUBA):
+                  sprintf(String, "Letni cas: Kuba");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                break;
+
+                case (DST_EUROPE):
+                  sprintf(String, "Letni cas: Evropa");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                break;
+
+                case (DST_ISRAEL):
+                  sprintf(String, "Letni cas: Izrael");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                break;
+
+                case (DST_LEBANON):
+                  sprintf(String, "Letni cas: Libanon");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                break;
+
+                case (DST_MOLDOVA):
+                  sprintf(String, "Letni cas: Moldavie");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                  String[15] = (UINT8)129; // a-acute
+                break;
+
+                case (DST_NEW_ZEALAND):
+                  sprintf(String, "Letni cas: Novy Zeland");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                  String[17] = (UINT8)138; // e-acute
+                break;
+
+                case (DST_NORTH_AMERICA):
+                  sprintf(String, "Letni cas: Severni Amerika");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                  String[17] = (UINT8)131; // i-acute
+                break;
+
+                case (DST_PALESTINE):
+                  sprintf(String, "Letni cas: Palestina");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                break;
+
+                case (DST_PARAGUAY):
+                  sprintf(String, "Letni cas: Paraguay");
+                  String[4] = (UINT8)131; // i-acute
+                  String[6] = (UINT8)136; // c-caron
+                break;
+              }
+              scroll_string(24, String);
+
+              /* Announce if Daily Saving Time ("DST") is currently active or inactive, depending of current date. */
+              if (FlashConfig.FlagSummerTime == FLAG_ON)
+              {
+                sprintf(String, " - je letni cas    ");
+                String[10] = (UINT8)131; // i-acute
+                String[12] = (UINT8)136; // c-caron
               }
               else
               {
-                switch(FlashConfig.DSTCountry)
-                {
-                  case (DST_AUSTRALIA):
-                    sprintf(String, "Heure avancee: Australie");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_AUSTRALIA_HOWE):
-                    sprintf(String, "Heure avancee: Australie Howe");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_CHILE):
-                    sprintf(String, "Heure avancee: Chili");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_CUBA):
-                    sprintf(String, "Heure avancee: Cuba");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_EUROPE):
-                    sprintf(String, "Heure avancee: Europe");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_ISRAEL):
-                    sprintf(String, "Heure avancee: Israel");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_LEBANON):
-                    sprintf(String, "Heure avancee: Liban");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_MOLDOVA):
-                    sprintf(String, "Heure avancee: Moldavie");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_NEW_ZEALAND):
-                    sprintf(String, "Heure avancee: Nouvelle-Zelande");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    String[25] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_NORTH_AMERICA):
-                    sprintf(String, "Heure avancee: Amerique du Nord");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    String[17] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_PALESTINE):
-                    sprintf(String, "Heure avancee: Palestine");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-
-                  case (DST_PARAGUAY):
-                    sprintf(String, "Heure avancee: Paraguay");
-                    String[11] = (UINT8)31;  // e accent aigu.
-                    scroll_string(24, String);
-                  break;
-                }
-                
-                /* Announce if Daylight Saving Time ("DST") is currently active or inactive, depending of current date. */
-                if (FlashConfig.FlagSummerTime == FLAG_ON)
-                {
-                  sprintf(String, "- active    ");
-                  scroll_string(24, String);
-                }
-                else
-                {
-                  sprintf(String, "- inactive    ");
-                  scroll_string(24, String);
-                }
+                sprintf(String, " - neni letni cas    ");
+                String[6] = (UINT8)131; // i-acute
+                String[12] = (UINT8)131; // i-acute
+                String[14] = (UINT8)136; // c-caron
               }
-            break;
+              scroll_string(24, String);
+            }
+          }
+          else // For English and other languages:
+          {
+            if (FlashConfig.DSTCountry == DST_NONE)
+            {
+              scroll_string(24, "No support for daylight saving time    ");
+            }
+            else
+            {
+              switch(FlashConfig.DSTCountry)
+              {
+                case (DST_AUSTRALIA):
+                  scroll_string(24, "DST setting: Australia");
+                break;
+
+                case (DST_AUSTRALIA_HOWE):
+                  scroll_string(24, "DST setting: Australia Howe");
+                break;
+
+                case (DST_CHILE):
+                  scroll_string(24, "DST setting: Chile");
+                break;
+
+                case (DST_CUBA):
+                  scroll_string(24, "DST setting: Cuba");
+                break;
+
+                case (DST_EUROPE):
+                  scroll_string(24, "DST setting: Europe");
+                break;
+
+                case (DST_ISRAEL):
+                  scroll_string(24, "DST setting: Israel");
+                break;
+
+                case (DST_LEBANON):
+                  scroll_string(24, "DST setting: Lebanon");
+                break;
+
+                case (DST_MOLDOVA):
+                  scroll_string(24, "DST setting: Moldova");
+                break;
+
+                case (DST_NEW_ZEALAND):
+                  scroll_string(24, "DST setting: New Zealand");
+                break;
+
+                case (DST_NORTH_AMERICA):
+                  scroll_string(24, "DST setting: North America");
+                break;
+
+                case (DST_PALESTINE):
+                  scroll_string(24, "DST setting: Palestine");
+                break;
+
+                case (DST_PARAGUAY):
+                  scroll_string(24, "DST setting: Paraguay");
+                break;
+              }
+
+              /* Announce if Daily Saving Time ("DST") is currently active or inactive, depending of current date. */
+              if (FlashConfig.FlagSummerTime == FLAG_ON)
+                scroll_string(24, " - DST active    ");
+              else
+                scroll_string(24, " - DST inactive    ");
+            }
           }
         break;
 
 
 
         case (TAG_FIRMWARE_VERSION):
-          sprintf(String, "Pico Green Clock - Firmware Version %s    ", FIRMWARE_VERSION);
+          if (FlashConfig.Language == CZECH)
+          {
+            sprintf(String, "UPico Green Clock - verze firmwaru %s    ", FIRMWARE_VERSION);
+          }
+          else // For English and other languages:
+          {
+            sprintf(String, "Pico Green Clock - Firmware Version %s    ", FIRMWARE_VERSION);
+          }
           scroll_string(24, String);
         break;
 
 
 
         case (TAG_IDLE_MONITOR):
-          sprintf(String, "System idle monitor: %llu    ", IdleMonitor[13]);
+          if (FlashConfig.Language == CZECH)
+          {
+            sprintf(String, "Vytizeni: %llu    ", IdleMonitor[13]);
+            String[3] = (UINT8)131; // i-acute
+            String[4] = (UINT8)137; // z-caron
+            String[8] = (UINT8)131; // i-acute
+          }
+          else // For English and other languages:
+          {
+            sprintf(String, "System idle monitor: %llu    ", IdleMonitor[13]);
+          }
           scroll_string(24, String);
         break;
 
@@ -8973,15 +9367,17 @@ void process_scroll_queue(void)
           /* Scroll total number of NTP errors so far. */
           if (NTPData.NTPErrors)
           {
-            switch (FlashConfig.Language)
+            if (FlashConfig.Language = FRENCH)
             {
-              case (ENGLISH):
-                sprintf(String, "NTP errors: %lu   ", NTPData.NTPErrors);
-              break;
-
-              case (FRENCH):
-                sprintf(String, "Erreurs NTP: %lu/%lu   ", NTPData.NTPErrors);
-              break;
+              sprintf(String, "Erreurs NTP: %lu/%lu   ", NTPData.NTPErrors);
+            }
+            else if (FlashConfig.Language = CZECH)
+            {
+              sprintf(String, "Chyba NTP: %lu/%lu.   ", NTPData.NTPErrors);
+            }
+            else // For English and other languages:
+            {
+              sprintf(String, "NTP errors: %lu   ", NTPData.NTPErrors);
             }
             scroll_string(24, String);
           }
@@ -8994,15 +9390,17 @@ void process_scroll_queue(void)
         #ifdef DEVELOPER_VERSION
         case (TAG_NTP_STATUS):
           /* Scroll total number of NTP request failures so far. */
-          switch (FlashConfig.Language)
+          if (FlashConfig.Language = FRENCH)
           {
-            case (ENGLISH):
-              sprintf(String, "NTP status: %lu/%lu   ", NTPData.NTPErrors, NTPData.NTPReadCycles);
-            break;
-
-            case (FRENCH):
-              sprintf(String, "Statut NTP: %lu/%lu   ", NTPData.NTPErrors, NTPData.NTPReadCycles);
-            break;
+            sprintf(String, "Statut NTP: %lu/%lu   ", NTPData.NTPErrors, NTPData.NTPReadCycles);
+          }
+          else if (FlashConfig.Language = CZECH)
+          {
+            sprintf(String, "Stav NTP: %lu/%lu.   ", NTPData.NTPErrors, NTPData.NTPReadCycles);
+          }
+          else // For English and other languages:
+          {
+            sprintf(String, "NTP status: %lu/%lu   ", NTPData.NTPErrors, NTPData.NTPReadCycles);
           }
           scroll_string(24, String);
         break;
@@ -9016,12 +9414,26 @@ void process_scroll_queue(void)
           if (FlashConfig.TemperatureUnit == CELSIUS)
           {
             /* ...in Celsius. */
-            sprintf(String, "Pico temp: %2.2f%cC    ", DegreeC, 0x80);
+            if (FlashConfig.Language == CZECH )
+            {
+              sprintf(String, "Pico tep.: %2.2f %cC    ", DegreeC, 0x80);
+            }
+            else // For English and other languages:
+            {
+              sprintf(String, "Pico temp: %2.2f%cC    ", DegreeC, 0x80);
+            }
           }
           else
           {
             /* ...or in Fahrenheit. */
-            sprintf(String, "Pico temp: %2.2f%cF    ", DegreeF, 0x80);
+            if (FlashConfig.Language == CZECH )
+            {
+              sprintf(String, "Pico tep: %2.2f%cF    ", DegreeF, 0x80);
+            }
+            else // For English and other languages:
+            {
+              sprintf(String, "Pico temp: %2.2f%cF    ", DegreeF, 0x80);
+            }
           }
           scroll_string(24, String);
         break;
@@ -9031,30 +9443,37 @@ void process_scroll_queue(void)
         case (TAG_PICO_TYPE):
           if (PicoType == TYPE_PICO)
           {
-            switch (FlashConfig.Language)
+            if (FlashConfig.Language == FRENCH )
             {
-              case (ENGLISH):
-                scroll_string(24, "Microcontroller: Pico    ");
-              break;
-
-              case (FRENCH):
-                scroll_string(24, "Microcontroleur: Pico    ");
-              break;
+              sprintf(String, "Microcontroleur: Pico    ");
+            }
+            else if (FlashConfig.Language == CZECH )
+            {
+              sprintf(String, "mikrokontroler: Pico.    ");
+              String[12] = (UINT8)138; // e-acute
+            }
+            else // For English and other languages:
+            {
+              sprintf(String, "Microcontroller: Pico    ");
             }
           }
           else
           {
-            switch (FlashConfig.Language)
+            if (FlashConfig.Language == FRENCH )
             {
-              case (ENGLISH):
-                scroll_string(24, "Microcontroller: Pico W    ");
-              break;
-
-               case (FRENCH):
-                scroll_string(24, "Microcontroleur: Pico W    ");
-              break;
+              sprintf(String, "Microcontroleur: Pico W    ");
+            }
+            else if (FlashConfig.Language == CZECH )
+            {
+              sprintf(String, "mikrokontroler: Pico W    ");
+              String[12] = (UINT8)138; // e-acute
+            }
+            else // For English and other languages:
+            {
+              sprintf(String, "Microcontroller: Pico W    ");
             }
           }
+          scroll_string(24, String);
         break;
 
 
@@ -9096,16 +9515,34 @@ void process_scroll_queue(void)
 
 
        case (TAG_TIMEZONE):
+        if (FlashConfig.Language == CZECH)
+        {
+          sprintf(String, "casova zona: %d    ", FlashConfig.Timezone);
+          String[0] = (UINT8)136; // c-caron
+          String[5] = (UINT8)129; // a-acute
+          String[8] = (UINT8)139; // o-acute
+        }
+        else // For English and other languages:
+        {
           sprintf(String, "Timezone: %d    ", FlashConfig.Timezone);
-          scroll_string(24, String);
+        }
+        scroll_string(24, String);
         break;
 
 
 
         case (TAG_VOLTAGE):
+        Volts = adc_read_voltage();
+        if (FlashConfig.Language == CZECH)
+        {
+          sprintf(String, "%2.2f V    ", Volts);
+        }
+        else // For English and other languages:
+        {
           Volts = adc_read_voltage();
           sprintf(String, "%2.2f Volts    ", Volts);
-          scroll_string(24, String);
+        }
+        scroll_string(24, String);
         break;
 
 
@@ -10941,9 +11378,9 @@ void setup_clock_frame(void)
       FlagSetupClock[SETUP_DAY_OF_MONTH] = FLAG_OFF;
     }
 
-    if (FlashConfig.Language == FRENCH)
+    if (FlashConfig.Language == FRENCH || FlashConfig.Language == CZECH || FlashConfig.Language == SPANISH )
     {
-      /* In French, display and set day-of-month before month.
+      /* In most languages display and set day-of-month before month.
          Make a trick in the flashing below. */
       fill_display_buffer_4X7(0, ((CurrentDayOfMonth / 10 + 0x30) & FlagBlinking[SETUP_DAY_OF_MONTH]));
       fill_display_buffer_4X7(5, ((CurrentDayOfMonth % 10 + 0x30) & FlagBlinking[SETUP_DAY_OF_MONTH]));
@@ -10951,9 +11388,8 @@ void setup_clock_frame(void)
       fill_display_buffer_4X7(13, ((CurrentMonth / 10 + 0x30) & FlagBlinking[SETUP_MONTH]));
       fill_display_buffer_4X7(18, ((CurrentMonth % 10 + 0x30) & FlagBlinking[SETUP_MONTH]));
     }
-    else
+    else // For English and other languages:
     {
-      /* For English and other languages. */
       fill_display_buffer_4X7(0, ((CurrentMonth / 10 + 0x30) & FlagBlinking[SETUP_MONTH]));
       fill_display_buffer_4X7(5, ((CurrentMonth % 10 + 0x30) & FlagBlinking[SETUP_MONTH]));
       fill_display_buffer_4X7(10, '-');
@@ -11216,23 +11652,32 @@ void setup_clock_frame(void)
     FlagSetupClock[SETUP_LANGUAGE] = FLAG_ON;
 
     clear_framebuffer(0);
-    fill_display_buffer_5X7(2, 'L');
-    fill_display_buffer_5X7(7, 'G');
-    fill_display_buffer_4X7(11, ':');
+    fill_display_buffer_5X7(0, 'L');
+    fill_display_buffer_5X7(6, 'G');
+    fill_display_buffer_4X7(10, ':');
 
     switch (FlashConfig.Language)
     {
       default:
       case (ENGLISH):
-        fill_display_buffer_5X7(15, ('E' & FlagBlinking[SETUP_LANGUAGE]));
+        fill_display_buffer_5X7(14, ('E' & FlagBlinking[SETUP_LANGUAGE]));
+        fill_display_buffer_5X7(19, ('N' & FlagBlinking[SETUP_LANGUAGE]));
       break;
 
       case (FRENCH):
-        fill_display_buffer_5X7(15, ('F' & FlagBlinking[SETUP_LANGUAGE]));
+        fill_display_buffer_5X7(14, ('F' & FlagBlinking[SETUP_LANGUAGE]));
+        fill_display_buffer_5X7(19, ('R' & FlagBlinking[SETUP_LANGUAGE]));
       break;
 
       case (SPANISH):
         /* To be implemented. */
+        fill_display_buffer_5X7(14, ('E' & FlagBlinking[SETUP_LANGUAGE]));
+        fill_display_buffer_5X7(19, ('S' & FlagBlinking[SETUP_LANGUAGE]));
+      break;
+
+      case (CZECH):
+        fill_display_buffer_5X7(14, ('C' & FlagBlinking[SETUP_LANGUAGE]));
+        fill_display_buffer_5X7(19, ('Z' & FlagBlinking[SETUP_LANGUAGE]));
       break;
     }
 
@@ -11819,7 +12264,7 @@ void setup_clock_variables(UINT8 FlagButtonSelect)
     if (FlagButtonSelect == FLAG_UP)
     {
       ++FlashConfig.Language;
-      if (FlashConfig.Language > FRENCH)
+      if (FlashConfig.Language > CZECH)
         FlashConfig.Language = ENGLISH;
     }
     else
@@ -11827,17 +12272,16 @@ void setup_clock_variables(UINT8 FlagButtonSelect)
       /* Must be "Button down". */
       --FlashConfig.Language;
       if (FlashConfig.Language < ENGLISH)
-        FlashConfig.Language = FRENCH;
+        FlashConfig.Language = CZECH;
     }
 
-    /* Setup order in French is different than in English. */
-    if (FlashConfig.Language == FRENCH)
+    /* Setup order in most languages is day-month(-year), contrary to English month-day(-year). */
+    if (FlashConfig.Language == FRENCH || FlashConfig.Language == CZECH || FlashConfig.Language == SPANISH)
     {
       SETUP_DAY_OF_MONTH = 0x03;
       SETUP_MONTH = 0x04;
     }
-
-    if (FlashConfig.Language == ENGLISH)
+    else // For English and other languages:
     {
       SETUP_MONTH = 0x03;
       SETUP_DAY_OF_MONTH = 0x04;
