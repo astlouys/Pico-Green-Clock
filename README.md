@@ -1,15 +1,28 @@
 # Pico Green Clock
-Firmware Version 9.00 released 14-FEB-2023
+Firmware Version 9.02 released 01-JUN-2023
+
+NEW WITH FIRMWARE 9.02:
+=======================
+- Fix the problem with Wi-Fi connection (CYW43 initialization) with new Pico's SDK library.
+- Add basic German language support. Thanks to Frank Seidel for the translation !
+- Add Czech language support. Thanks to KaeroDot for the excellent work !
+- Improve "middle-dot blinking" algorithm (see User Guide for details). Thanks to Frank Seidel for the suggestion and code modification.
+- Increase string length for Calendar Events up to 50 characters.
+- Fix dates encoded in CalendarEventsGeneric.cpp (examples of Calendar Events).
+
+NOTE: I went through a system crash before the release of version 9.02 and lost a few weeks of work. Also, I had less time for testing / quality control
+      before Firmare Version 9.02 release. Please kindly let me know if you find "undocumented features" in the code (read: "bugs").
+
 
 Firmware Hilights:
-
-- User Guide updated to cover Firmware Version 9.00.
-- Version 9.00 adds Network Time Protocol ("NTP"). When using a Pico W, the Green Clock will re-synchronize itself from a time server over Internet.
-- Add a function to "set-and-save" Wi-Fi credentials to Pico W's flash memory for NTP Wi-Fi access.
+==================
+- User Guide updated to cover current Firmware Version.
+- Support for Network Time Protocol ("NTP"). When using a PicoW, the Green Clock will re-synchronize itself from a time reference server over Internet.
+- Add a function to "set-and-save" Wi-Fi credentials to PicoW's flash memory for NTP Wi-Fi access.
 - Count-down timer alarm will now ring periodically for 30 minutes or until user presses the top button, whichever happens first.
 - Improve clock precision independantly of real-time IC and NTP by better synchronization of callback period time.
 - Modify algorithm of the "Chime Hour Count" so that it is less "aggressive" than the original version (thanks to Ewan Harrow for his collaboration).
-- Add auto detection of microcontroller type (Pico or Pico W).
+- Add auto detection of microcontroller type (Pico or PicoW).
 - Add an option so that Hourly Chime corresponds to the 12-hour format current value (needs to be turned On in the code).
 - Change clock display brightness algorithm. It is now driven by a PWM signal from the Pico.
 - Auto Brightness is now smoother and provides hundreds of different levels (Note: if ambient light is dark, clock display becomes **VERY** dim).
@@ -17,7 +30,7 @@ Firmware Hilights:
 - Add automatic detection of USB CDC connection with an external terminal emulator program (for developers' support).
 - Add "snowflakes pixel animation" (remote control required).
 - Add Timezone clock parameter allowing proper handling of Summer Time for some countries.
-- Timezone will also be a requirement for future NTP implementation where the clock will be adjusted from a time reference on the Internet.
+- Timezone is also required for proper NTP handling when adjusting the clock will from a time reference from the Internet.
 - Automatic handling of Daylight Saving Time / Summer Time - Winter Time / Spring Forward - Fall-Back. Should cover most countries of the world.
 - Implement two circular buffers for inter-core communications (core 1 is used for DHT22 support).
 - Transfer code for DHT22 support to Pico's second core (core 1).
@@ -31,7 +44,12 @@ Firmware Hilights:
 - Add a sound queue for active buzzer (integrated in Green Clock) and also for an optional passive buzzer to optimize its support. 
 - On and Off time (run-time parameters) added for Hourly Chime to make the clock silent during the night.
 - Double dots blinking in sequence on the display to know "how deep we are" in the current minute.
-- Support for English and French languages (as much as possible, since clock display limits accented letters).
+- Support for those languages:
+-      Czech - Thanks to KaeroDot for the excellent work on this feature !
+-      English
+-      French
+-      German (basic traslation) - Thanks to Frank Seidel for the translation work !
+-      NOTE: When a translation is not available for the target language, the English text / message will be used instead.
 - DHT22 device support code (option that must be installed by user).
 - BME280 device support code (option that must be installed by user).
 - VS1838b infrared sensor support code (option that must be installed by user).
