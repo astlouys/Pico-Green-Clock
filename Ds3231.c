@@ -564,6 +564,17 @@ void set_time(uint8_t Second, uint8_t Minute, uint8_t Hour, uint8_t DayOfWeek, u
   TimeToSet[6] = dec_to_bcd(Month);
   TimeToSet[7] = dec_to_bcd(Year);
 
+  /***/
+  printf("set_time() (in Ds3231.c)\r\r");
+  printf("Hour:   %2.2u\r",   Hour);
+  printf("Minute: %2.2u\r",   Minute);
+  printf("Second: %2.2u\r\r", Second);
+  printf("DoW:    %2.2u\r",   DayOfWeek);
+  printf("DoM:    %2.2u\r",   DayOfMonth);
+  printf("Month:  %2.2u\r",   Month);
+  printf("Year:   %2.2u\r\r", Year);
+  /***/
+          
   i2c_write_blocking(I2C_PORT, DS3231_ADDRESS, TimeToSet, 8, false);
   
   return;

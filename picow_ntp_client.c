@@ -457,17 +457,22 @@ int ntp_init(void)
   /*** cmake -DPICO_BOARD=pico_w -DPICO_STDIO_USB=1 -DWIFI_SSID=<NetworkName> -DWIFI_PASSWORD=<Password> .. ***/
   if (DebugBitMask & DEBUG_NTP)
   {
-    uart_send(__LINE__, "Trying to establish Wi-Fi connection.\r");
+    uart_send(__LINE__, "Trying to establish WiFi connection.\r");
     uart_send(__LINE__, "SSID:     [%s]\r",     &FlashConfig.SSID[4]);
     uart_send(__LINE__, "Password: [%s]\r\r\r", &FlashConfig.Password[4]);
   }
 
-  for (Loop1UInt8 = 0; Loop1UInt8 < 10; ++Loop1UInt8)
+  for (Loop1UInt8 = 0; Loop1UInt8 < 20; ++Loop1UInt8)
   {
-    ReturnCode = cyw43_arch_wifi_connect_blocking(&FlashConfig.SSID[4], &FlashConfig.Password[4], CYW43_AUTH_WPA2_AES_PSK);
+    if (DebugBitMask & DEBUG_NTP)
+    {
+      uart_send(__LINE__, "Trying to connect to WiFi, retry %u\r", Loop1UInt8);
+    }
+
+    ReturnCode = cyw43_arch_wifi_connect_timeout_ms(&FlashConfig.SSID[4], &FlashConfig.Password[4], CYW43_AUTH_WPA2_AES_PSK, 2000);
     if (ReturnCode == 0)
     {
-      /* Wi-Fi connection successful, get out of for loop. */
+      /* WiFi connection successful, get out of for loop. */
       if (DebugBitMask & DEBUG_NTP)
       {
         uart_send(__LINE__, "\r\r");
@@ -493,14 +498,14 @@ int ntp_init(void)
         {
           uart_send(__LINE__, "\r\r");
           uart_send(__LINE__, "Wi-Fi connection failure (return code: %d)   Pass %u, retrying...\r\r\r", ReturnCode, Loop1UInt8 + 1);
-          /* Error while trying to establish Wi-Fi connection... Wait and try again. */
-          sleep_ms(300);
         }
         else
         {
           uart_send(__LINE__, "Wi-Fi connection failure after %u retries...  aborting.\r", Loop1UInt8);
         }
       }
+      /* Error while trying to establish Wi-Fi connection... Wait and try again. */
+      sleep_ms(500);
     }
   }
 
