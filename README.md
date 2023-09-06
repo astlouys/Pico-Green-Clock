@@ -52,7 +52,8 @@ Firmware Hilights:
 - Implement 5 X 7 character set with variable width to allow scrolling of text on clock display (date scrolling uses it for day-of-week and month).
 - "Calendar Events" may be configured at compile time. They will scroll on clock display every 30 minutes (for a 24-hour period) during the target date.
 - Sequential test of LED matrix (and optional devices if added by user) during power-up sequence.
- 
+
+
 - Support for those languages:
 - Czech - Thanks to KaeroDot for the excellent work on this feature !
 - English
@@ -60,12 +61,14 @@ Firmware Hilights:
 - German (basic traslation) - Thanks to Frank Seidel for the translation work !
 - Spanish - Thanks to George A. Theall for his translation work !
 - NOTE: When a translation is not available for the target language, the English text / message will be used instead.
- 
+
+
 - DHT22 device support code (DHT22 is an option that must be installed by user).
 - BME280 device support code (BME280 is an option that must be installed by user).
 - VS1838b infrared sensor support code (VS1838b is an option that must be installed by user).
 - Passive buzzer support code (passive buzzer is an option that must be installed by user).
--
+
+
 This project provides Firmware for the "Pico Green Clock" product from Waveshare (The clock is available directly from Waveshare website, or from Amazon).
 It is based on a Raspberry Pi Pico microcontroller.
 
