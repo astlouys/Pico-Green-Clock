@@ -1,9 +1,12 @@
 # Pico Green Clock
-Firmware Version 9.02 released 01-JUN-2023
+Firmware Version 9.03 released 09-SEP-2023
+NOTE: Source code still shows 9.02. You may check near line 1257... If Spanish month names are there, it means you have Version 9.03.
+      Also, be aware that posted ".uf2" versions are still 9.02 (without Spanish support). You'll have to rebuild executables to get Spanish language support for now.
 
-NEW WITH FIRMWARE 9.02:
+NEW WITH FIRMWARE 9.02 and 9.03:
 =======================
 - Fix the problem with Wi-Fi connection (CYW43 initialization) with new Pico's SDK library.
+- Add Spanish language support. Thanks to George A. Theall ("gatheall" on GitHub) for the translation work !
 - Add basic German language support. Thanks to Frank Seidel for the translation !
 - Add Czech language support. Thanks to KaeroDot for the excellent work !
 - Improve "middle-dot blinking" algorithm (see User Guide for details). Thanks to Frank Seidel for the suggestion and code modification.
@@ -30,8 +33,8 @@ Firmware Hilights:
 - Add automatic detection of USB CDC connection with an external terminal emulator program (for developers' support).
 - Add "snowflakes pixel animation" (remote control required).
 - Add Timezone clock parameter allowing proper handling of Summer Time for some countries.
-- Timezone is also required for proper NTP handling when adjusting the clock will from a time reference from the Internet.
-- Automatic handling of Daylight Saving Time / Summer Time - Winter Time / Spring Forward - Fall-Back. Should cover most countries of the world.
+- Timezone is also required for proper NTP handling when adjusting the clock with a time reference from the Internet.
+- Automatic handling of "Daylight Saving Time"  /  "Summer Time - Winter Time"  /  "Spring Forward - Fall-Back". Should cover most countries of the world.
 - Implement two circular buffers for inter-core communications (core 1 is used for DHT22 support).
 - Transfer code for DHT22 support to Pico's second core (core 1).
 - Green Clock configuration is now saved to Pico's flash memory and automatically retrieved after a reboot / power-up.
@@ -44,26 +47,29 @@ Firmware Hilights:
 - Add a sound queue for active buzzer (integrated in Green Clock) and also for an optional passive buzzer to optimize its support. 
 - On and Off time (run-time parameters) added for Hourly Chime to make the clock silent during the night.
 - Double dots blinking in sequence on the display to know "how deep we are" in the current minute.
-- Support for those languages:
--      Czech - Thanks to KaeroDot for the excellent work on this feature !
--      English
--      French
--      German (basic traslation) - Thanks to Frank Seidel for the translation work !
--      NOTE: When a translation is not available for the target language, the English text / message will be used instead.
-- DHT22 device support code (option that must be installed by user).
-- BME280 device support code (option that must be installed by user).
-- VS1838b infrared sensor support code (option that must be installed by user).
-- Passive buzzer support code (option that must be installed by user).
 - Add more levels of brightness (for display LEDs) with an hysteresis.
 - Implement 5 X 7 character set with variable width to allow scrolling of text on clock display (date scrolling uses it for day-of-week and month).
 - "Calendar Events" may be configured at compile time. They will scroll on clock display every 30 minutes (for a 24-hour period) during the target date.
 - Sequential test of LED matrix (and optional devices if added by user) during power-up sequence.
-
+- 
+- Support for those languages:
+- Czech - Thanks to KaeroDot for the excellent work on this feature !
+- English
+- French
+- German (basic traslation) - Thanks to Frank Seidel for the translation work !
+- Spanish - Thanks to George A. Theall for his translation work !
+- NOTE: When a translation is not available for the target language, the English text / message will be used instead.
+- 
+- DHT22 device support code (DHT22 is an option that must be installed by user).
+- BME280 device support code (BME280 is an option that must be installed by user).
+- VS1838b infrared sensor support code (VS1838b is an option that must be installed by user).
+- Passive buzzer support code (passive buzzer is an option that must be installed by user).
+-
 This project provides Firmware for the "Pico Green Clock" product from Waveshare (The clock is available directly from Waveshare website, or from Amazon).
 It is based on a Raspberry Pi Pico microcontroller.
 
 Waveshare provides a basic Firmware (Version 1.00) for the Pico Green Clock. Current project provides many enhancements and functionalities to the clock.
-You may refer to the User Guide of the most recent Firmware Version (included in this repository) to see the list of changes / enhancements.
+You may refer to the User Guide of the most recent Firmware Version (included in this repository) to see the detailed list of changes / enhancements.
 
 Please take note that I'm not a Waveshare employee. This firmware is provided "as is" to help users develop their own code.
 
