@@ -122,6 +122,7 @@ extern struct flash_config
   int8_t Timezone;            // (in minutes) value to add to local time to reach UTC (Universal Time Coordinate).
   UINT8  Reserved1[48];       // reserved for future use.
   struct alarm Alarm[9];      // alarms 1 to 9 parameters. Day is a bit mask.
+  UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5, for the same reason as SSID above.
   UCHAR  Reserved2[48];       // reserved for future use.
@@ -135,7 +136,7 @@ extern struct ntp_data
   UINT8  CurrentDayOfWeek;
   UINT8  CurrentDayOfMonth;
   UINT8  CurrentMonth;
-  UINT16 CurrentYear; 
+  UINT16 CurrentYear;
   UINT8  CurrentYearLowPart;
   UINT8  CurrentHour;
   UINT8  CurrentMinute;
@@ -405,7 +406,7 @@ void ntp_get_time(void)
     if (DebugBitMask & DEBUG_NTP)
       uart_send(__LINE__, "Not using CYW43 arch poll.\r");
 
-    /* if cyw43_arch_poll is not used, then Wi-Fi driver and lwIP work is done via interrupt in the background. 
+    /* if cyw43_arch_poll is not used, then Wi-Fi driver and lwIP work is done via interrupt in the background.
        The sleep below is just an example of some (blocking) work you might be doing. */
     /// sleep_ms(1000);
 #endif
@@ -436,8 +437,8 @@ int ntp_init(void)
   UINT8 Loop2UInt8;
 
   int ReturnCode;
-  
-  
+
+
   ReturnCode = 0;  // assume no error on entry.
 
 
@@ -447,11 +448,20 @@ int ntp_init(void)
   /* Enable Wi-Fi Station mode. */
   cyw43_arch_enable_sta_mode();
   sleep_ms(250);
+  cyw43_arch_lwip_begin();
+  {
+    struct netif *n = &cyw43_state.netif[CYW43_ITF_STA];
+    netif_set_hostname(n, &FlashConfig.Hostname[4]);
+    netif_set_up(n);
+  }
+  cyw43_arch_lwip_end();
+  sleep_ms(250);
 
   if (DebugBitMask & DEBUG_NTP)
   {
     uart_send(__LINE__, "\r\r");
     uart_send(__LINE__, "Enabled station mode.\r");
+    uart_send(__LINE__, "Hostname: [%s].\r", &FlashConfig.Hostname[4]);
   }
 
   /*** cmake -DPICO_BOARD=pico_w -DPICO_STDIO_USB=1 -DWIFI_SSID=<NetworkName> -DWIFI_PASSWORD=<Password> .. ***/
@@ -491,7 +501,7 @@ int ntp_init(void)
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(300);
       }
-    
+
       if (DebugBitMask & DEBUG_NTP)
       {
         if (Loop1UInt8 < 10)
@@ -515,7 +525,7 @@ int ntp_init(void)
   {
     /* To overcome the inherent bug with Pico W USB CDC output after CYW43 init, use Pico's LED to visualize outcome. Steady On means error. */
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-      
+
     return ERR_NTP_CONNECT;
   }
 
@@ -553,7 +563,7 @@ int ntp_init(void)
     ReturnCode = ERR_NTP_ALLOC;
   }
 
-    
+
   /* If return code indicates an error but calloc() returned a valid pointer, free the allocated memory. */
   if (ReturnCode && NTPStruct)
   {
@@ -613,7 +623,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
       // uart_send(__LINE__, "Seconds since 1970: %lu\r", seconds_since_1970);
       // uart_send(__LINE__, "NTP_DELTA:          %lu\r", NTP_DELTA);
     }
-    
+
     ntp_result(NTPStruct, 0, &EpochTime);
   }
   else
@@ -622,7 +632,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
       uart_send(__LINE__, "Invalid ntp response\r");
     ntp_result(NTPStruct, -1, NULL);
   }
-  
+
   pbuf_free(p);
 
   return;
@@ -727,7 +737,7 @@ void epoch_time_to_utc_time(time_t *EpochTime)
     uart_send(__LINE__, "EpochTime adjusted for local time: %lu\r", *EpochTime);
     uart_send(__LINE__, "Date: %2d/%2.2d/%4.4d   %2d:%2.2d:%2.2d\r", UtcTime->tm_mday, UtcTime->tm_mon + 1, UtcTime->tm_year + 1900, UtcTime->tm_hour, UtcTime->tm_min, UtcTime->tm_sec);
   }
-  
+
 
   NTPData.CurrentDayOfMonth = UtcTime->tm_mday;
   NTPData.CurrentMonth      = UtcTime->tm_mon + 1;	     // 0 -> 11 converted to 1 -> 12
