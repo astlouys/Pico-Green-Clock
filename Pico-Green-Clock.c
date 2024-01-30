@@ -812,6 +812,10 @@
 
 #ifdef PICO_W
 #include "picow_ntp_client.h"
+//#include "pico/cyw43_arch.h"
+#include "lwipopts.h"
+#include "ssi.h"
+#include "cgi.h"
 #endif  // PICO_W
 
 
@@ -2329,12 +2333,19 @@ int main(void)
 
   /* ---------------------------------------------------------------- *\
                         Initialize NTP connection.
+    Also initialises the WiFi interface, connects and gets an IP address.
   \* ---------------------------------------------------------------- */
   #ifdef PICO_W
   ReturnCode = ntp_init();
-
   if (DebugBitMask & DEBUG_NTP)
     uart_send(__LINE__, "main() - ntp_init() return code: %d\r", ReturnCode);
+  // Initialise web server daemon
+  httpd_init();
+  // Initialise web ssi functions
+  ssi_init();
+  // Initialise web server cgi
+  cgi_init();
+
   #endif // PICO_W
 
 
