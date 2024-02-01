@@ -31,7 +31,9 @@ execute_process(COMMAND
 add_executable(Pico-Green-Clock
        Pico-Green-Clock.c
        picow_ntp_client.c
-       Ds3231.c Ds3231.h)
+       Ds3231.c Ds3231.h
+       ssi.c cgi.c
+       )
 #
 #
 target_include_directories(Pico-Green-Clock PRIVATE
