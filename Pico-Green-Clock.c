@@ -309,6 +309,59 @@
 
 
 
+/* ---------------------------------------------------------------------------------- *\
+                          Options that can be installed by user.
+\* ---------------------------------------------------------------------------------- */
+
+/* Support for an optional passive buzzer. This buzzer must be provided by user and is not included with the Green Clock.
+   It allows variable frequency sounds on the clock.
+   If you did install one, cut this block and paste is outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define PASSIVE_PIEZO_SUPPORT". */
+#define PASSIVE_PIEZO_SUPPORT  /// if a passive buzzer has been installed by user.
+#ifdef PASSIVE_PIEZO_SUPPORT
+#warning Built with PASSIVE_PIEZO support
+#endif  // PASSIVE_PIEZO_SUPPORT
+
+
+/* Support of an optional (external) temperature and humidity sensor (DHT22) or temperature, humidity and atmospheric pressure sensor (BME280)
+   to read and display those parameters. The sensors must be bought and installed by user. They are not included with the Pico Green Clock.
+   If you did install one, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define DHT_SUPPORT and / or
+   "#define BME280_SUPPORT". */
+// #define DHT_SUPPORT  /// if a DHT22 temperature and humidity sensor has been installed by user.
+#ifdef DHT_SUPPORT
+#warning Built with DHT22 support
+#endif  // DHT_SUPPORT
+
+// #define BME280_SUPPORT  /// if a BME280 temperature, humidity and barometric pressure sensor has been installed by user.
+#ifdef BME280_SUPPORT
+#warning Built with BME280 support
+#endif  // BME280_SUPPORT
+
+
+/* Support of an optional remote control to interact with the clock remotely, for example when the clock is installed
+   too high and is out of reach. There is no remote control provided with the clock. It must be bought by the user.
+   Current support is for a Memorex remote control, model MCR 5221 that I had readily available. If another brand of
+   remote control is to be used, user will have to decode its protocol and implement it in the Green Clock firmware.
+   (a file similar to "memorex.cpp" must be created to support the new remote control).
+   If you did install an infrared sensor, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define IR_SUPPORT".
+   You also need to replace the default "REMOTE_FILENAME" by the filename you created containing the infrared timing / codes corresponding to your remote control.
+   You may want to check the Pico-Remote-Analyzer utility in one of my repositories. */
+// #define IR_SUPPORT // if an infrared sensor (VS1838B-type) has been installed by the user and IR protocol of the remote control has been analyzed and implemented.
+
+/* Specify the file containing the remote control protocol to be used. */
+#define REMOTE_FILENAME "memorex.cpp"
+
+/* Silence period request unit (in minutes). Needs remote control. */
+#define SILENCE_PERIOD_UNIT 30
+#ifdef IR_SUPPORT
+#warning Built with INFRARED support
+#endif  // IR_SUPPORT
+
+/* ----------------------------------------------------------------------------------------------------------------------- *\
+                                         End of Options that can be installed by user.
+\* ----------------------------------------------------------------------------------------------------------------------- */
+
+
+
 /* ----------------------------------------------------------------------------------------------------------------------- *\
                                              Setup specific to RELEASE version.
 \* ----------------------------------------------------------------------------------------------------------------------- */
@@ -320,12 +373,11 @@
 
 /* Specify the filename of reminders to merge with this version of firmware. */
 #define REMINDER_FILENAME "RemindersGeneric.cpp"
+
 #endif  // RELEASE_VERSION
 /* ----------------------------------------------------------------------------------------------------------------------- *\
                                            End of setup specific to RELEASE version.
 \* ----------------------------------------------------------------------------------------------------------------------- */
-
-
 
 
 
@@ -367,53 +419,7 @@
 #warning Built with USB_CONNECTION
 #endif  // USB_CONNECTION
 
-/* ---------------------------------------------------------------------------------- *\
-                          Options that can be installed by user.
-\* ---------------------------------------------------------------------------------- */
-/* Support for an optional passive buzzer. This buzzer must be provided by user and is not included with the Green Clock.
-   It allows variable frequency sounds on the clock.
-   If you did install one, cut this block and paste is outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define PASSIVE_PIEZO_SUPPORT". */
-// #define PASSIVE_PIEZO_SUPPORT  /// if a passive buzzer has been installed by user.
-#ifdef PASSIVE_PIEZO_SUPPORT
-#warning Built with PASSIVE_PIEZO support
-#endif  // PASSIVE_PIEZO_SUPPORT
-
-
-/* Support of an optional (external) temperature and humidity sensor (DHT22) or temperature, humidity and atmospheric pressure sensor (BME280)
-   to read and display those parameters. The sensors must be bought and installed by user. They are not included with the Pico Green Clock.
-   If you did install one, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define DHT_SUPPORT and / or
-   "#define BME280_SUPPORT". */
-#define DHT_SUPPORT  /// if a DHT22 temperature and humidity sensor has been installed by user.
-#ifdef DHT_SUPPORT
-#warning Built with DHT22 support
-#endif  // DHT_SUPPORT
-
-#define BME280_SUPPORT  /// if a BME280 temperature, humidity and barometric pressure sensor has been installed by user.
-#ifdef BME280_SUPPORT
-#warning Built with BME280 support
-#endif  // BME280_SUPPORT
-
-
-/* Support of an optional remote control to interact with the clock remotely, for example when the clock is installed
-   too high and is out of reach. There is no remote control provided with the clock. It must be bought by the user.
-   Current support is for a Memorex remote control, model MCR 5221 that I had readily available. If another brand of
-   remote control is to be used, user will have to decode its protocol and implement it in the Green Clock firmware.
-   (a file similar to "memorex.cpp" must be created to support the new remote control).
-   If you did install an infrared sensor, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define IR_SUPPORT".
-   You also need to replace the default "REMOTE_FILENAME" by the filename you created containing the infrared timing / codes corresponding to your remote control.
-   You may want to check the Pico-Remote-Analyzer utility in one of my repositories. */
-#define IR_SUPPORT // if an infrared sensor (VS1838B-type) has been installed by the user and IR protocol of the remote control has been analyzed and implemented.
-
-/* Specify the file containing the remote control protocol to be used. */
-#define REMOTE_FILENAME "memorex.cpp"
-
-/* Silence period request unit (in minutes). Needs remote control. */
-#define SILENCE_PERIOD_UNIT 30
-#ifdef IR_SUPPORT
-#warning Built with INFRARED support
-#endif  // IR_SUPPORT
 #endif  // DEVELOPER_VERSION
-
 /* ----------------------------------------------------------------------------------------------------------------------- *\
                                             End of setup specific to DEVELOPER version
 \* ----------------------------------------------------------------------------------------------------------------------- */
