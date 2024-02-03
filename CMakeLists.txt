@@ -43,8 +43,8 @@ target_include_directories(Pico-Green-Clock PRIVATE
 #
 #
 # Send Pico's output to USB and also to UART (for debug purposes).
-pico_enable_stdio_uart(Pico-Green-Clock 0)
-pico_enable_stdio_usb(Pico-Green-Clock 1)
+pico_enable_stdio_uart(Pico-Green-Clock 1)
+pico_enable_stdio_usb(Pico-Green-Clock 0)
 #
 #
 # Create map/bin/hex/uf2 files etc.

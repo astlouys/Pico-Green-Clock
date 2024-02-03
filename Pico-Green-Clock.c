@@ -309,7 +309,7 @@
 
 /* Load custom calendar and reminder files for Andre*/
 // This is used when creating developer and debug builds
-//#define DEVELOPER_IS_ANDRE
+// #define DEVELOPER_IS_ANDRE
 
 /* ---------------------------------------------------------------------------------- *\
                           Options that can be installed by user.
@@ -423,7 +423,7 @@
 
 /* Loop at the beginning of the code until a USB CDC connection has been established. Quick beeps will be heard during waiting so that user
    is aware of what's going on. */
-#define USB_CONNECTION  ///
+// #define USB_CONNECTION  ///
 #ifdef USB_CONNECTION
 #warning Built with USB_CONNECTION
 #endif  // USB_CONNECTION
@@ -1515,17 +1515,17 @@ int main(void)
   // DebugBitMask += DEBUG_CORE;
   // DebugBitMask += DEBUG_CRC16;
   // DebugBitMask += DEBUG_DHT;
-  DebugBitMask += DEBUG_DST;
+  // DebugBitMask += DEBUG_DST;
   // DebugBitMask += DEBUG_EVENT;
   // DebugBitMask += DEBUG_FLASH;
   // DebugBitMask += DEBUG_IDLE_MONITOR;
   // DebugBitMask += DEBUG_INDICATORS;
   // DebugBitMask += DEBUG_IR_COMMAND;
-  DebugBitMask += DEBUG_NTP;
+  // DebugBitMask += DEBUG_NTP;
   // DebugBitMask += DEBUG_PICO_W;
   // DebugBitMask += DEBUG_PWM;
-  DebugBitMask += DEBUG_REMINDER;
-  DebugBitMask += DEBUG_RTC;
+  // DebugBitMask += DEBUG_REMINDER;
+  // DebugBitMask += DEBUG_RTC;
   // DebugBitMask += DEBUG_SOUND_QUEUE;
   // DebugBitMask += DEBUG_SCROLL;
   // DebugBitMask += DEBUG_TEMP;
@@ -6509,7 +6509,7 @@ int init_gpio(void)
   /* Initialize UART0 used to send information to a VT-101 type monitor for debugging purposes. */
   gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
   gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-  uart_init(uart0, 921600);
+  uart_init(uart0, 230400);
   uart_set_format(uart0, 8, 1, UART_PARITY_NONE);
 
 
