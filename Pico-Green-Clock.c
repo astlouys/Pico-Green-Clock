@@ -307,7 +307,9 @@
 /* Release or Developer Version: Make selective choices or options. */
 #define RELEASE_VERSION  ///
 
-
+/* Load custom calendar and reminder files for Andre*/
+// This is used when creating developer and debug builds
+//#define DEVELOPER_IS_ANDRE
 
 /* ---------------------------------------------------------------------------------- *\
                           Options that can be installed by user.
@@ -389,12 +391,19 @@
 #define DEVELOPER_VERSION
 #warning Built as DEVELOPER_VERSION
 
+// Load custom calendar and reminder files for each developer.
 /* Specify the filename of calendar events to merge with this version of firmware. */
+#ifdef DEVELOPER_IS_ANDRE
 #define CALENDAR_FILENAME "CalendarEventsAndre.cpp"
 
 /* Specify the filename of calendar events to merge with this version of firmware. */
 #define REMINDER_FILENAME "RemindersAndre.cpp"
+#else
+#define CALENDAR_FILENAME "CalendarEventsGeneric.cpp"
 
+/* Specify the filename of calendar events to merge with this version of firmware. */
+#define REMINDER_FILENAME "RemindersGeneric.cpp"
+#endif
 /* Conditional compile to allow a quicker power-up sequence by-passing some device tests. */
 #define QUICK_START  ///
 #ifdef QUICK_START
@@ -879,191 +888,14 @@ UINT8 SETUP_AUTO_BRIGHT =          0x13;
          NOTE: No validation is done on the date. If an invalid date is set, the event will never be scrolled.
                Also if, for example, 29-FEB is set, the event will be scrolled only every 4 years.
 \* ------------------------------------------------------------------ */
-/* Calendar events definition. */
-struct event
-{
-  UINT64 Day;
-  UINT8  Month;
-  UINT16 Jingle;
-  UCHAR  Description[51];
-};
 
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
 #include CALENDAR_FILENAME
 
-
-/* Alarm definitions. */
-struct alarm
-{
-  UINT8 FlagStatus;
-  UINT8 Second;
-  UINT8 Minute;
-  UINT8 Hour;
-  UINT8 Day;
-  UCHAR Text[40];
-};
-
-
-/* Command definitions for command queue. */
-struct command
-{
-  UINT16 Command;
-  UINT16 Parameter;
-};
-
-
-/* Summer Time / Winter Time parameters definitions. */
-struct dst_parameters
-{
-  UINT8  StartMonth;
-  UINT8  StartDayOfWeek;
-  int8_t StartDayOfMonthLow;
-  int8_t StartDayOfMonthHigh;
-  UINT8  StartHour;
-  UINT16 StartDayOfYear;
-  UINT8  EndMonth;
-  UINT8  EndDayOfWeek;
-  int8_t EndDayOfMonthLow;
-  int8_t EndDayOfMonthHigh;
-  UINT8  EndHour;
-  UINT16 EndDayOfYear;
-  UINT8  ShiftMinutes;
-};
-
-
-/* Structure to contain time stamp under "human" format instead of "tm" standard. */
-struct human_time
-{
-  UINT16 Hour;
-  UINT16 Minute;
-  UINT16 Second;
-  UINT16 DayOfMonth;
-  UINT16 Month;
-  UINT16 Year;
-  UINT16 DayOfWeek;
-  UINT16 DayOfYear;
-  UINT8  FlagDst;
-};
-
-
-/* NTP data structure. */
-struct ntp_data
-{
-  /* Time-related data. */
-  UINT8  CurrentDayOfWeek;
-  UINT8  CurrentDayOfMonth;
-  UINT8  CurrentMonth;
-  UINT16 CurrentYear;
-  UINT8  CurrentYearLowPart;
-  UINT8  CurrentHour;
-  UINT8  CurrentMinute;
-  UINT8  CurrentSecond;
-
-  /* Generic data. */
-  time_t Epoch;
-  UINT8  FlagNTPResync;   // flag set to On if there is a specific reason to request an NTP update without delay.
-  UINT8  FlagNTPSuccess;  // flag indicating that NTP date and time request has succeeded.
-  UINT64 NTPDelta;
-  UINT32 NTPErrors;       // cumulative number of errors while trying to re-sync with NTP.
-  UINT64 NTPGetTime;
-  UINT64 NTPLastUpdate;
-  UINT32 NTPReadCycles;   // total number of re-sync cycles through NTP.
-}NTPData;
-
-
-/* Clock display pixel definitions. */
-struct pixel
-{
-  UINT8 DisplayBuffer;
-  UINT8 BitNumber;
-};
-
-
-/* Pulse Wide Modulation (PWM) parameters definitions. */
-struct pwm
-{
-  UINT8  Channel;
-  UINT32 Clock;
-  float  ClockDivider;
-  UINT8  DutyCycle;
-  UINT32 Frequency;
-  UINT8  Gpio;
-  UINT16 Level;
-  UINT8  OnOff;
-  UINT8  Slice;
-  UINT16 Wrap;
-};
-
-
-/* Type 1 Reminders. */
-struct reminder1
-{
-  struct human_time StartPeriod;
-  UINT64 StartPeriodEpoch;
-  struct human_time EndPeriod;
-  UINT64 EndPeriodEpoch;
-  struct human_time FirstRing;
-  UINT64 FirstRingEpoch;
-  UINT64 RingDuration;
-  UINT64 RingRepeatTime;
-  UINT64 NextReminderDelay;
-  UCHAR  Description[51];
-};
-
-
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
 #include REMINDER_FILENAME
 
-
-/* Active buzzer sound parameters definitions. */
-struct sound_active
-{
-  UINT16 MSec;
-  UINT16 RepeatCount;
-};
-
-
-/* Passive buzzer sound parameters definitions. */
-struct sound_passive
-{
-  UINT16 Freq;
-  UINT16 MSec;
-};
-
-
-/* Structure containing the Green Clock configuration being saved to flash memory.
-   Those variables will be restored after a reboot and / or power failure. */
-/* IMPORTANT: Version must always be the first element of the structure and
-              CRC16   must always be the  last element of the structure. */
-struct flash_config
-{
-  UCHAR  Version[6];          // firmware version number (format: "06.00" - including end-of-string).
-  UINT8  CurrentYearCentile;  // assume we are in years 20xx on power-up but is adjusted when configuration is read (will your clock live long enough for a "21" ?!).
-  UINT8  Language;            // language used for data display (including date scrolling).
-  UCHAR  DSTCountry;  // specifies how to handle the daylight saving time (see User Guide and / or clock options above).
-  UINT8  TemperatureUnit;     // CELSIUS or FAHRENHEIT default value (see clock options above).
-  UINT8  TimeDisplayMode;     // H24 or H12 default value (see clock options above).
-  UINT8  ChimeMode;           // chime mode (Off / On / Day).
-  UINT8  ChimeTimeOn;         // hourly chime will begin at this hour.
-  UINT8  ChimeTimeOff;        // hourly chime will stop after this hour.
-  UINT8  NightLightMode;      // night light mode (On / Off / Auto / Night).
-  UINT8  NightLightTimeOn;    // default night light time On.
-  UINT8  NightLightTimeOff;   // default night light time Off.
-  UINT8  FlagAutoBrightness;  // flag indicating we are in "Auto Brightness" mode.
-  UINT8  FlagKeyclick;        // flag for keyclick ("button-press" tone)
-  UINT8  FlagScrollEnable;    // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
-  UINT8  FlagSummerTime;      // flag indicating the current status (On or Off) of Daylight Saving Time / Summer Time.
-  int8_t Timezone;            // (in hours) value to add to UTC time (Universal Time Coordinate) to get the local time.
-  UINT8  Reserved1[48];       // reserved for future use.
-  struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask.
-  UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
-  UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
-  UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5 of the variable string, for the same reason as SSID above.
-  UCHAR  Reserved2[48];       // reserved for future use.
-  UINT16 Crc16;               // crc16 of all data above to validate configuration.
-} FlashConfig;
-
-
+// Define data structures for optional hardware.
 #ifdef BME280_SUPPORT
 /* BME280 calibration parameters computed from data written in the device. */
 struct bme280_data
@@ -1079,7 +911,7 @@ struct bme280_data
   /* Pressure-related parameters. */
   UINT16  DigP1;
   int16_t DigP2;
-  int16_t DigP3;
+  int16_t DigP3;``
   int16_t DigP4;
   int16_t DigP5;
   int16_t DigP6;
@@ -1184,6 +1016,7 @@ UINT8  FlagTimerCountDownEnd      = FLAG_OFF;  // flag indicating the count down
 UINT8  FlagTone                   = FLAG_OFF;  // flag indicating there is a tone sounding.
 UINT8  FlagToneOn                 = FLAG_OFF;  // flag indicating it is time to make a tone.
 UINT8  FlagUpdateTime             = FLAG_OFF;  // flag indicating it is time to refresh the time on clock display.
+struct flash_config FlashConfig;               // Hold the flash data storage in a data structure
 UINT8 *FlashData;                                                       // pointer to an allocated RAM memory space used for flash operations.
 UINT8 *FlashMemoryAddress = (UINT8 *)(XIP_BASE + FLASH_CONFIG_OFFSET);  // pointer to flash memory used to store clock configuration (flash base address + offset).
 UINT8 *FlashMemoryOffset  = (UINT8 *)FLASH_CONFIG_OFFSET;               // offset from Pico's beginning of flash where data will be stored.
@@ -1211,6 +1044,7 @@ UINT8  MonthDays[2][12] = {{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},  //
 
 UINT8  NightLightTimeOffDisplay;    // to adapt to 12 or 24-hours time format.
 UINT8  NightLightTimeOnDisplay;     // to adapt to 12 or 24-hours time format.
+struct ntp_data NTPData;            // Hold the NTP returned data in a data structure
 
 UINT8  PicoType;                    // microcontroller type (Pico or Pico W).
 UCHAR  PicoUniqueId[40];            // Pico Unique ID read from flash IC.
