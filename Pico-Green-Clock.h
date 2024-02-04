@@ -794,11 +794,11 @@ struct human_time wfetch_current_datetime(void);
 
 UINT8 wfetch_current_language(void);
 
-UCHAR* wfetch_current_dayname(void);
+UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek);
 
 UINT16 wfetch_current_dayofmonth(void);
 
-UCHAR* wfetch_current_monthname(void);
+UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month);
 
 void wwrite_day_of_month(UINT8 NewDayOfMonth);
 

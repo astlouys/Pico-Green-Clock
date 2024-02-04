@@ -18261,10 +18261,8 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
 }
 
 UCHAR* wfetch_hostname(void){
-  UCHAR* my_hostname = &FlashConfig.Hostname[4];
-  return my_hostname;
+  return &FlashConfig.Hostname[4];
 }
-
 
 struct human_time wfetch_current_datetime(void) {
   struct human_time current_time;
@@ -18284,16 +18282,12 @@ UINT8 wfetch_current_language(void){
   return FlashConfig.Language;
 }
 
-UCHAR* wfetch_current_dayname(void){
-  return DayName[FlashConfig.Language][CurrentDayOfWeek];
+UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek){
+  return DayName[the_language][the_dayofweek];
 }
 
-UINT16 wfetch_current_dayofmonth(void){
-  return CurrentDayOfMonth;
-}
-
-UCHAR* wfetch_current_monthname(void){
-  return MonthName[FlashConfig.Language][CurrentMonth];
+UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month){
+  return MonthName[the_language][the_month];
 }
 
 void wwrite_day_of_month(UINT8 NewDayOfMonth) {
@@ -18301,12 +18295,13 @@ void wwrite_day_of_month(UINT8 NewDayOfMonth) {
   return;
 }
 
-
 UINT8 wfetch_alarm(UINT8 alarm_to_fetch){
   return FlashConfig.Alarm[alarm_to_fetch].FlagStatus;
 }
 
 void wwrite_alarm(UINT8 alarm_to_write, UINT8 NewFlagValue){
   FlashConfig.Alarm[alarm_to_write].FlagStatus = NewFlagValue;
+  return;
 }
+
 
