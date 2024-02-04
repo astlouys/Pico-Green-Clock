@@ -6509,7 +6509,7 @@ int init_gpio(void)
   /* Initialize UART0 used to send information to a VT-101 type monitor for debugging purposes. */
   gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
   gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-  uart_init(uart0, 230400);
+  uart_init(uart0, 921600);
   uart_set_format(uart0, 8, 1, UART_PARITY_NONE);
 
 
