@@ -18265,6 +18265,25 @@ UCHAR* wfetch_hostname(void){
   return my_hostname;
 }
 
+
+struct human_time wfetch_current_datetime(void) {
+  struct human_time current_time;
+  current_time.Hour = CurrentHour;
+  current_time.Minute = CurrentMinute;
+  current_time.Second = CurrentSecond;
+  current_time.DayOfMonth = CurrentDayOfMonth;
+  current_time.Month = CurrentMonth;
+  current_time.Year = CurrentYear;
+  current_time.DayOfWeek = CurrentDayOfWeek;
+  current_time.DayOfYear = CurrentDayOfYear;
+  current_time.FlagDst = FlashConfig.FlagSummerTime;
+  return current_time;
+}
+
+UINT8 wfetch_current_language(void){
+  return FlashConfig.Language;
+}
+
 UCHAR* wfetch_current_dayname(void){
   return DayName[FlashConfig.Language][CurrentDayOfWeek];
 }

@@ -790,6 +790,10 @@ void process_ir_command(UINT8 IrCommand);
 
 UCHAR* wfetch_hostname(void);
 
+struct human_time wfetch_current_datetime(void);
+
+UINT8 wfetch_current_language(void);
+
 UCHAR* wfetch_current_dayname(void);
 
 UINT16 wfetch_current_dayofmonth(void);
