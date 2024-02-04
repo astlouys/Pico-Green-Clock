@@ -4,17 +4,22 @@
 #include "Pico-Green-Clock.h"
 #include "ssi.h"
 
+
 // SSI tags - tag length limited to 8 bytes by default
-const char * ssi_tags[] = {"volt","temp","led","day","alarm"};
+const char * ssi_tags[] = {"host","volt","temp","led","date","alarm"};
 //, "day", "month", "year", "hour", "mins", "secs"
-// struct human_time WebHumanTime;
-// struct tm WebTmTime;
-uint8_t daynum;
 
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
+
   switch (iIndex) {
-  case 0: // volt
+  case 0: // host
+    {
+      UCHAR* my_host = wfetch_hostname();
+      printed = snprintf(pcInsert, iInsertLen, "%s", my_host);
+    }
+    break;
+  case 1: // volt
     {
       adc_select_input(3);
       bool led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
@@ -27,7 +32,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
     }
     break;
-  case 1: // temp
+  case 2: // temp
     {
       adc_select_input(4);
       const float voltage = adc_read() * 3.3f / (1 << 12);
@@ -35,7 +40,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%f", tempC);
     }
     break;
-  case 2: // led
+  case 3: // led
     {
       bool led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
       if(led_status == true){
@@ -46,17 +51,18 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       }
     }
     break;
-  case 3: // day
+  case 4: // date
     {
-      daynum = wfetch_day_of_month();
-      printed = snprintf(pcInsert, iInsertLen, "%d", daynum);
+      UCHAR* my_weekname = wfetch_current_dayname();
+      UINT16 my_dayofmonth = wfetch_current_dayofmonth();
+      UCHAR* my_monthname = wfetch_current_monthname();
+      printed = snprintf(pcInsert, iInsertLen, "%s %d %s", my_weekname, my_dayofmonth, my_monthname);
     }
-  case 4: // alarm
+    break;
+  case 5: // alarm
     {
-      for (UINT8 i = 1; i < 9; ++i)
-      {
-        printed = snprintf(pcInsert, iInsertLen, "%d ", wfetch_alarm(i));
-      }
+      printed = snprintf(pcInsert, iInsertLen, "%d %d", wfetch_alarm(0), wfetch_alarm(1));
+      // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
     }
     break;
   default:

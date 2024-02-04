@@ -6,10 +6,11 @@
     <body> <h1>PicoW Webserver Tutorial</h1>
         <br>
         <h2>This bit is SSI:</h2>
+        <p>Hostname: <!--#host--></p>
         <p>Voltage: <!--#volt--> V</p>
         <p>Temp: <!--#temp--> Deg C</p>
         <p>LED is: <!--#led--></p>
-        <p>Day of Month is: <!--#day--></p>
+        <p>Date is: <!--#date--></p>
         <p>Alarm status is: <!--#alarm--></p>
         <br>
         <h2>This bit is CGI:</h2>
