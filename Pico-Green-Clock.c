@@ -2914,8 +2914,9 @@ float adc_read_voltage(void)
 {
   UINT16 AdcValue;
 
+  bool led_status;
   float Volts;
-
+  float Voltswl;
 
   /*** Strangely, voltage reading doesn't seem to work on the Pico W as it does on the Pico... ***/
   /*** I'll have to investigate this later... ***/
@@ -2929,13 +2930,22 @@ float adc_read_voltage(void)
   adc_select_input(3);
 
   /* For Pico W, it is important that GPIO 25 be high to read the power supply voltage. */
-  if (PicoType == TYPE_PICO_W) gpio_put(PICO_LED, 1);
+  if (PicoType == TYPE_PICO_W){
+    led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
+    // This must be a Pico W for web access to be called
+    // For Pico W, it is important that GPIO 25 be high to read the power supply voltage.
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+  }
 
   /* Read ADC converter raw value. */
   AdcValue = adc_read();
 
   /* Convert raw value to voltage value. */
   Volts = AdcValue * (3.3 / (1 << 12));
+  if (PicoType == TYPE_PICO_W){
+    // Set LED back
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
+  }
 
   if (DebugBitMask & DEBUG_PICO_W)
   {
@@ -2944,18 +2954,22 @@ float adc_read_voltage(void)
   }
 
   /* Reset output to low level. */
-  if (PicoType == TYPE_PICO_W) gpio_put(PICO_LED, 0);
+  if (PicoType == TYPE_PICO_W) {
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
-  /* Read ADC converter raw value. */
-  AdcValue = adc_read();
+    /* Read ADC converter raw value. */
+    AdcValue = adc_read();
+    // Set LED back
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
 
-  /* Convert raw value to voltage value. */
-  Volts = AdcValue * (3.3 / (1 << 12));
+    /* Convert raw value to voltage value. */
+    Voltswl = AdcValue * (3.3 / (1 << 12));
 
-  if (DebugBitMask & DEBUG_PICO_W)
-  {
-    uart_send(__LINE__, "Reading when level low: %u\r", AdcValue);
-    uart_send(__LINE__, "Converted to volts: %2.2f\r", Volts);
+    if (DebugBitMask & DEBUG_PICO_W)
+    {
+      uart_send(__LINE__, "Reading when level low: %u\r", AdcValue);
+      uart_send(__LINE__, "Converted to volts: %2.2f\r", Voltswl);
+    }
   }
 
   return Volts;
