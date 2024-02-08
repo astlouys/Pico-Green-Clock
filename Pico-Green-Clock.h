@@ -408,7 +408,7 @@ struct pwm
   UINT8  Channel;
   UINT32 Clock;
   float  ClockDivider;
-  UINT8  DutyCycle;
+  UINT16 Cycles;
   UINT32 Frequency;
   UINT8  Gpio;
   UINT16 Level;
@@ -473,13 +473,28 @@ struct flash_config
   UINT8  FlagScrollEnable;    // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
   UINT8  FlagSummerTime;      // flag indicating the current status (On or Off) of Daylight Saving Time / Summer Time.
   int8_t Timezone;            // (in hours) value to add to UTC time (Universal Time Coordinate) to get the local time.
-  UINT8  Reserved1[48];       // reserved for future use.
+  UINT8  LongSetKey;          // flag indicating the set is a short key press and alarm is long or vice versa.
+  UINT8  Reserved1[47];       // reserved for future use.
   struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask.
   UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5 of the variable string, for the same reason as SSID above.
   UCHAR  Reserved2[48];       // reserved for future use.
   UINT16 Crc16;               // crc16 of all data above to validate configuration.
+};
+
+/* Web page fetch routine structures to read multiple data values at the same time
+   to keep the data consistent. */
+struct web_light_value
+{
+  UINT16 adc_current_value;   // Current ADC value
+  UINT16 AverageLightLevel;   // Average ADC value across the 20 measurement slots
+  UINT16 AverageLevel;        // Bounded average ADC value
+  UINT16 Cycles;              // Current pwm active cycles
+  UINT16 pwm_level;           // Current programmed dimmer level
+  UINT16 Max_adc_value;       // Cumulative max value
+  UINT16 Min_adc_value;       // Cumulative min value
+
 };
 
 /* ------------------------------------------------------------------ *\
@@ -623,8 +638,8 @@ void pwm_initialize(void);
 /* Turn On or Off the PWM signal specified in argument. */
 void pwm_on_off(UINT8 PwmNumber, UINT8 FlagSwitch);
 
-/* Set the duty cycle for the PWM used for clock display brightness. */
-void pwm_set_duty_cycle(UINT8 DutyCycle);
+/* Set the active cycles for the PWM used for clock display brightness. */
+void pwm_set_cycles(UINT16 Cycles);
 
 /* Set the frequency for the PWM used for passive buzzer. */
 void pwm_set_frequency(UINT16 Frequency);
@@ -805,4 +820,8 @@ void wwrite_day_of_month(UINT8 NewDayOfMonth);
 UINT8 wfetch_alarm(UINT8 alarm_to_fetch);
 
 void wwrite_alarm(UINT8 alarm_to_write, UINT8 NewFlagValue);
+
+struct web_light_value wfetch_light_adc_level(void);
+
+void wcalc_form(UINT16 mvalue, UINT16 nvalue);
 

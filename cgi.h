@@ -3,6 +3,7 @@
 const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_date_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_alarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
+const char * cgi_myform_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 
 
 // cgi handler initialiser

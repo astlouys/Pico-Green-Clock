@@ -6,14 +6,11 @@
 
 
 // SSI tags - tag length limited to 8 bytes by default
-const char * ssi_tags[] = {"host","volt","temp","led","date","alarm"};
+const char * ssi_tags[] = {"host","volt","temp","led","date","alarm","light"};
 //, "day", "month", "year", "hour", "mins", "secs"
 
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
-
-  struct human_time now_time;
-  UINT8 my_language;
   switch (iIndex) {
   case 0: // host
     {
@@ -55,20 +52,27 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
     break;
   case 4: // date
     {
-      my_language = wfetch_current_language();
-      now_time = wfetch_current_datetime();
+      UINT8 my_language = wfetch_current_language();
+      struct human_time now_time = wfetch_current_datetime();
       UCHAR* my_weekdayname = wfetch_DayName(my_language, now_time.DayOfWeek);
       UINT16 my_dayofmonth = now_time.DayOfMonth;
       UCHAR* my_monthname = wfetch_MonthName(my_language, now_time.Month);
       UINT16 my_hour = now_time.Hour;
       UINT16 my_minute = now_time.Minute;
       UINT16 my_second = now_time.Second;
-      printed = snprintf(pcInsert, iInsertLen, "Date is : %s %d %s\nTime is : %d:%d:%d", my_weekdayname, my_dayofmonth, my_monthname, my_hour, my_minute, my_second);
+      printed = snprintf(pcInsert, iInsertLen, "%s %d %s\r\nTime is : %d:%02d:%02d", my_weekdayname, my_dayofmonth, my_monthname, my_hour, my_minute, my_second);
     }
     break;
   case 5: // alarm
     {
       printed = snprintf(pcInsert, iInsertLen, "%d %d", wfetch_alarm(0), wfetch_alarm(1));
+      // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
+    }
+    break;
+  case 6: // light
+    {
+      struct web_light_value dimmer_light_values = wfetch_light_adc_level();
+      printed = snprintf(pcInsert, iInsertLen, "Instant level: %4u   Av1: %4u   Av2: %4u   PWM Cycles: %3u  PWM Brightness Level: %3u   Max ADC level: %4u   Min ADC level: %4u\r", dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.AverageLevel, dimmer_light_values.Cycles, dimmer_light_values.pwm_level, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
       // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
     }
     break;

@@ -12,6 +12,7 @@
         <p>LED is: <!--#led--></p>
         <p>Date is: <!--#date--></p>
         <p>Alarm status is: <!--#alarm--></p>
+        <p>Clock display levels <!--#light--></p>
         <br>
         <h2>This bit is CGI:</h2>
         <a href="/led.cgi?led=1"><button>LED ON</button></a>
@@ -25,6 +26,11 @@
         <a href="/alarm.cgi?salarm=2"><button>Set Alarm 2</button></a>
         <a href="/alarm.cgi?calarm=2"><button>Clear Alarm 2</button></a>
         <br>
+        <form action="/myform.cgi">
+          <div><label>Multiplicand 1: <input name="m" size="5"></label></div>
+          <div><label>Multiplicand 2: <input name="n" size="5"></label></div>
+          <div><input type="submit" value="Multiply!"></div>
+        </form>
         <br>
         <a href="/index.shtml">Refresh</a>
    </body>
