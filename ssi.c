@@ -85,34 +85,13 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       // Time of alarm
       strcat(html_alarm_form, "<label for=\"a0time\">time:</label><input type=\"time\" id=\"a0time\" name=\"a0time\" value=\"%02d:%02d\">\n");
       // Extract day of week flags
-      Alarm_Mon = 0;
-      Alarm_Tue = 0;
-      Alarm_Wed = 0;
-      Alarm_Thu = 0;
-      Alarm_Fri = 0;
-      Alarm_Sat = 0;
-      Alarm_Sun = 0;
-      if (my_alarm.Day & (1 << MON)){
-        Alarm_Mon = 1;
-      }
-      if (my_alarm.Day & (1 << TUE)){
-        Alarm_Tue = 1;
-      }
-      if (my_alarm.Day & (1 << WED)){
-        Alarm_Wed = 1;
-      }
-      if (my_alarm.Day & (1 << THU)){
-        Alarm_Thu = 1;
-      }
-      if (my_alarm.Day & (1 << FRI)){
-        Alarm_Fri = 1;
-      }
-      if (my_alarm.Day & (1 << SAT)){
-        Alarm_Sat = 1;
-      }
-      if (my_alarm.Day & (1 << SUN)){
-        Alarm_Sun = 1;
-      }
+      Alarm_Mon = ((my_alarm.Day >> MON) & 0x01);
+      Alarm_Tue = ((my_alarm.Day >> TUE) & 0x01);
+      Alarm_Wed = ((my_alarm.Day >> WED) & 0x01);
+      Alarm_Thu = ((my_alarm.Day >> THU) & 0x01);
+      Alarm_Fri = ((my_alarm.Day >> FRI) & 0x01);
+      Alarm_Sat = ((my_alarm.Day >> SAT) & 0x01);
+      Alarm_Sun = ((my_alarm.Day >> SUN) & 0x01);
 
       // printed = snprintf(pcInsert, iInsertLen, "<label for=\"a0en\">Enable</label><input type=\"checkbox\" id=\"a0en\" name=\"a0en\" value=\"%d\">\n<label for=\"a0time\">time:</label><input type=\"time\" id=\"a0time\" name=\"a0time\" value=\"%02d:%02d\">\n<label for=\"a0mond\">Monday</label><input type=\"checkbox\" id=\"a0mond\" name=\"a0mond\" value=\"%d\">\n"
       // ,my_alarm.FlagStatus,my_alarm.Hour,my_alarm.Minute,Alarm_Mon);
