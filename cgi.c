@@ -33,23 +33,6 @@ const char * cgi_date_handler(int iIndex, int iNumParams, char *pcParam[], char 
     return "/index.shtml";
 }
 
-// CGI handler which is run when a request for /alarm.cgi is detected
-const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    // Check if an request for LED has been made (/alarm.cgi?<s/c>alarm==x)
-    // Check first parameter only as don't care about others
-    // if (strcmp(pcParam[0], "salarm") == 0) {
-    //     alarmvalue = atoi(pcValue[0]);
-    //     wwrite_alarm(alarmvalue, 1);
-    // }
-    // if (strcmp(pcParam[0], "calarm") == 0) {
-    //     alarmvalue = atoi(pcValue[0]);
-    //     wwrite_alarm(alarmvalue, 0);
-    // }
-    // Send the index page back to the user
-    return "/index.shtml";
-}
-
 // CGI handler which is run when a request for /myform.cgi is detected
 const char * cgi_myform_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
     UINT8 Loop1UInt8;
@@ -77,6 +60,72 @@ const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], 
     return "/index.shtml";
 }
 
+
+// CGI handler which is run when a request for /htalarm0.cgi is detected
+const char * cgi_htalarm0_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    // Check if an request for LED has been made (/alarm.cgi?<s/c>alarm==x)
+    // Check first parameter only as don't care about others
+    // if (strcmp(pcParam[0], "salarm") == 0) {
+    //     alarmvalue = atoi(pcValue[0]);
+    //     wwrite_alarm(alarmvalue, 1);
+    // }
+    // if (strcmp(pcParam[0], "calarm") == 0) {
+    //     alarmvalue = atoi(pcValue[0]);
+    //     wwrite_alarm(alarmvalue, 0);
+    // }
+    // Send the index page back to the user
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm1.cgi is detected
+const char * cgi_htalarm1_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm2.cgi is detected
+const char * cgi_htalarm2_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm3.cgi is detected
+const char * cgi_htalarm3_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm4.cgi is detected
+const char * cgi_htalarm4_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm5.cgi is detected
+const char * cgi_htalarm5_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm6.cgi is detected
+const char * cgi_htalarm6_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm7.cgi is detected
+const char * cgi_htalarm7_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /htalarm8.cgi is detected
+const char * cgi_htalarm8_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 alarmvalue;
+    return "/index.shtml";
+}
+
 // tCGI Struct
 // Fill this with all of the CGI requests and their respective handlers
 static const tCGI cgi_handlers[] = {
@@ -88,18 +137,42 @@ static const tCGI cgi_handlers[] = {
         "/date.cgi", cgi_date_handler
     },
     {
-        "/htalarm.cgi", cgi_htalarm_handler
-    },
-    {
         "/myform.cgi", cgi_myform_handler
     },
     {
         "/mynetwork.cgi", cgi_mynetwork_handler
-    }
+    },
+    {
+        "/htalarm0.cgi", cgi_htalarm0_handler
+    },
+    {
+        "/htalarm1.cgi", cgi_htalarm1_handler
+    },
+    {
+        "/htalarm2.cgi", cgi_htalarm2_handler
+    },
+    {
+        "/htalarm3.cgi", cgi_htalarm3_handler
+    },
+    {
+        "/htalarm4.cgi", cgi_htalarm4_handler
+    },
+    {
+        "/htalarm5.cgi", cgi_htalarm5_handler
+    },
+    {
+        "/htalarm6.cgi", cgi_htalarm6_handler
+    },
+    {
+        "/htalarm7.cgi", cgi_htalarm7_handler
+    },
+    {
+        "/htalarm8.cgi", cgi_htalarm8_handler
+    },
     // Add more functions here...
 };
 
 void cgi_init(void) {
     // We have three handler
-    http_set_cgi_handlers(cgi_handlers, 5);
+    http_set_cgi_handlers(cgi_handlers, 13);
 }
