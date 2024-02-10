@@ -34,18 +34,18 @@ const char * cgi_date_handler(int iIndex, int iNumParams, char *pcParam[], char 
 }
 
 // CGI handler which is run when a request for /alarm.cgi is detected
-const char * cgi_alarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
     UINT8 alarmvalue;
     // Check if an request for LED has been made (/alarm.cgi?<s/c>alarm==x)
     // Check first parameter only as don't care about others
-    if (strcmp(pcParam[0], "salarm") == 0) {
-        alarmvalue = atoi(pcValue[0]);
-        wwrite_alarm(alarmvalue, 1);
-    }
-    if (strcmp(pcParam[0], "calarm") == 0) {
-        alarmvalue = atoi(pcValue[0]);
-        wwrite_alarm(alarmvalue, 0);
-    }
+    // if (strcmp(pcParam[0], "salarm") == 0) {
+    //     alarmvalue = atoi(pcValue[0]);
+    //     wwrite_alarm(alarmvalue, 1);
+    // }
+    // if (strcmp(pcParam[0], "calarm") == 0) {
+    //     alarmvalue = atoi(pcValue[0]);
+    //     wwrite_alarm(alarmvalue, 0);
+    // }
     // Send the index page back to the user
     return "/index.shtml";
 }
@@ -71,6 +71,12 @@ const char * cgi_myform_handler(int iIndex, int iNumParams, char *pcParam[], cha
     return "/index.shtml";
 }
 
+// CGI handler which is run when a request for /mynetwork.cgi is detected
+const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    // Send the index page back to the user
+    return "/index.shtml";
+}
+
 // tCGI Struct
 // Fill this with all of the CGI requests and their respective handlers
 static const tCGI cgi_handlers[] = {
@@ -82,15 +88,18 @@ static const tCGI cgi_handlers[] = {
         "/date.cgi", cgi_date_handler
     },
     {
-        "/alarm.cgi", cgi_alarm_handler
+        "/htalarm.cgi", cgi_htalarm_handler
     },
     {
         "/myform.cgi", cgi_myform_handler
+    },
+    {
+        "/mynetwork.cgi", cgi_mynetwork_handler
     }
     // Add more functions here...
 };
 
 void cgi_init(void) {
     // We have three handler
-    http_set_cgi_handlers(cgi_handlers, 4);
+    http_set_cgi_handlers(cgi_handlers, 5);
 }

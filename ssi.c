@@ -1,3 +1,4 @@
+#include <string.h>
 #include "lwip/apps/httpd.h"
 #include "pico/cyw43_arch.h"
 #include "hardware/adc.h"
@@ -6,7 +7,7 @@
 
 
 // SSI tags - tag length limited to 8 bytes by default
-const char * ssi_tags[] = {"host","volt","temp","led","date","alarm","light"};
+const char * ssi_tags[] = {"host","volt","temp","led","date","light","htalarm0","htalarm0","htalarm1","htalarm2","htalarm3","htalarm4","htalarm5","htalarm6","htalarm7","htalarm8"};
 //, "day", "month", "year", "hour", "mins", "secs"
 
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
@@ -26,9 +27,9 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       // For Pico W, it is important that GPIO 25 be high to read the power supply voltage.
       cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
       const float voltage = adc_read() * 3.3f / (1 << 12);
-      printed = snprintf(pcInsert, iInsertLen, "%f", voltage);
       // Set LED back
       cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
+      printed = snprintf(pcInsert, iInsertLen, "%f", voltage);
     }
     break;
   case 2: // temp
@@ -63,17 +64,96 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s %d %s\r\nTime is : %d:%02d:%02d", my_weekdayname, my_dayofmonth, my_monthname, my_hour, my_minute, my_second);
     }
     break;
-  case 5: // alarm
-    {
-      printed = snprintf(pcInsert, iInsertLen, "%d %d", wfetch_alarm(0), wfetch_alarm(1));
-      // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
-    }
-    break;
-  case 6: // light
+  case 5: // light
     {
       struct web_light_value dimmer_light_values = wfetch_light_adc_level();
       printed = snprintf(pcInsert, iInsertLen, "Instant level: %4u   Av1: %4u   Av2: %4u   PWM Cycles: %3u  PWM Brightness Level: %3u   Max ADC level: %4u   Min ADC level: %4u\r", dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.AverageLevel, dimmer_light_values.Cycles, dimmer_light_values.pwm_level, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
       // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
+    }
+    break;
+  case 6: // htalarm0
+    {
+      struct alarm my_alarm;
+      UCHAR html_alarm_form [512];
+      UINT8 Alarm_Mon, Alarm_Tue, Alarm_Wed, Alarm_Thu, Alarm_Fri, Alarm_Sat, Alarm_Sun;
+      // Get the flash information for 1st alarm 0
+      my_alarm = wfetch_alarm(0);
+      // Build in a string
+      strcpy(html_alarm_form, "");
+      // Enable button
+      strcat(html_alarm_form, "<label for=\"a0en\">Enable</label><input type=\"checkbox\" id=\"a0en\" name=\"a0en\" value=\"%d\">\n");
+      // Time of alarm
+      strcat(html_alarm_form, "<label for=\"a0time\">time:</label><input type=\"time\" id=\"a0time\" name=\"a0time\" value=\"%02d:%02d\">\n");
+      // Extract day of week flags
+      Alarm_Mon = 0;
+      Alarm_Tue = 0;
+      Alarm_Wed = 0;
+      Alarm_Thu = 0;
+      Alarm_Fri = 0;
+      Alarm_Sat = 0;
+      Alarm_Sun = 0;
+      if (my_alarm.Day & (1 << MON)){
+        Alarm_Mon = 1;
+      }
+      if (my_alarm.Day & (1 << TUE)){
+        Alarm_Tue = 1;
+      }
+      if (my_alarm.Day & (1 << WED)){
+        Alarm_Wed = 1;
+      }
+      if (my_alarm.Day & (1 << THU)){
+        Alarm_Thu = 1;
+      }
+      if (my_alarm.Day & (1 << FRI)){
+        Alarm_Fri = 1;
+      }
+      if (my_alarm.Day & (1 << SAT)){
+        Alarm_Sat = 1;
+      }
+      if (my_alarm.Day & (1 << SUN)){
+        Alarm_Sun = 1;
+      }
+
+      // printed = snprintf(pcInsert, iInsertLen, "<label for=\"a0en\">Enable</label><input type=\"checkbox\" id=\"a0en\" name=\"a0en\" value=\"%d\">\n<label for=\"a0time\">time:</label><input type=\"time\" id=\"a0time\" name=\"a0time\" value=\"%02d:%02d\">\n<label for=\"a0mond\">Monday</label><input type=\"checkbox\" id=\"a0mond\" name=\"a0mond\" value=\"%d\">\n"
+      // ,my_alarm.FlagStatus,my_alarm.Hour,my_alarm.Minute,Alarm_Mon);
+      // Generate the radio buttons
+// strcat(html_alarm_form, "<label for=\"a0time\">time:</label><input type=\"time\" id=\"a0time\" name=\"a0time\" value=\"%02d:%02d\">\n");
+      strcat(html_alarm_form, "<label for=\"a0mond\">Monday</label><input type=\"checkbox\" id=\"a0mond\" name=\"a0mond\" value=\"%d\">\n");
+
+      // html_alarm_form = strcat(html_alarm_form, "<label for=\"a01en\">Enable</label><input type=\"checkbox\" id=\"a01en\" name=\"a01en\" value=\"%02d\">");
+      // printed = snprintf(pcInsert, iInsertLen, "<label for=\"a%02den\">Enable</label><input type=\"checkbox\"id=\"a%02den\" name=\"a%02den\" value=\"%1d\"><label for=\"a%02dtime\">time:</label><input type=\"time\" id=\"a%02dtime\" name=\"a%02dtime\" value=\"%02d:%02d\"> ",
+      //   alarmindx,alarmindx,alarmindx,my_alarm[alarmindx].FlagStatus,alarmindx,alarmindx,alarmindx,my_alarm[alarmindx].Hour,my_alarm[alarmindx].Minute);
+      // printed = snprintf(pcInsert, iInsertLen, "<br>");
+      // Alarm.FlagStatus = ;
+      // Alarm.Second = ;
+      // Alarm.Minute = ;
+      // Alarm.Hour = ;
+      // Alarm.Day = ;
+      // Alarm.Text = ;
+// struct alarm
+// {
+//   UINT8 FlagStatus;
+//   UINT8 Second;
+//   UINT8 Minute;
+//   UINT8 Hour;
+//   UINT8 Day;
+//   UCHAR Text[40];
+// };
+
+      // printed = snprintf(pcInsert, iInsertLen, "%d %d", wfetch_alarm(0), wfetch_alarm(1));
+      // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
+/*
+<label for="a01en">Enable</label><input type="checkbox" id="a01en" name="a01en" value="?">
+<label for="a01time">time:</label><input type="time" id="a01time" name="a01time" value="??:??">
+<label for="a01mond">Enable</label><input type="checkbox" id="a01mond" name="a01mond" value="?">
+<label for="a01tued">Enable</label><input type="checkbox" id="a01tued" name="a01tued" value="?">
+<label for="a01wedd">Enable</label><input type="checkbox" id="a01wedd" name="a01wedd" value="?">
+<label for="a01thud">Enable</label><input type="checkbox" id="a01thud" name="a01thud" value="?">
+<label for="a01frid">Enable</label><input type="checkbox" id="a01frid" name="a01frid" value="?">
+<label for="a01satd">Enable</label><input type="checkbox" id="a01satd" name="a01satd" value="?">
+<label for="a01sund">Enable</label><input type="checkbox" id="a01sund" name="a01sund" value="?">
+*/
+      printed = snprintf(pcInsert, iInsertLen, html_alarm_form , my_alarm.FlagStatus,my_alarm.Hour,my_alarm.Minute,Alarm_Mon);
     }
     break;
   default:

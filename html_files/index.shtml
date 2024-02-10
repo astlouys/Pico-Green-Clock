@@ -11,8 +11,7 @@
         <p>Temp: <!--#temp--> Deg C</p>
         <p>LED is: <!--#led--></p>
         <p>Date is: <!--#date--></p>
-        <p>Alarm status is: <!--#alarm--></p>
-        <p>Clock display levels <!--#light--></p>
+        <p>Clock display information: <!--#light--></p>
         <br>
         <h2>This bit is CGI:</h2>
         <a href="/led.cgi?led=1"><button>LED ON</button></a>
@@ -21,17 +20,24 @@
         <a href="/date.cgi?dayofmonth=1"><button>Month Day 1</button></a>
         <a href="/date.cgi?dayofmonth=2"><button>Month Day 2</button></a>
         <br>
-        <a href="/alarm.cgi?salarm=0"><button>Set Alarm 1</button></a>
-        <a href="/alarm.cgi?calarm=0"><button>Clear Alarm 1</button></a>
-        <a href="/alarm.cgi?salarm=1"><button>Set Alarm 2</button></a>
-        <a href="/alarm.cgi?calarm=1"><button>Clear Alarm 2</button></a>
-        <br>
         <form action="/myform.cgi">
           <div><label>Multiplicand 1: <input name="m" size="5"></label></div>
           <div><label>Multiplicand 2: <input name="n" size="5"></label></div>
           <div><input type="submit" value="Multiply!"></div>
         </form>
+        <form action="/mynetwork.cgi">
+          <label for="hostname">Host name:</label><br>
+          <input type="text" id="hostname" name="hostname" value=<!--#host-->>
+          <input type="submit" value="Change Name">
+        </form>
+        <br>
+        <form action="/htalarm.cgi">
+          <label for="alarms">Current Alarms:</label><br>
+          <!--#htalarm0--><br>
+          <input type="submit" value="Update Alarms">
+        </form>
         <br>
         <a href="/index.shtml">Refresh</a>
    </body>
 </html>
+

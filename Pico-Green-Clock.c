@@ -496,9 +496,10 @@
 #define TONE_KEYCLICK_DURATION  50   // when pressing a button ("keyclick").
 #define TONE_TIMER_DURATION    100   // when count-down timer reaches 00m00s.
 
+#define BRIGHTNESS_PWM_FREQUENCY   1000   // PWM LED driver base frequency in Hz - lower value the lower the light level
 #define BRIGHTNESS_MINLIGHTLEVEL    230   // Light sensor reading for full darkness
 #define BRIGHTNESS_MAXLIGHTLEVEL    530   // Light sensor reading for full display brightness
-#define BRIGHTNESS_LIGHTLEVELSTEP   500   // The number of light level steps, was 100 but when reduce PWM frequency, this gives a coarse drop in levels
+#define BRIGHTNESS_LIGHTLEVELSTEP   300   // The number of light level steps, was 100 but when reduce PWM frequency, this gives a coarse drop in levels
 
 /* ================================================================== *\
             ===== END OF CLOCK CONFIGURATION OR OPTIONS =====
@@ -9798,8 +9799,10 @@ void pwm_initialize(void)
       case (PWM_BRIGHTNESS):
         /* Set current values in PWM structure. */
         // Set the base frequency for the PWM duration. The minimal duty cycle of 0 gives an OE driven for 1 period, so the smaller the number the less time OE is active
+        // THe lower the frequency the less time the display is active and the lower the mininum light level is
         // 10000 (10KHz) value is 0.1ms active in 10ms period (0.01 of time), 1000 (1KHz) value is 1ms in 1000ms period (0.001 of time)
-        Pwm[Loop1UInt8].Frequency = 1000;
+        // Anything slower than 1KHz is visible on the LED display
+        Pwm[Loop1UInt8].Frequency = BRIGHTNESS_PWM_FREQUENCY;
         Pwm[Loop1UInt8].Wrap      = (UINT16)(Pwm[Loop1UInt8].Clock / Pwm[Loop1UInt8].Frequency);
         Pwm[Loop1UInt8].Cycles    = BRIGHTNESS_LIGHTLEVELSTEP;
         // OE is active low, so reverse the duty cycle.
@@ -18335,8 +18338,15 @@ void wwrite_day_of_month(UINT8 NewDayOfMonth) {
   return;
 }
 
-UINT8 wfetch_alarm(UINT8 alarm_to_fetch){
-  return FlashConfig.Alarm[alarm_to_fetch].FlagStatus;
+struct alarm wfetch_alarm(UINT8 alarm_to_fetch){
+  struct alarm my_alarm;
+  my_alarm.FlagStatus = FlashConfig.Alarm[alarm_to_fetch].FlagStatus;
+  my_alarm.Second = FlashConfig.Alarm[alarm_to_fetch].Second;
+  my_alarm.Minute = FlashConfig.Alarm[alarm_to_fetch].Minute;
+  my_alarm.Hour = FlashConfig.Alarm[alarm_to_fetch].Hour;
+  my_alarm.Day = FlashConfig.Alarm[alarm_to_fetch].Day;
+  sprintf(my_alarm.Text, FlashConfig.Alarm[alarm_to_fetch].Text);
+  return my_alarm;
 }
 
 void wwrite_alarm(UINT8 alarm_to_write, UINT8 NewFlagValue){

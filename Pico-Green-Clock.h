@@ -817,7 +817,7 @@ UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month);
 
 void wwrite_day_of_month(UINT8 NewDayOfMonth);
 
-UINT8 wfetch_alarm(UINT8 alarm_to_fetch);
+struct alarm wfetch_alarm(UINT8 alarm_to_fetch);
 
 void wwrite_alarm(UINT8 alarm_to_write, UINT8 NewFlagValue);
 
