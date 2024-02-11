@@ -122,7 +122,9 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
         // from https://www.eskimo.com/~scs/cclass/handouts/cgi.html
         int unesclength = 40;
         int esclength = strlen(pcValue[Loop1UInt8]);
-        char *unesctext = malloc(41);
+        // Create a memory for the destination and refernce to it with a pointer
+        UCHAR deststringmem[unesclength + 1];
+        UCHAR *unesctext = deststringmem;
         // Check for length too long for destination string
         if (esclength > 40){
           pcValue[Loop1UInt8][39] = '\0';
@@ -130,7 +132,6 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
         }
         unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
         strcpy(my_alarm.Text, unesctext);
-        free(unesctext);
       }
     }
     // If no day is set, then clear the alarn enable too
@@ -185,21 +186,28 @@ void cgi_init(void) {
 }
 
 
-// Routines to process the returned text box values to return
+// Routine to process the returned text box values to return
 // escaped characters to their ASCII equivalent and replace + with space
 // walk through the text buffers
-char *unescstring(char *src, int srclen, char *dest, int destsize) {
+// from https://www.eskimo.com/~scs/cclass/handouts/cgi.html
+void unescstring(char *src, int srclen, char *dest, int destsize) {
   char *endp = src + srclen;
   char *srcp;
   char *destp = dest;
   int nwrote = 0;
   for(srcp = src; srcp < endp; srcp++) {
-    if(nwrote > destsize)
-      return NULL;
+    // Check for buffer overflow
+    if(nwrote > destsize){
+      // terminate string and leave if that's the case
+      *destp = '\0';
+      return;
+    }
     if(*srcp == '+')
       *destp++ = ' ';
     else if(*srcp == '%') {
-      *destp++ = 16 * xctod(*(srcp+1)) + xctod(*(srcp+2));
+      int x;
+      sscanf(srcp+1, "%2x", &x);
+      *destp++ = x;
       srcp += 2;
     }
     else
@@ -207,17 +215,6 @@ char *unescstring(char *src, int srclen, char *dest, int destsize) {
     nwrote++;
   }
   *destp = '\0';
-  return dest;
-}
-
-static int xctod(int c) {
-  if(isdigit(c))
-    return c - '0';
-  else if(isupper(c))
-    return c - 'A' + 10;
-  else if(islower(c))
-    return c - 'a' + 10;
-  else
-    return 0;
+  return;
 }
 
