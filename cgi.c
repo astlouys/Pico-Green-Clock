@@ -118,10 +118,19 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
           my_alarm.Day = my_alarm.Day + (1 << SUN);
       }
       if (strcmp(pcParam[Loop1UInt8], "al0text") == 0) {
+        // Text box returns escaped characters and spaces replaced by '+', so handle this with a small conversin function
+        // from https://www.eskimo.com/~scs/cclass/handouts/cgi.html
+        int unesclength = 40;
+        int esclength = strlen(pcValue[Loop1UInt8]);
+        char *unesctext = malloc(41);
         // Check for length too long for destination string
-        if (strlen(pcValue[Loop1UInt8]) > 40)
+        if (esclength > 40){
           pcValue[Loop1UInt8][39] = '\0';
-        strcpy(my_alarm.Text, pcValue[Loop1UInt8]);
+          esclength = 40;
+        }
+        unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
+        strcpy(my_alarm.Text, unesctext);
+        free(unesctext);
       }
     }
     // If no day is set, then clear the alarn enable too
@@ -132,7 +141,7 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
     return "/index.shtml";
 }
 
-// http://172.22.42.169/htalarm.cgi?al0time=03%3A47&al0mond=alammond&al0tued=alamtues&al0wedd=alamweds&al0thud=alamthur&al0frid=alamfrid&al0satd=alamsatu&al0sund=alamsund&al0text=Alarm1
+// http://172.22.42.169/htalarm.cgi?al0enab=alamenab&al0time=07%3A20&al0text=Time+to+get+up%21%21%21
 
 // struct alarm
 // {
@@ -174,3 +183,41 @@ void cgi_init(void) {
     // We have three handler
     http_set_cgi_handlers(cgi_handlers, 5);
 }
+
+
+// Routines to process the returned text box values to return
+// escaped characters to their ASCII equivalent and replace + with space
+// walk through the text buffers
+char *unescstring(char *src, int srclen, char *dest, int destsize) {
+  char *endp = src + srclen;
+  char *srcp;
+  char *destp = dest;
+  int nwrote = 0;
+  for(srcp = src; srcp < endp; srcp++) {
+    if(nwrote > destsize)
+      return NULL;
+    if(*srcp == '+')
+      *destp++ = ' ';
+    else if(*srcp == '%') {
+      *destp++ = 16 * xctod(*(srcp+1)) + xctod(*(srcp+2));
+      srcp += 2;
+    }
+    else
+      *destp++ = *srcp;
+    nwrote++;
+  }
+  *destp = '\0';
+  return dest;
+}
+
+static int xctod(int c) {
+  if(isdigit(c))
+    return c - '0';
+  else if(isupper(c))
+    return c - 'A' + 10;
+  else if(islower(c))
+    return c - 'a' + 10;
+  else
+    return 0;
+}
+

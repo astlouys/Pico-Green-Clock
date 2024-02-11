@@ -10,3 +10,6 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
 // cgi handler initialiser
  void cgi_init();
 
+// Text handling
+char *unescstring(char *src, int srclen, char *dest, int destsize);
+static int xctod(int c);
