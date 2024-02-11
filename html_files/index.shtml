@@ -30,131 +30,131 @@
           <input type="submit" value="Change Name">
         </form>
         <br>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Current Alarms:</label><br>
           <label for="alarms">Alarm 1: </label>
-          <label for="a00enab">Enable</label><input type="checkbox" <!--#alm0enab--> id="a00enab" name="a00enab" value="alamenab" >
-          <label for="a00time">time:</label><input type="time" id="a00time" name="a00time" value="<!--#alm0time-->">
-          <label for="a00mond">Mon</label><input type="checkbox" <!--#alm0mond--> id="a00mond" name="a00mond" value="alammond" >
-          <label for="a00tued">Tue</label><input type="checkbox" <!--#alm0tues--> id="a00tued" name="a00tued" value="alamtues" >
-          <label for="a00wedd">Wed</label><input type="checkbox" <!--#alm0weds--> id="a00wedd" name="a00wedd" value="alamweds" >
-          <label for="a00thud">Thu</label><input type="checkbox" <!--#alm0thur--> id="a00thud" name="a00thud" value="alamthur" >
-          <label for="a00frid">Fri</label><input type="checkbox" <!--#alm0frid--> id="a00frid" name="a00frid" value="alamfrid" >
-          <label for="a00satd">Sat</label><input type="checkbox" <!--#alm0satu--> id="a00satd" name="a00satd" value="alamsatu" >
-          <label for="a00sund">Sun</label><input type="checkbox" <!--#alm0sund--> id="a00sund" name="a00sund" value="alamsund" >
-          <label for="a00text">Text:</label><input type="text" id="a00text" name="a00text"value="<!--#alm0text-->">
+          <label for="al0enab">Enable</label><input type="checkbox" <!--#alm0enab--> id="al0enab" name="al0enab" value="alamenab" >
+          <label for="al0time">time:</label><input type="time" id="al0time" name="al0time" value="<!--#alm0time-->">
+          <label for="al0mond">Mon</label><input type="checkbox" <!--#alm0mond--> id="al0mond" name="al0mond" value="alammond" >
+          <label for="al0tues">Tue</label><input type="checkbox" <!--#alm0tues--> id="al0tues" name="al0tues" value="alamtues" >
+          <label for="al0wedn">Wed</label><input type="checkbox" <!--#alm0weds--> id="al0wedn" name="al0wedn" value="alamweds" >
+          <label for="al0thur">Thu</label><input type="checkbox" <!--#alm0thur--> id="al0thur" name="al0thur" value="alamthur" >
+          <label for="al0frid">Fri</label><input type="checkbox" <!--#alm0frid--> id="al0frid" name="al0frid" value="alamfrid" >
+          <label for="al0satu">Sat</label><input type="checkbox" <!--#alm0satu--> id="al0satu" name="al0satu" value="alamsatu" >
+          <label for="al0sund">Sun</label><input type="checkbox" <!--#alm0sund--> id="al0sund" name="al0sund" value="alamsund" >
+          <label for="al0text">Text:</label><input type="text" id="al0text" name="al0text"value="<!--#alm0text-->">
           <input type="submit" value="Update Alarm 1"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 2: </label>
-          <label for="a01enab">Enable</label><input type="checkbox" <!--#alm1enab--> id="a01enab" name="a01enab" value="alamenab" >
-          <label for="a01time">time:</label><input type="time" id="a01time" name="a01time" value="<!--#alm1time-->">
-          <label for="a01mond">Mon</label><input type="checkbox" <!--#alm1mond--> id="a01mond" name="a01mond" value="alammond" >
-          <label for="a01tued">Tue</label><input type="checkbox" <!--#alm1tues--> id="a01tued" name="a01tued" value="alamtues" >
-          <label for="a01wedd">Wed</label><input type="checkbox" <!--#alm1weds--> id="a01wedd" name="a01wedd" value="alamweds" >
-          <label for="a01thud">Thu</label><input type="checkbox" <!--#alm1thur--> id="a01thud" name="a01thud" value="alamthur" >
-          <label for="a01frid">Fri</label><input type="checkbox" <!--#alm1frid--> id="a01frid" name="a01frid" value="alamfrid" >
-          <label for="a01satd">Sat</label><input type="checkbox" <!--#alm1satu--> id="a01satd" name="a01satd" value="alamsatu" >
-          <label for="a01sund">Sun</label><input type="checkbox" <!--#alm1sund--> id="a01sund" name="a01sund" value="alamsund" >
-          <label for="a01text">Text:</label><input type="text" id="a01text" name="a01text"value="<!--#alm1text-->">
+          <label for="al1enab">Enable</label><input type="checkbox" <!--#alm1enab--> id="al1enab" name="al1enab" value="alamenab" >
+          <label for="al1time">time:</label><input type="time" id="al1time" name="al1time" value="<!--#alm1time-->">
+          <label for="al1mond">Mon</label><input type="checkbox" <!--#alm1mond--> id="al1mond" name="al1mond" value="alammond" >
+          <label for="al1tues">Tue</label><input type="checkbox" <!--#alm1tues--> id="al1tues" name="al1tues" value="alamtues" >
+          <label for="al1wedn">Wed</label><input type="checkbox" <!--#alm1weds--> id="al1wedn" name="al1wedn" value="alamweds" >
+          <label for="al1thur">Thu</label><input type="checkbox" <!--#alm1thur--> id="al1thur" name="al1thur" value="alamthur" >
+          <label for="al1frid">Fri</label><input type="checkbox" <!--#alm1frid--> id="al1frid" name="al1frid" value="alamfrid" >
+          <label for="al1satu">Sat</label><input type="checkbox" <!--#alm1satu--> id="al1satu" name="al1satu" value="alamsatu" >
+          <label for="al1sund">Sun</label><input type="checkbox" <!--#alm1sund--> id="al1sund" name="al1sund" value="alamsund" >
+          <label for="al1text">Text:</label><input type="text" id="al1text" name="al1text"value="<!--#alm1text-->">
           <input type="submit" value="Update Alarm 2"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 3: </label>
-          <label for="a02enab">Enable</label><input type="checkbox" <!--#alm2enab--> id="a02enab" name="a02enab" value="alamenab">
-          <label for="a02time">time:</label><input type="time" id="a02time" name="a02time" value="<!--#alm2time-->">
-          <label for="a02mond">Mon</label><input type="checkbox" <!--#alm2mond--> id="a02mond" name="a02mond" value="alammond">
-          <label for="a02tued">Tue</label><input type="checkbox" <!--#alm2tues--> id="a02tued" name="a02tued" value="alamtues">
-          <label for="a02wedd">Wed</label><input type="checkbox" <!--#alm2weds--> id="a02wedd" name="a02wedd" value="alamweds">
-          <label for="a02thud">Thu</label><input type="checkbox" <!--#alm2thur--> id="a02thud" name="a02thud" value="alamthur">
-          <label for="a02frid">Fri</label><input type="checkbox" <!--#alm2frid--> id="a02frid" name="a02frid" value="alamfrid">
-          <label for="a02satd">Sat</label><input type="checkbox" <!--#alm2satu--> id="a02satd" name="a02satd" value="alamsatu">
-          <label for="a02sund">Sun</label><input type="checkbox" <!--#alm2sund--> id="a02sund" name="a02sund" value="alamsund">
-          <label for="a02text">Text:</label><input type="text" id="a02text" name="a02text"value="<!--#alm2text-->">
+          <label for="al2enab">Enable</label><input type="checkbox" <!--#alm2enab--> id="al2enab" name="al2enab" value="alamenab">
+          <label for="al2time">time:</label><input type="time" id="al2time" name="al2time" value="<!--#alm2time-->">
+          <label for="al2mond">Mon</label><input type="checkbox" <!--#alm2mond--> id="al2mond" name="al2mond" value="alammond">
+          <label for="al2tues">Tue</label><input type="checkbox" <!--#alm2tues--> id="al2tues" name="al2tues" value="alamtues">
+          <label for="al2wedn">Wed</label><input type="checkbox" <!--#alm2weds--> id="al2wedn" name="al2wedn" value="alamweds">
+          <label for="al2thur">Thu</label><input type="checkbox" <!--#alm2thur--> id="al2thur" name="al2thur" value="alamthur">
+          <label for="al2frid">Fri</label><input type="checkbox" <!--#alm2frid--> id="al2frid" name="al2frid" value="alamfrid">
+          <label for="al2satu">Sat</label><input type="checkbox" <!--#alm2satu--> id="al2satu" name="al2satu" value="alamsatu">
+          <label for="al2sund">Sun</label><input type="checkbox" <!--#alm2sund--> id="al2sund" name="al2sund" value="alamsund">
+          <label for="al2text">Text:</label><input type="text" id="al2text" name="al2text"value="<!--#alm2text-->">
           <input type="submit" value="Update Alarm 3"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 4: </label>
-          <label for="a03enab">Enable</label><input type="checkbox" <!--#alm3enab--> id="a03enab" name="a03enab" value="alamenab">
-          <label for="a03time">time:</label><input type="time" id="a03time" name="a03time" value="<!--#alm3time-->">
-          <label for="a03mond">Mon</label><input type="checkbox" <!--#alm3mond--> id="a03mond" name="a03mond" value="alammond">
-          <label for="a03tued">Tue</label><input type="checkbox" <!--#alm3tues--> id="a03tued" name="a03tued" value="alamtues">
-          <label for="a03wedd">Wed</label><input type="checkbox" <!--#alm3weds--> id="a03wedd" name="a03wedd" value="alamweds">
-          <label for="a03thud">Thu</label><input type="checkbox" <!--#alm3thur--> id="a03thud" name="a03thud" value="alamthur">
-          <label for="a03frid">Fri</label><input type="checkbox" <!--#alm3frid--> id="a03frid" name="a03frid" value="alamfrid">
-          <label for="a03satd">Sat</label><input type="checkbox" <!--#alm3satu--> id="a03satd" name="a03satd" value="alamsatu">
-          <label for="a03sund">Sun</label><input type="checkbox" <!--#alm3sund--> id="a03sund" name="a03sund" value="alamsund">
-          <label for="a03text">Text:</label><input type="text" id="a03text" name="a03text"value="<!--#alm3text-->">
+          <label for="al3enab">Enable</label><input type="checkbox" <!--#alm3enab--> id="al3enab" name="al3enab" value="alamenab">
+          <label for="al3time">time:</label><input type="time" id="al3time" name="al3time" value="<!--#alm3time-->">
+          <label for="al3mond">Mon</label><input type="checkbox" <!--#alm3mond--> id="al3mond" name="al3mond" value="alammond">
+          <label for="al3tues">Tue</label><input type="checkbox" <!--#alm3tues--> id="al3tues" name="al3tues" value="alamtues">
+          <label for="al3wedn">Wed</label><input type="checkbox" <!--#alm3weds--> id="al3wedn" name="al3wedn" value="alamweds">
+          <label for="al3thur">Thu</label><input type="checkbox" <!--#alm3thur--> id="al3thur" name="al3thur" value="alamthur">
+          <label for="al3frid">Fri</label><input type="checkbox" <!--#alm3frid--> id="al3frid" name="al3frid" value="alamfrid">
+          <label for="al3satu">Sat</label><input type="checkbox" <!--#alm3satu--> id="al3satu" name="al3satu" value="alamsatu">
+          <label for="al3sund">Sun</label><input type="checkbox" <!--#alm3sund--> id="al3sund" name="al3sund" value="alamsund">
+          <label for="al3text">Text:</label><input type="text" id="al3text" name="al3text"value="<!--#alm3text-->">
           <input type="submit" value="Update Alarm 4"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 5: </label>
-          <label for="a04enab">Enable</label><input type="checkbox" <!--#alm4enab--> id="a04enab" name="a04enab" value="alamenab">
-          <label for="a04time">time:</label><input type="time" id="a04time" name="a04time" value="<!--#alm4time-->">
-          <label for="a04mond">Mon</label><input type="checkbox" <!--#alm4mond--> id="a04mond" name="a04mond" value="alammond">
-          <label for="a04tued">Tue</label><input type="checkbox" <!--#alm4tues--> id="a04tued" name="a04tued" value="alamtues">
-          <label for="a04wedd">Wed</label><input type="checkbox" <!--#alm4weds--> id="a04wedd" name="a04wedd" value="alamweds">
-          <label for="a04thud">Thu</label><input type="checkbox" <!--#alm4thur--> id="a04thud" name="a04thud" value="alamthur">
-          <label for="a04frid">Fri</label><input type="checkbox" <!--#alm4frid--> id="a04frid" name="a04frid" value="alamfrid">
-          <label for="a04satd">Sat</label><input type="checkbox" <!--#alm4satu--> id="a04satd" name="a04satd" value="alamsatu">
-          <label for="a04sund">Sun</label><input type="checkbox" <!--#alm4sund--> id="a04sund" name="a04sund" value="alamsund">
-          <label for="a04text">Text:</label><input type="text" id="a04text" name="a04text"value="<!--#alm4text-->">
+          <label for="al4enab">Enable</label><input type="checkbox" <!--#alm4enab--> id="al4enab" name="al4enab" value="alamenab">
+          <label for="al4time">time:</label><input type="time" id="al4time" name="al4time" value="<!--#alm4time-->">
+          <label for="al4mond">Mon</label><input type="checkbox" <!--#alm4mond--> id="al4mond" name="al4mond" value="alammond">
+          <label for="al4tues">Tue</label><input type="checkbox" <!--#alm4tues--> id="al4tues" name="al4tues" value="alamtues">
+          <label for="al4wedn">Wed</label><input type="checkbox" <!--#alm4weds--> id="al4wedn" name="al4wedn" value="alamweds">
+          <label for="al4thur">Thu</label><input type="checkbox" <!--#alm4thur--> id="al4thur" name="al4thur" value="alamthur">
+          <label for="al4frid">Fri</label><input type="checkbox" <!--#alm4frid--> id="al4frid" name="al4frid" value="alamfrid">
+          <label for="al4satu">Sat</label><input type="checkbox" <!--#alm4satu--> id="al4satu" name="al4satu" value="alamsatu">
+          <label for="al4sund">Sun</label><input type="checkbox" <!--#alm4sund--> id="al4sund" name="al4sund" value="alamsund">
+          <label for="al4text">Text:</label><input type="text" id="al4text" name="al4text"value="<!--#alm4text-->">
           <input type="submit" value="Update Alarm 5"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 6: </label>
-          <label for="a05enab">Enable</label><input type="checkbox" <!--#alm5enab--> id="a05enab" name="a05enab" value="alamenab">
-          <label for="a05time">time:</label><input type="time" id="a05time" name="a05time" value="<!--#alm5time-->">
-          <label for="a05mond">Mon</label><input type="checkbox" <!--#alm5mond--> id="a05mond" name="a05mond" value="alammond">
-          <label for="a05tued">Tue</label><input type="checkbox" <!--#alm5tues--> id="a05tued" name="a05tued" value="alamtues">
-          <label for="a05wedd">Wed</label><input type="checkbox" <!--#alm5weds--> id="a05wedd" name="a05wedd" value="alamweds">
-          <label for="a05thud">Thu</label><input type="checkbox" <!--#alm5thur--> id="a05thud" name="a05thud" value="alamthur">
-          <label for="a05frid">Fri</label><input type="checkbox" <!--#alm5frid--> id="a05frid" name="a05frid" value="alamfrid">
-          <label for="a05satd">Sat</label><input type="checkbox" <!--#alm5satu--> id="a05satd" name="a05satd" value="alamsatu">
-          <label for="a05sund">Sun</label><input type="checkbox" <!--#alm5sund--> id="a05sund" name="a05sund" value="alamsund">
-          <label for="a05text">Text:</label><input type="text" id="a05text" name="a05text"value="<!--#alm5text-->">
+          <label for="al5enab">Enable</label><input type="checkbox" <!--#alm5enab--> id="al5enab" name="al5enab" value="alamenab">
+          <label for="al5time">time:</label><input type="time" id="al5time" name="al5time" value="<!--#alm5time-->">
+          <label for="al5mond">Mon</label><input type="checkbox" <!--#alm5mond--> id="al5mond" name="al5mond" value="alammond">
+          <label for="al5tues">Tue</label><input type="checkbox" <!--#alm5tues--> id="al5tues" name="al5tues" value="alamtues">
+          <label for="al5wedn">Wed</label><input type="checkbox" <!--#alm5weds--> id="al5wedn" name="al5wedn" value="alamweds">
+          <label for="al5thur">Thu</label><input type="checkbox" <!--#alm5thur--> id="al5thur" name="al5thur" value="alamthur">
+          <label for="al5frid">Fri</label><input type="checkbox" <!--#alm5frid--> id="al5frid" name="al5frid" value="alamfrid">
+          <label for="al5satu">Sat</label><input type="checkbox" <!--#alm5satu--> id="al5satu" name="al5satu" value="alamsatu">
+          <label for="al5sund">Sun</label><input type="checkbox" <!--#alm5sund--> id="al5sund" name="al5sund" value="alamsund">
+          <label for="al5text">Text:</label><input type="text" id="al5text" name="al5text"value="<!--#alm5text-->">
           <input type="submit" value="Update Alarm 6"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 7: </label>
-          <label for="a06enab">Enable</label><input type="checkbox" <!--#alm6enab--> id="a06enab" name="a06enab" value="alamenab">
-          <label for="a06time">time:</label><input type="time" id="a06time" name="a06time" value="<!--#alm6time-->">
-          <label for="a06mond">Mon</label><input type="checkbox" <!--#alm6mond--> id="a06mond" name="a06mond" value="alammond">
-          <label for="a06tued">Tue</label><input type="checkbox" <!--#alm6tues--> id="a06tued" name="a06tued" value="alamtues">
-          <label for="a06wedd">Wed</label><input type="checkbox" <!--#alm6weds--> id="a06wedd" name="a06wedd" value="alamweds">
-          <label for="a06thud">Thu</label><input type="checkbox" <!--#alm6thur--> id="a06thud" name="a06thud" value="alamthur">
-          <label for="a06frid">Fri</label><input type="checkbox" <!--#alm6frid--> id="a06frid" name="a06frid" value="alamfrid">
-          <label for="a06satd">Sat</label><input type="checkbox" <!--#alm6satu--> id="a06satd" name="a06satd" value="alamsatu">
-          <label for="a06sund">Sun</label><input type="checkbox" <!--#alm6sund--> id="a06sund" name="a06sund" value="alamsund">
-          <label for="a06text">Text:</label><input type="text" id="a06text" name="a06text"value="<!--#alm6text-->">
+          <label for="al6enab">Enable</label><input type="checkbox" <!--#alm6enab--> id="al6enab" name="al6enab" value="alamenab">
+          <label for="al6time">time:</label><input type="time" id="al6time" name="al6time" value="<!--#alm6time-->">
+          <label for="al6mond">Mon</label><input type="checkbox" <!--#alm6mond--> id="al6mond" name="al6mond" value="alammond">
+          <label for="al6tues">Tue</label><input type="checkbox" <!--#alm6tues--> id="al6tues" name="al6tues" value="alamtues">
+          <label for="al6wedn">Wed</label><input type="checkbox" <!--#alm6weds--> id="al6wedn" name="al6wedn" value="alamweds">
+          <label for="al6thur">Thu</label><input type="checkbox" <!--#alm6thur--> id="al6thur" name="al6thur" value="alamthur">
+          <label for="al6frid">Fri</label><input type="checkbox" <!--#alm6frid--> id="al6frid" name="al6frid" value="alamfrid">
+          <label for="al6satu">Sat</label><input type="checkbox" <!--#alm6satu--> id="al6satu" name="al6satu" value="alamsatu">
+          <label for="al6sund">Sun</label><input type="checkbox" <!--#alm6sund--> id="al6sund" name="al6sund" value="alamsund">
+          <label for="al6text">Text:</label><input type="text" id="al6text" name="al6text"value="<!--#alm6text-->">
           <input type="submit" value="Update Alarm 7"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 8: </label>
-          <label for="a07enab">Enable</label><input type="checkbox" <!--#alm7enab--> id="a07enab" name="a07enab" value="alamenab">
-          <label for="a07time">time:</label><input type="time" id="a07time" name="a07time" value="<!--#alm7time-->">
-          <label for="a07mond">Mon</label><input type="checkbox" <!--#alm7mond--> id="a07mond" name="a07mond" value="alammond">
-          <label for="a07tued">Tue</label><input type="checkbox" <!--#alm7tues--> id="a07tued" name="a07tued" value="alamtues">
-          <label for="a07wedd">Wed</label><input type="checkbox" <!--#alm7weds--> id="a07wedd" name="a07wedd" value="alamweds">
-          <label for="a07thud">Thu</label><input type="checkbox" <!--#alm7thur--> id="a07thud" name="a07thud" value="alamthur">
-          <label for="a07frid">Fri</label><input type="checkbox" <!--#alm7frid--> id="a07frid" name="a07frid" value="alamfrid">
-          <label for="a07satd">Sat</label><input type="checkbox" <!--#alm7satu--> id="a07satd" name="a07satd" value="alamsatu">
-          <label for="a07sund">Sun</label><input type="checkbox" <!--#alm7sund--> id="a07sund" name="a07sund" value="alamsund">
-          <label for="a07text">Text:</label><input type="text" id="a07text" name="a07text"value="<!--#alm7text-->">
+          <label for="al7enab">Enable</label><input type="checkbox" <!--#alm7enab--> id="al7enab" name="al7enab" value="alamenab">
+          <label for="al7time">time:</label><input type="time" id="al7time" name="al7time" value="<!--#alm7time-->">
+          <label for="al7mond">Mon</label><input type="checkbox" <!--#alm7mond--> id="al7mond" name="al7mond" value="alammond">
+          <label for="al7tues">Tue</label><input type="checkbox" <!--#alm7tues--> id="al7tues" name="al7tues" value="alamtues">
+          <label for="al7wedn">Wed</label><input type="checkbox" <!--#alm7weds--> id="al7wedn" name="al7wedn" value="alamweds">
+          <label for="al7thur">Thu</label><input type="checkbox" <!--#alm7thur--> id="al7thur" name="al7thur" value="alamthur">
+          <label for="al7frid">Fri</label><input type="checkbox" <!--#alm7frid--> id="al7frid" name="al7frid" value="alamfrid">
+          <label for="al7satu">Sat</label><input type="checkbox" <!--#alm7satu--> id="al7satu" name="al7satu" value="alamsatu">
+          <label for="al7sund">Sun</label><input type="checkbox" <!--#alm7sund--> id="al7sund" name="al7sund" value="alamsund">
+          <label for="al7text">Text:</label><input type="text" id="al7text" name="al7text"value="<!--#alm7text-->">
           <input type="submit" value="Update Alarm 8"><br>
         </form>
-        <form action="/htalarm0.cgi">
+        <form action="/htalarm.cgi">
           <label for="alarms">Alarm 9: </label>
-          <label for="a08enab">Enable</label><input type="checkbox" <!--#alm8enab--> id="a08enab" name="a08enab" value="alamenab">
-          <label for="a08time">time:</label><input type="time" id="a08time" name="a08time" value="<!--#alm8time-->">
-          <label for="a08mond">Mon</label><input type="checkbox" <!--#alm8mond--> id="a08mond" name="a08mond" value="alammond">
-          <label for="a08tued">Tue</label><input type="checkbox" <!--#alm8tues--> id="a08tued" name="a08tued" value="alamtues">
-          <label for="a08wedd">Wed</label><input type="checkbox" <!--#alm8weds--> id="a08wedd" name="a08wedd" value="alamweds">
-          <label for="a08thud">Thu</label><input type="checkbox" <!--#alm8thur--> id="a08thud" name="a08thud" value="alamthur">
-          <label for="a08frid">Fri</label><input type="checkbox" <!--#alm8frid--> id="a08frid" name="a08frid" value="alamfrid">
-          <label for="a08satd">Sat</label><input type="checkbox" <!--#alm8satu--> id="a08satd" name="a08satd" value="alamsatu">
-          <label for="a08sund">Sun</label><input type="checkbox" <!--#alm8sund--> id="a08sund" name="a08sund" value="alamsund">
-          <label for="a08text">Text:</label><input type="text" id="a08text" name="a08text"value="<!--#alm8text-->">
+          <label for="al8enab">Enable</label><input type="checkbox" <!--#alm8enab--> id="al8enab" name="al8enab" value="alamenab">
+          <label for="al8time">time:</label><input type="time" id="al8time" name="al8time" value="<!--#alm8time-->">
+          <label for="al8mond">Mon</label><input type="checkbox" <!--#alm8mond--> id="al8mond" name="al8mond" value="alammond">
+          <label for="al8tues">Tue</label><input type="checkbox" <!--#alm8tues--> id="al8tues" name="al8tues" value="alamtues">
+          <label for="al8wedn">Wed</label><input type="checkbox" <!--#alm8weds--> id="al8wedn" name="al8wedn" value="alamweds">
+          <label for="al8thur">Thu</label><input type="checkbox" <!--#alm8thur--> id="al8thur" name="al8thur" value="alamthur">
+          <label for="al8frid">Fri</label><input type="checkbox" <!--#alm8frid--> id="al8frid" name="al8frid" value="alamfrid">
+          <label for="al8satu">Sat</label><input type="checkbox" <!--#alm8satu--> id="al8satu" name="al8satu" value="alamsatu">
+          <label for="al8sund">Sun</label><input type="checkbox" <!--#alm8sund--> id="al8sund" name="al8sund" value="alamsund">
+          <label for="al8text">Text:</label><input type="text" id="al8text" name="al8text"value="<!--#alm8text-->">
           <input type="submit" value="Update Alarm 9"><br>
         </form>
         <br>

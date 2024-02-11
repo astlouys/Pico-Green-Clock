@@ -61,12 +61,10 @@ const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], 
 
 
 // CGI handler which is run when a request for /htalarm0.cgi is detected
-const char * cgi_htalarm0_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
     UINT8 Loop1UInt8;
     struct alarm my_alarm;
     UINT8 alarmnumber;
-    UINT8 textlength;
-    UINT8 alarmvalue;
     // initialise a blank alarm
     my_alarm.FlagStatus = 0;
     my_alarm.Second = 29;
@@ -74,71 +72,67 @@ const char * cgi_htalarm0_handler(int iIndex, int iNumParams, char *pcParam[], c
     my_alarm.Hour = 12;
     my_alarm.Day = 0;
     my_alarm.Text[0] = '\0';
-    // Fetch the alarm number from the first returned value, note '0' is a char and "0" is a null terminated string array
+    // Fetch the alarm number from the first returned value - fixed start of alx, note '0' is a char and "0" is a null terminated string array
     alarmnumber = (pcParam[0][2] - '0');
     // parse the returned key and value pairs,
     for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
     {
-      // Set the alarm number in the  to a default of 0 before processing, note '0' is a char and "0" is a null terminated string array
+      // Set the alarm number in the paramters to a default of 0 before processing, note '0' is a char and "0" is a null terminated string array
       *(pcParam[Loop1UInt8] + 2) = '0';
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00enab") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alamenab") == 0)
-          my_alarm.FlagStatus = 1;
-        else
-          my_alarm.FlagStatus = 0;
+      if (strcmp(pcParam[Loop1UInt8], "al0enab") == 0) {
+        my_alarm.FlagStatus = 1;
       }
       // Time form element returns id= hh%3Amm) %02d
-      if (strcmp(pcParam[Loop1UInt8], "a00time") == 0) {
+      if (strcmp(pcParam[Loop1UInt8], "al0time") == 0) {
           my_alarm.Hour = (UINT)(pcValue[Loop1UInt8][0] - '0') * 10 + (UINT)(pcValue[Loop1UInt8][1] - '0');
           my_alarm.Minute = (UINT)(pcValue[Loop1UInt8][5] - '0') * 10 + (UINT)(pcValue[Loop1UInt8][6] - '0');
           my_alarm.Second = 29;
       }
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00mond") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alammond") == 0)
-          my_alarm.Day = my_alarm.Day + (1 << MON);
+      if (strcmp(pcParam[Loop1UInt8], "al0mond") == 0) {
+        my_alarm.Day = my_alarm.Day + (1 << MON);
       }
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00tued") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alamtued") == 0)
+      if (strcmp(pcParam[Loop1UInt8], "al0tues") == 0) {
           my_alarm.Day = my_alarm.Day + (1 << TUE);
       }
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00weds") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alamweds") == 0)
+      if (strcmp(pcParam[Loop1UInt8], "al0wedn") == 0) {
           my_alarm.Day = my_alarm.Day + (1 << WED);
       }
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00thur") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alamthur") == 0)
+      if (strcmp(pcParam[Loop1UInt8], "al0thur") == 0) {
           my_alarm.Day = my_alarm.Day + (1 << THU);
       }
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00frid") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alamfrid") == 0)
+      if (strcmp(pcParam[Loop1UInt8], "al0frid") == 0) {
           my_alarm.Day = my_alarm.Day + (1 << FRI);
       }
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00satu") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alamsatu") == 0)
+      if (strcmp(pcParam[Loop1UInt8], "al0satu") == 0) {
           my_alarm.Day = my_alarm.Day + (1 << SAT);
       }
       // Check box form element returns id=value
-      if (strcmp(pcParam[Loop1UInt8], "a00sund") == 0) {
-        if (strcmp(pcValue[Loop1UInt8], "alamsund") == 0)
+      if (strcmp(pcParam[Loop1UInt8], "al0sund") == 0) {
           my_alarm.Day = my_alarm.Day + (1 << SUN);
       }
-      if (strcmp(pcParam[Loop1UInt8], "a00text") == 0) {
+      if (strcmp(pcParam[Loop1UInt8], "al0text") == 0) {
         // Check for length too long for destination string
         if (strlen(pcValue[Loop1UInt8]) > 40)
           pcValue[Loop1UInt8][39] = '\0';
         strcpy(my_alarm.Text, pcValue[Loop1UInt8]);
       }
     }
+    // If no day is set, then clear the alarn enable too
+    if (my_alarm.Day == 0)
+      my_alarm.FlagStatus = 0;
+    // Update the alarm
     wwrite_alarm(alarmnumber, my_alarm);
     return "/index.shtml";
 }
+
+// http://172.22.42.169/htalarm.cgi?al0time=03%3A47&al0mond=alammond&al0tued=alamtues&al0wedd=alamweds&al0thud=alamthur&al0frid=alamfrid&al0satd=alamsatu&al0sund=alamsund&al0text=Alarm1
 
 // struct alarm
 // {
@@ -150,53 +144,7 @@ const char * cgi_htalarm0_handler(int iIndex, int iNumParams, char *pcParam[], c
 //   UCHAR Text[40];
 // };
 
-// CGI handler which is run when a request for /htalarm1.cgi is detected
-const char * cgi_htalarm1_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
 
-// CGI handler which is run when a request for /htalarm2.cgi is detected
-const char * cgi_htalarm2_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /htalarm3.cgi is detected
-const char * cgi_htalarm3_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /htalarm4.cgi is detected
-const char * cgi_htalarm4_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /htalarm5.cgi is detected
-const char * cgi_htalarm5_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /htalarm6.cgi is detected
-const char * cgi_htalarm6_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /htalarm7.cgi is detected
-const char * cgi_htalarm7_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /htalarm8.cgi is detected
-const char * cgi_htalarm8_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 alarmvalue;
-    return "/index.shtml";
-}
 
 // tCGI Struct
 // Fill this with all of the CGI requests and their respective handlers
@@ -215,36 +163,14 @@ static const tCGI cgi_handlers[] = {
         "/mynetwork.cgi", cgi_mynetwork_handler
     },
     {
-        "/htalarm0.cgi", cgi_htalarm0_handler
-    },
-    {
-        "/htalarm1.cgi", cgi_htalarm1_handler
-    },
-    {
-        "/htalarm2.cgi", cgi_htalarm2_handler
-    },
-    {
-        "/htalarm3.cgi", cgi_htalarm3_handler
-    },
-    {
-        "/htalarm4.cgi", cgi_htalarm4_handler
-    },
-    {
-        "/htalarm5.cgi", cgi_htalarm5_handler
-    },
-    {
-        "/htalarm6.cgi", cgi_htalarm6_handler
-    },
-    {
-        "/htalarm7.cgi", cgi_htalarm7_handler
-    },
-    {
-        "/htalarm8.cgi", cgi_htalarm8_handler
-    },
+        "/htalarm.cgi", cgi_htalarm_handler
+    }
+
     // Add more functions here...
+    // and update the cgi_init number of handlers
 };
 
 void cgi_init(void) {
     // We have three handler
-    http_set_cgi_handlers(cgi_handlers, 13);
+    http_set_cgi_handlers(cgi_handlers, 5);
 }
