@@ -1211,7 +1211,7 @@ int main(void)
 
   /* ----------------------------------------------------------------------------------------------------- *\
     WARNINGS: Settings below are for debugging purposes only. Be aware that turning On a debug option may
-              have a significant impact on normal clock behavior, namely on timings !!!
+              have a significant impact on normal clock behaviour, namely on timings !!!
               (Important timings could be out-of-sync and even bring the code to a crash in some situation).
               Use them with care and when you face a problem, investigate first if the debug option is not
               in cause.
@@ -1225,13 +1225,13 @@ int main(void)
   \* ----------------------------------------------------------------------------------------------------- */
   #ifdef RELEASE_VERSION
   DebugBitMask = DEBUG_NONE;
-  #else  // RELEASE_VERSION
+  #else  // DEVELOPER_VERSION
   /* NOTE: If DEBUG_FLASH is turned On, it allows logging information about flash memory operations.
            However, logging a flash update during a callback procedure takes a relatively long time and will generate a crash.
            So, it is possible to keep all logging information and use the debug before launching the callback, or it is required to trim down
            the logged information if there is a need to consult the logged information during the callback flash configuration update. */
   DebugBitMask  = DEBUG_NONE;
-  // DebugBitMask += DEBUG_ALARMS;
+  DebugBitMask += DEBUG_ALARMS;
   // DebugBitMask += DEBUG_BME280;
   // DebugBitMask += DEBUG_BRIGHTNESS;
   // DebugBitMask += DEBUG_CHIME;
@@ -1257,7 +1257,7 @@ int main(void)
   // DebugBitMask += DEBUG_TIMER;
   // DebugBitMask += DEBUG_TIMING;
   // DebugBitMask += DEBUG_WATCHDOG;
-  #endif  // RELEASE_VERSION
+  #endif  // DEVELOPER_VERSION
 
   /* If user requested any section to be debugged through Pico's UART (or USB), send a power-up time stamp to log screen. */
   if (DebugBitMask)
@@ -1891,7 +1891,7 @@ int main(void)
   \* ---------------------------------------------------------------- */
   update_left_indicators();
   update_top_indicators(ALL, FLAG_OFF);              // turn them all Off first.
-  update_top_indicators(CurrentDayOfWeek, FLAG_ON);  // then turn On today's indocator.
+  update_top_indicators(CurrentDayOfWeek, FLAG_ON);  // then turn On today's indicator.
 
 
 
@@ -16945,11 +16945,11 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         continue;
       }
 
-      /* Current day-of-week is defined in DayMask, check if current hour is the "alarm-hour". */
-      if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHour)
+      /* Current day-of-week is defined in DayMask, check if current hour (in 24hr range) is the "alarm-hour". */
+      if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHourSetting)
       {
         if (DebugBitMask & DEBUG_ALARMS)
-          uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHour);
+          uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHourSetting);
 
         continue;
       }
