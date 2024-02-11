@@ -18349,10 +18349,11 @@ struct alarm wfetch_alarm(UINT8 alarm_to_fetch){
   return my_alarm;
 }
 
-void wwrite_alarm(UINT8 alarm_to_write, UINT8 NewFlagValue){
+void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data){
   UINT8 Dum1UInt8;
   UINT8 Loop1UInt8;
-  FlashConfig.Alarm[alarm_to_write].FlagStatus = NewFlagValue;
+  // Set values into alarm structure, text data will be pre-checked for length so we only need one update.
+  FlashConfig.Alarm[alarm_to_write] = alarm_data;
   // Now update the display as this is only handled in the setting routine (which is bypassed)
   /* We now have 9 alarms available... Check if at least one alarm is On and if ever the case, turn On both alarm indicators. */
   Dum1UInt8 = 0;

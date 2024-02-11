@@ -819,7 +819,7 @@ void wwrite_day_of_month(UINT8 NewDayOfMonth);
 
 struct alarm wfetch_alarm(UINT8 alarm_to_fetch);
 
-void wwrite_alarm(UINT8 alarm_to_write, UINT8 NewFlagValue);
+void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data);
 
 struct web_light_value wfetch_light_adc_level(void);
 
