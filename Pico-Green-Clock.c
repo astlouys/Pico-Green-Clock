@@ -630,7 +630,7 @@ struct bme280_data
   /* Pressure-related parameters. */
   UINT16  DigP1;
   int16_t DigP2;
-  int16_t DigP3;``
+  int16_t DigP3;
   int16_t DigP4;
   int16_t DigP5;
   int16_t DigP6;
