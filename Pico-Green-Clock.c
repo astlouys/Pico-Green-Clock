@@ -17013,10 +17013,11 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     pwm_set_cycles(CurrentPWMCycles);  // restore display when done.
   }
 
+  // Chime on/off hours are set in 24h values, so use CurrentHourSetting to compare
   if ((SilencePeriod == 0) &&
      ((FlashConfig.ChimeMode == CHIME_ON) ||                                                                                                                                                       // always On
-     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHour >= FlashConfig.ChimeTimeOn)  && (CurrentHour <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
-     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn) && ((CurrentHour >= FlashConfig.ChimeTimeOff) || (CurrentHour <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
+     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHourSetting >= FlashConfig.ChimeTimeOn)  && (CurrentHourSetting <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
+     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn) && ((CurrentHourSetting >= FlashConfig.ChimeTimeOff) || (CurrentHourSetting <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
   {
     /* Half-hour chime. */
     if ((CurrentMinute == 30) && (FlagChimeHalfDone == FLAG_OFF) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
@@ -17376,7 +17377,8 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   /* Check if it is time to turn On night light. */
   /* NOTE: Make a check every minute in case we just powered On the clock and / or we recently adjusted the time. */
-  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHour >= FlashConfig.NightLightTimeOn) || (CurrentHour < FlashConfig.NightLightTimeOff)))
+  // Night light on/off hours are set in 24h values, so use CurrentHourSetting to compare
+  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHourSetting >= FlashConfig.NightLightTimeOn) || (CurrentHourSetting < FlashConfig.NightLightTimeOff)))
   {
     if ((CurrentSecond == 0) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
     {
@@ -17386,7 +17388,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   /* Check if it is time to turn Off night light. */
   /* Make a check every minute in case we recently adjusted the time. */
-  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHour >= FlashConfig.NightLightTimeOff) && (CurrentHour < FlashConfig.NightLightTimeOn)))
+  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHourSetting >= FlashConfig.NightLightTimeOff) && (CurrentHourSetting < FlashConfig.NightLightTimeOn)))
   {
     if ((CurrentSecond == 0) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
     {
