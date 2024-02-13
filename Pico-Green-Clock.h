@@ -804,6 +804,9 @@ void process_ir_command(UINT8 IrCommand);
 #endif  // IR_SUPPORT
 
 UCHAR* wfetch_hostname(void);
+UCHAR* wfetch_wifissid(void);
+UCHAR* wfetch_wifipass(void);
+void wwrite_networkcfg(UCHAR * new_hostname, UCHAR * new_wifissid, UCHAR * new_wifipass);
 
 struct human_time wfetch_current_datetime(void);
 

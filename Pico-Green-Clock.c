@@ -5015,6 +5015,8 @@ UINT8 flash_display_config(void)
   }
 
 
+  uart_send(__LINE__, "Note: Host, SSID and Password begin at 5th character position, superimposed on top of two different footprints.\r");
+  uart_send(__LINE__, "      There is also an end-of-string character at the end of each string that we don't see on the screen.\r");
   /* In case hostname is not initialized, display it character by character. */
   sprintf(String, "HOST:     [");
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Hostname); ++Loop1UInt16)
@@ -5022,9 +5024,8 @@ UINT8 flash_display_config(void)
   strcat(String, "]\r");
   uart_send(__LINE__, String);
 
+
   /* In case SSID is not initialized, display it character by character. */
-  uart_send(__LINE__, "Note: SSID and Password begin at 5th character position, superimposed on top of two different footprints.\r");
-  uart_send(__LINE__, "      There is also an end-of-string character at the end of each string that we don't see on the screen.\r");
   sprintf(String, "SSID:     [");
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.SSID); ++Loop1UInt16)
     sprintf(&String[strlen(String)], "%c", FlashConfig.SSID[Loop1UInt16]);
@@ -18307,6 +18308,21 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
 
 UCHAR* wfetch_hostname(void){
   return &FlashConfig.Hostname[4];
+}
+
+UCHAR* wfetch_wifissid(void){
+  return &FlashConfig.SSID[4];
+}
+
+UCHAR* wfetch_wifipass(void){
+  return &FlashConfig.Password[4];
+}
+
+void wwrite_networkcfg(UCHAR * new_hostname, UCHAR * new_wifissid, UCHAR * new_wifipass){
+  int16_t ReturnCode;
+  sprintf(&FlashConfig.Hostname[4], new_hostname);
+  sprintf(&FlashConfig.Password[4], new_wifipass);
+  sprintf(&FlashConfig.SSID[4], new_wifissid);
 }
 
 struct human_time wfetch_current_datetime(void) {

@@ -4,7 +4,7 @@
         <title><!--#host--> Pico Clock</title>
     </head>
     <body> <h1><!--#host--> Pico Clock</h1>
-        <h2>Controls</h2>
+        <h2>Status Information</h2>
         <p>Hostname: <!--#host--></p>
         <p>Voltage: <!--#volt--> V</p>
         <p>Temp: <!--#temp--> Deg C</p>
@@ -18,17 +18,6 @@
         <br>
         <a href="/date.cgi?dayofmonth=1"><button>Month Day 1</button></a>
         <a href="/date.cgi?dayofmonth=2"><button>Month Day 2</button></a>
-        <br>
-        <form action="/myform.cgi">
-          <div><label>Multiplicand 1: <input name="m" size="5"></label></div>
-          <div><label>Multiplicand 2: <input name="n" size="5"></label></div>
-          <div><input type="submit" value="Multiply!"></div>
-        </form>
-        <form action="/mynetwork.cgi">
-          <label for="hostname">Host name:</label><br>
-          <input type="text" id="hostname" name="hostname" value=<!--#host-->>
-          <input type="submit" value="Change Name">
-        </form>
         <br>
         <form action="/htalarm.cgi">
           <label for="alarms">Current Alarms:</label><br>
@@ -156,6 +145,17 @@
           <label for="al8sund">Sun</label><input type="checkbox" <!--#alm8sund--> id="al8sund" name="al8sund" value="alamsund">
           <label for="al8text">Text:</label><input type="text" id="al8text" name="al8text" size='20' maxlength='40' value="<!--#alm8text-->">
           <input type="submit" value="Update Alarm 9"><br>
+        </form>
+        <br>
+        <form action="/mynetwork.cgi">
+          WiFi Network Configuration - updates on next power up<br>
+          <label for="Pico-W Hostname">New hostname:</label><br>
+          <input type="text" id="hostname" name="hostname" value=<!--#host-->><br>
+          <label for="wifissid">New WiFi SSID:</label><br>
+          <input type="text" id="wifissid" name="wifissid" value=<!--#wifissid-->><br>
+          <label for="wifipass">New WiFi Passphrase:</label><br>
+          <input type="password" id="wifipass" name="wifipass" value=<!--#wifipass-->><br>
+          <input type="submit" value="Update">
         </form>
         <br>
         <a href="/index.shtml">Refresh</a>

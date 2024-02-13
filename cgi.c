@@ -33,32 +33,70 @@ const char * cgi_date_handler(int iIndex, int iNumParams, char *pcParam[], char 
     return "/index.shtml";
 }
 
-// CGI handler which is run when a request for /myform.cgi is detected
-const char * cgi_myform_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    UINT8 Loop1UInt8;
-    UINT16 mvalue;
-    UINT16 nvalue;
-    // parse the resturned key and value pairs,
-    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
-    {
-      if (strcmp(pcParam[Loop1UInt8], "m") == 0) {
-          mvalue = atoi(pcValue[Loop1UInt8]);
-      }
-      if (strcmp(pcParam[Loop1UInt8], "n") == 0) {
-          nvalue = atoi(pcValue[Loop1UInt8]);
-      }
-    }
-    wcalc_form(mvalue, nvalue);
-    // Send the index page back to the user
-    return "/index.shtml";
-}
-
 // CGI handler which is run when a request for /mynetwork.cgi is detected
 const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 Loop1UInt8;
+    UCHAR destHostname[40];
+    UCHAR destSSID[40];
+    UCHAR destPassword[70];
+    UCHAR *new_hostname = destHostname;
+    UCHAR *new_wifissid = destSSID;
+    UCHAR *new_wifipass = destPassword;
+    int unesclength;
+    int esclength;
+    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
+    {
+      if (strcmp(pcParam[Loop1UInt8], "hostname") == 0) {
+        // Create a new hostname, but must escape the input
+        unesclength = 40;
+        esclength = strlen(pcValue[Loop1UInt8]);
+        // Create a memory for the destination and refernce to it with a pointer
+        UCHAR deststringmem[unesclength + 1];
+        UCHAR *unesctext = deststringmem;
+        // Check for length too long for destination string
+        if (esclength > 40){
+          pcValue[Loop1UInt8][39] = '\0';
+          esclength = 40;
+        }
+        unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
+        strcpy(new_hostname, unesctext);
+      }
+      if (strcmp(pcParam[Loop1UInt8], "wifissid") == 0) {
+        // Create a new SSID, but must escape the input
+        unesclength = 40;
+        esclength = strlen(pcValue[Loop1UInt8]);
+        // Create a memory for the destination and refernce to it with a pointer
+        UCHAR deststringmem[unesclength + 1];
+        UCHAR *unesctext = deststringmem;
+        // Check for length too long for destination string
+        if (esclength > 40){
+          pcValue[Loop1UInt8][39] = '\0';
+          esclength = 40;
+        }
+        unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
+        strcpy(new_wifissid, unesctext);
+      }
+      if (strcmp(pcParam[Loop1UInt8], "wifipass") == 0) {
+        // Create a new SSID passphrase, but must escape the input
+        unesclength = 70;
+        esclength = strlen(pcValue[Loop1UInt8]);
+        // Create a memory for the destination and refernce to it with a pointer
+        UCHAR deststringmem[unesclength + 1];
+        UCHAR *unesctext = deststringmem;
+        // Check for length too long for destination string
+        if (esclength > 70){
+          pcValue[Loop1UInt8][69] = '\0';
+          esclength = 70;
+        }
+        unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
+        strcpy(new_wifipass, unesctext);
+      }
+    }
+    // Update the network configuration
+    wwrite_networkcfg(new_hostname, new_wifissid, new_wifipass);
     // Send the index page back to the user
     return "/index.shtml";
 }
-
 
 // CGI handler which is run when a request for /htalarm0.cgi is detected
 const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
@@ -167,9 +205,6 @@ static const tCGI cgi_handlers[] = {
         "/date.cgi", cgi_date_handler
     },
     {
-        "/myform.cgi", cgi_myform_handler
-    },
-    {
         "/mynetwork.cgi", cgi_mynetwork_handler
     },
     {
@@ -182,7 +217,7 @@ static const tCGI cgi_handlers[] = {
 
 void cgi_init(void) {
     // We have three handler
-    http_set_cgi_handlers(cgi_handlers, 5);
+    http_set_cgi_handlers(cgi_handlers, 4);
 }
 
 

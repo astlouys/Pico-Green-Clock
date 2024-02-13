@@ -5,9 +5,8 @@
 #include "Pico-Green-Clock.h"
 #include "ssi.h"
 
-
 // SSI tags - tag length limited to 8 bytes by default
-const char * ssi_tags[] = {"host","volt","temp","led","date","light",
+const char * ssi_tags[] = {"host","wifissid","wifipass","volt","temp","led","date","light",
 "alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
 "alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
 "alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
@@ -18,7 +17,17 @@ const char * ssi_tags[] = {"host","volt","temp","led","date","light",
 "alm7enab", "alm7time", "alm7mond", "alm7tues", "alm7weds", "alm7thur", "alm7frid", "alm7satu", "alm7sund", "alm7text",
 "alm8enab", "alm8time", "alm8mond", "alm8tues", "alm8weds", "alm8thur", "alm8frid", "alm8satu", "alm8sund", "alm8text"
 };
-//, "day", "month", "year", "hour", "mins", "secs"
+
+// Set the tag offset for the alarm table entries.
+#define ALARMBASE0 8
+#define ALARMBASE1 (ALARMBASE0 + 10)
+#define ALARMBASE2 (ALARMBASE1 + 10)
+#define ALARMBASE3 (ALARMBASE2 + 10)
+#define ALARMBASE4 (ALARMBASE3 + 10)
+#define ALARMBASE5 (ALARMBASE4 + 10)
+#define ALARMBASE6 (ALARMBASE5 + 10)
+#define ALARMBASE7 (ALARMBASE6 + 10)
+#define ALARMBASE8 (ALARMBASE7 + 10)
 
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
@@ -29,7 +38,15 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_host);
     }
     break;
-  case 1: // volt
+  case 1: // wifissid
+      UCHAR* my_wifissid = wfetch_wifissid();
+      printed = snprintf(pcInsert, iInsertLen, "%s", my_wifissid);
+    break;
+  case 2: // wifipass
+      UCHAR* my_wifipassphrase = wfetch_wifipass();
+      printed = snprintf(pcInsert, iInsertLen, "%s", my_wifipassphrase);
+    break;
+  case 3: // volt
     {
       adc_select_input(3);
       bool led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
@@ -42,7 +59,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%f", voltage);
     }
     break;
-  case 2: // temp
+  case 4: // temp
     {
       adc_select_input(4);
       const float voltage = adc_read() * 3.3f / (1 << 12);
@@ -50,7 +67,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%f", tempC);
     }
     break;
-  case 3: // led
+  case 5: // led
     {
       bool led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
       if(led_status == true){
@@ -61,7 +78,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       }
     }
     break;
-  case 4: // date
+  case 6: // date
     {
       UINT8 my_language = wfetch_current_language();
       struct human_time now_time = wfetch_current_datetime();
@@ -74,14 +91,14 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s %d %s\r\nTime is : %d:%02d:%02d", my_weekdayname, my_dayofmonth, my_monthname, my_hour, my_minute, my_second);
     }
     break;
-  case 5: // light
+  case 7: // light
     {
       struct web_light_value dimmer_light_values = wfetch_light_adc_level();
       printed = snprintf(pcInsert, iInsertLen, "Instant level: %4u   Av1: %4u   Av2: %4u   PWM Cycles: %3u  PWM Brightness Level: %3u   Max ADC level: %4u   Min ADC level: %4u\r", dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.AverageLevel, dimmer_light_values.Cycles, dimmer_light_values.pwm_level, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
       // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
     }
     break;
-  case 6: // alm0enab
+  case (ALARMBASE0 + 0): // alm0enab
     {
       struct alarm my_alarm;
       // Get the flash information for 1st alarm 0
@@ -90,7 +107,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 7: // alm0time
+  case (ALARMBASE0 + 1): // alm0time
     {
       struct alarm my_alarm;
       // Get the flash information for 1st alarm 0
@@ -99,7 +116,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 8: // alm0mond
+  case (ALARMBASE0 + 2): // alm0mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -111,7 +128,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 9: // alm0tues
+  case (ALARMBASE0 + 3): // alm0tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -123,7 +140,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 10: // alm0weds
+  case (ALARMBASE0 + 4): // alm0weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -135,7 +152,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 11: // alm0thur
+  case (ALARMBASE0 + 5): // alm0thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -147,7 +164,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 12: // alm0frid
+  case (ALARMBASE0 + 6): // alm0frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -159,7 +176,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 13: // alm0satu
+  case (ALARMBASE0 + 7): // alm0satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -171,7 +188,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 14: // alm0sund
+  case (ALARMBASE0 + 8): // alm0sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -183,7 +200,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 15: //alm0text
+  case (ALARMBASE0 + 9): //alm0text
     {
       struct alarm my_alarm;
       // Get the flash information for 1st alarm 0
@@ -192,7 +209,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case 16: // alm1enab
+  case (ALARMBASE1 + 0): // alm1enab
     {
       struct alarm my_alarm;
       // Get the flash information for 2nd alarm 1
@@ -201,7 +218,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 17: // alm1time
+  case (ALARMBASE1 + 1): // alm1time
     {
       struct alarm my_alarm;
       // Get the flash information for 2nd alarm 1
@@ -210,7 +227,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 18: // alm1mond
+  case (ALARMBASE1 + 2): // alm1mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -222,7 +239,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 19: // alm1tues
+  case (ALARMBASE1 + 3): // alm1tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -234,7 +251,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 20: // alm1weds
+  case (ALARMBASE1 + 4): // alm1weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -246,7 +263,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 21: // alm1thur
+  case (ALARMBASE1 + 5): // alm1thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -258,7 +275,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 22: // alm1frid
+  case (ALARMBASE1 + 6): // alm1frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -270,7 +287,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 23: // alm1satu
+  case (ALARMBASE1 + 7): // alm1satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -282,7 +299,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 24: // alm1sund
+  case (ALARMBASE1 + 8): // alm1sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -294,7 +311,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 25: // alm1text
+  case (ALARMBASE1 + 9): // alm1text
     {
       struct alarm my_alarm;
       // Get the flash information for 2nd alarm 1
@@ -303,7 +320,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case 26: // alm2enab
+  case (ALARMBASE2 + 0): // alm2enab
     {
       struct alarm my_alarm;
       // Get the flash information for 3rd alarm 2
@@ -312,7 +329,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 27: // alm2time
+  case (ALARMBASE2 + 1): // alm2time
     {
       struct alarm my_alarm;
       // Get the flash information for 3rd alarm 2
@@ -321,7 +338,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 28: // alm2mond
+  case (ALARMBASE2 + 2): // alm2mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -333,7 +350,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 29: // alm2tues
+  case (ALARMBASE2 + 3): // alm2tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -345,7 +362,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 30: // alm2weds
+  case (ALARMBASE2 + 4): // alm2weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -357,7 +374,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 31: // alm2thur
+  case (ALARMBASE2 + 5): // alm2thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -369,7 +386,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 32: // alm2frid
+  case (ALARMBASE2 + 6): // alm2frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -381,7 +398,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 33: // alm2satu
+  case (ALARMBASE2 + 7): // alm2satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -393,7 +410,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 34: // alm2sund
+  case (ALARMBASE2 + 8): // alm2sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -405,7 +422,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 35: // alm2text
+  case (ALARMBASE2 + 9): // alm2text
     {
       struct alarm my_alarm;
       // Get the flash information for 3rd alarm 2
@@ -414,7 +431,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case 36: // alm3enab
+  case (ALARMBASE3 + 0): // alm3enab
     {
       struct alarm my_alarm;
       // Get the flash information for 4th alarm 3
@@ -423,7 +440,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 37: // alm3time
+  case (ALARMBASE3 + 1): // alm3time
     {
       struct alarm my_alarm;
       // Get the flash information for 4th alarm 3
@@ -432,7 +449,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 38: // alm3mond
+  case (ALARMBASE3 + 2): // alm3mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -444,7 +461,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 39: // alm3tues
+  case (ALARMBASE3 + 3): // alm3tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -456,7 +473,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 40: // alm3weds
+  case (ALARMBASE3 + 4): // alm3weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -468,7 +485,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 41: // alm3thur
+  case (ALARMBASE3 + 5): // alm3thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -480,7 +497,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 42: // alm3frid
+  case (ALARMBASE3 + 6): // alm3frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -492,7 +509,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 43: // alm3satu
+  case (ALARMBASE3 + 7): // alm3satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -504,7 +521,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 44: // alm3sund
+  case (ALARMBASE3 + 8): // alm3sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -516,7 +533,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 45: // alm3text
+  case (ALARMBASE3 + 9): // alm3text
     {
       struct alarm my_alarm;
       // Get the flash information for 4th alarm 3
@@ -526,7 +543,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
     }
     break;
 
-  case 46: // alm4enab
+  case (ALARMBASE4 + 0): // alm4enab
     {
       struct alarm my_alarm;
       // Get the flash information for 5th alarm 4
@@ -535,7 +552,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 47: // alm4time
+  case (ALARMBASE4 + 1): // alm4time
     {
       struct alarm my_alarm;
       // Get the flash information for 5th alarm 4
@@ -544,7 +561,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 48: // alm4mond
+  case (ALARMBASE4 + 2): // alm4mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -556,7 +573,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 49: // alm4tues
+  case (ALARMBASE4 + 3): // alm4tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -568,7 +585,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 50: // alm4weds
+  case (ALARMBASE4 + 4): // alm4weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -580,7 +597,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 51: // alm4thur
+  case (ALARMBASE4 + 5): // alm4thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -592,7 +609,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 52: // alm4frid
+  case (ALARMBASE4 + 6): // alm4frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -604,7 +621,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 53: // alm4satu
+  case (ALARMBASE4 + 7): // alm4satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -616,7 +633,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 54: // alm4sund
+  case (ALARMBASE4 + 8): // alm4sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -628,7 +645,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 55: // alm4text
+  case (ALARMBASE4 + 9): // alm4text
     {
       struct alarm my_alarm;
       // Get the flash information for 5th alarm 4
@@ -637,7 +654,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case 56: // alm5enab
+  case (ALARMBASE5 + 0): // alm5enab
     {
       struct alarm my_alarm;
       // Get the flash information for 6th alarm 5
@@ -646,7 +663,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 57: // alm5time
+  case (ALARMBASE5 + 1): // alm5time
     {
       struct alarm my_alarm;
       // Get the flash information for 6th alarm 5
@@ -655,7 +672,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 58: // alm5mond
+  case (ALARMBASE5 + 2): // alm5mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -667,7 +684,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 59: // alm5tues
+  case (ALARMBASE5 + 3): // alm5tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -679,7 +696,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 60: // alm5weds
+  case (ALARMBASE5 + 4): // alm5weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -691,7 +708,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 61: // alm5thur
+  case (ALARMBASE5 + 5): // alm5thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -703,7 +720,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 62: // alm5frid
+  case (ALARMBASE5 + 6): // alm5frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -715,7 +732,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 63: // alm5satu
+  case (ALARMBASE5 + 7): // alm5satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -727,7 +744,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 64: // alm5sund
+  case (ALARMBASE5 + 8): // alm5sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -739,7 +756,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 65: // alm5text
+  case (ALARMBASE5 + 9): // alm5text
     {
       struct alarm my_alarm;
       // Get the flash information for 6th alarm 5
@@ -748,7 +765,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case 66: // alm6enab
+  case (ALARMBASE6 + 0): // alm6enab
     {
       struct alarm my_alarm;
       // Get the flash information for 7th alarm 6
@@ -757,7 +774,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 67: // alm6time
+  case (ALARMBASE6 + 1): // alm6time
     {
       struct alarm my_alarm;
       // Get the flash information for 7th alarm 6
@@ -766,7 +783,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 68: // alm6mond
+  case (ALARMBASE6 + 2): // alm6mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -778,7 +795,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 69: // alm6tues
+  case (ALARMBASE6 + 3): // alm6tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -790,7 +807,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 70: // alm6weds
+  case (ALARMBASE6 + 4): // alm6weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -802,7 +819,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 71: // alm6thur
+  case (ALARMBASE6 + 5): // alm6thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -814,7 +831,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 72: // alm6frid
+  case (ALARMBASE6 + 6): // alm6frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -826,7 +843,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 73: // alm6satu
+  case (ALARMBASE6 + 7): // alm6satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -838,7 +855,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 74: // alm6sund
+  case (ALARMBASE6 + 8): // alm6sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -850,7 +867,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 75: // alm6text
+  case (ALARMBASE6 + 9): // alm6text
     {
       struct alarm my_alarm;
       // Get the flash information for 7th alarm 6
@@ -859,7 +876,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case 76: // alm7enab
+  case (ALARMBASE7 + 0): // alm7enab
     {
       struct alarm my_alarm;
       // Get the flash information for 8th alarm 7
@@ -868,7 +885,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 77: // alm7time
+  case (ALARMBASE7 + 1): // alm7time
     {
       struct alarm my_alarm;
       // Get the flash information for 8th alarm 7
@@ -877,7 +894,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 78: // alm7mond
+  case (ALARMBASE7 + 2): // alm7mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -889,7 +906,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 79: // alm7tues
+  case (ALARMBASE7 + 3): // alm7tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -901,7 +918,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 80: // alm7weds
+  case (ALARMBASE7 + 4): // alm7weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -913,7 +930,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 81: // alm7thur
+  case (ALARMBASE7 + 5): // alm7thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -925,7 +942,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 82: // alm7frid
+  case (ALARMBASE7 + 6): // alm7frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -937,7 +954,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 83: // alm7satu
+  case (ALARMBASE7 + 7): // alm7satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -949,7 +966,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 84: // alm7sund
+  case (ALARMBASE7 + 8): // alm7sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -961,7 +978,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 85: // alm7text
+  case (ALARMBASE7 + 9): // alm7text
     {
       struct alarm my_alarm;
       // Get the flash information for 8th alarm 7
@@ -970,7 +987,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case 86: // alm8enab
+  case (ALARMBASE8 + 0): // alm8enab
     {
       struct alarm my_alarm;
       // Get the flash information for 9th alarm 8
@@ -979,7 +996,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
-  case 87: // alm8time
+  case (ALARMBASE8 + 1): // alm8time
     {
       struct alarm my_alarm;
       // Get the flash information for 9th alarm 8
@@ -988,7 +1005,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%02d:%02d",my_alarm.Hour,my_alarm.Minute);
     }
     break;
-  case 88: // alm8mond
+  case (ALARMBASE8 + 2): // alm8mond
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -1000,7 +1017,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 89: // alm8tues
+  case (ALARMBASE8 + 3): // alm8tues
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -1012,7 +1029,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 90: // alm8weds
+  case (ALARMBASE8 + 4): // alm8weds
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -1024,7 +1041,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 91: // alm8thur
+  case (ALARMBASE8 + 5): // alm8thur
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -1036,7 +1053,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 92: // alm8frid
+  case (ALARMBASE8 + 6): // alm8frid
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -1048,7 +1065,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 93: // alm8satu
+  case (ALARMBASE8 + 7): // alm8satu
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -1060,7 +1077,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 94: // alm8sund
+  case (ALARMBASE8 + 8): // alm8sund
     {
       struct alarm my_alarm;
       bool Alarm_day;
@@ -1072,7 +1089,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
-  case 95: // alm8text
+  case (ALARMBASE8 + 9): // alm8text
     {
       struct alarm my_alarm;
       // Get the flash information for 9th alarm 8
