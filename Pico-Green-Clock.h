@@ -408,7 +408,7 @@ struct pwm
   UINT8  Channel;
   UINT32 Clock;
   float  ClockDivider;
-  UINT16 DutyCycle;
+  UINT16 Cycles;
   UINT32 Frequency;
   UINT8  Gpio;
   UINT16 Level;
@@ -639,7 +639,7 @@ void pwm_initialize(void);
 void pwm_on_off(UINT8 PwmNumber, UINT8 FlagSwitch);
 
 /* Set the active duty cycle for the PWM used for clock display brightness. */
-void pwm_set_duty_cycle(UINT16 DutyCycle);
+void pwm_set_cycles(UINT16 Cycles);
 
 /* Set the frequency for the PWM used for passive buzzer. */
 void pwm_set_frequency(UINT16 Frequency);
