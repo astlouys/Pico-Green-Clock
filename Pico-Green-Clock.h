@@ -453,7 +453,8 @@ struct sound_passive
 /* Structure containing the Green Clock configuration being saved to flash memory.
    Those variables will be restored after a reboot and / or power failure. */
 /* IMPORTANT: Version must always be the first element of the structure and
-              CRC16   must always be the  last element of the structure. */
+              CRC16   must always be the  last element of the structure.
+              Size is 675 bytes long */
 struct flash_config
 {
   UCHAR  Version[6];          // firmware version number (format: "06.00" - including end-of-string).
@@ -473,8 +474,9 @@ struct flash_config
   UINT8  FlagScrollEnable;    // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
   UINT8  FlagSummerTime;      // flag indicating the current status (On or Off) of Daylight Saving Time / Summer Time.
   int8_t Timezone;            // (in hours) value to add to UTC time (Universal Time Coordinate) to get the local time.
-  UINT8  LongSetKey;          // flag indicating the set is a short key press and alarm is long or vice versa.
-  UINT8  Reserved1[47];       // reserved for future use.
+  UINT16 DimmerMinLightLevel; // Value of the average light level to be used for the minimum display dim level, range 0 to 1500
+  UINT8  ShortSetKey;         // flag indicating the set is a short key press and alarm is long or vice versa.
+  UINT8  Reserved1[45];       // reserved for future use.
   struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask.
   UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
@@ -489,12 +491,10 @@ struct web_light_value
 {
   UINT16 adc_current_value;   // Current ADC value
   UINT16 AverageLightLevel;   // Average ADC value across the 20 measurement slots
-  UINT16 AverageLevel;        // Bounded average ADC value
+  UINT16 MinLightLevel;       // Configured minimum average ADC value for dimmest display level
   UINT16 Cycles;              // Current pwm active cycles
-  UINT16 pwm_level;           // Current programmed dimmer level
   UINT16 Max_adc_value;       // Cumulative max value
   UINT16 Min_adc_value;       // Cumulative min value
-
 };
 
 /* ------------------------------------------------------------------ *\
@@ -826,5 +826,7 @@ void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data);
 
 struct web_light_value wfetch_light_adc_level(void);
 
-void wcalc_form(UINT16 mvalue, UINT16 nvalue);
+UINT8 fetch_AutoBrightness(void);
+
+void wwrite_dimminlightlevel(UINT16 new_lightlevel);
 

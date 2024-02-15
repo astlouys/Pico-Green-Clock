@@ -497,8 +497,7 @@
 #define TONE_TIMER_DURATION    100   // when count-down timer reaches 00m00s.
 
 #define BRIGHTNESS_PWM_FREQUENCY   1000   // PWM LED driver base frequency in Hz - lower value the lower the light level
-#define BRIGHTNESS_MINLIGHTLEVEL    230   // Light sensor reading for full darkness
-#define BRIGHTNESS_MAXLIGHTLEVEL    530   // Light sensor reading for full display brightness
+#define BRIGHTNESS_LIGHTLEVELRANGE  300   // Light sensor reading range between display full dim and full brightness
 #define BRIGHTNESS_LIGHTLEVELSTEP   300   // The number of light level steps, was 100 but when reduce PWM frequency, this gives a coarse drop in levels
 
 /* ================================================================== *\
@@ -712,10 +711,9 @@ UINT8  CurrentYearLowPart;                     // lowest two digits of the year 
 
 UINT64 DebugBitMask;                           // bitmask of code sections to be debugged through UART (see definitions of DEBUG sections above).
 UINT16 Dim_AverageLightLevel;                  // Average ADC value across the 20 measurement slots
-UINT16 Dim_AverageLevel;                       // Bounded average ADC value
 UINT16 Dim_PWMCycles;                          // Current pwm active cycle
-UINT16 Dim_Max_adc_value = 0;                  // Cumulative adc light level max value, initialise with the minimum number
-UINT16 Dim_Min_adc_value = 65535;              // Cumulative adc light level min value, initialise with the maximum number
+UINT16 Dim_Max_avgadc_value = 0;               // Cumulative adc light level max value, initialise with the minimum number
+UINT16 Dim_Min_avgadc_value = 65535;           // Cumulative adc light level min value, initialise with the maximum number
 UCHAR  DisplayBuffer[DISPLAY_BUFFER_SIZE];     // framebuffer containing the bitmap of the string to be displayed / scrolled on clock display.
 UINT16 DotBlinkCount;                          // cumulate milliseconds to blink the two "middle dots" on clock display.
 
@@ -740,6 +738,7 @@ UINT8  FlagTimerCountDownEnd      = FLAG_OFF;  // flag indicating the count down
 UINT8  FlagTone                   = FLAG_OFF;  // flag indicating there is a tone sounding.
 UINT8  FlagToneOn                 = FLAG_OFF;  // flag indicating it is time to make a tone.
 UINT8  FlagUpdateTime             = FLAG_OFF;  // flag indicating it is time to refresh the time on clock display.
+UINT8  FlagWebRequestFlashCheck   = FLAG_OFF;  // flag indicating that the web page control has updated things that are stored in the flash and may need updating
 struct flash_config FlashConfig;               // Hold the flash data storage in a data structure
 UINT8 *FlashData;                                                       // pointer to an allocated RAM memory space used for flash operations.
 UINT8 *FlashMemoryAddress = (UINT8 *)(XIP_BASE + FLASH_CONFIG_OFFSET);  // pointer to flash memory used to store clock configuration (flash base address + offset).
@@ -1552,6 +1551,8 @@ int main(void)
     FlashConfig.FlagScrollEnable   = FLAG_ON;
     FlashConfig.FlagSummerTime     = FLAG_OFF;
     FlashConfig.TimeDisplayMode    = H24;
+    FlashConfig.DimmerMinLightLevel= 225;
+    FlashConfig.ShortSetKey        = FLAG_ON;
     for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
       FlashConfig.Alarm[Loop1UInt8].FlagStatus = FLAG_OFF;
     sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
@@ -2627,6 +2628,15 @@ int main(void)
       FlagUpdateTime = FLAG_OFF;
     }
 
+    /* Check to see if a web page update asks for a flash stored value to be changed */
+    if ((FlagWebRequestFlashCheck == FLAG_ON) && ((CurrentSecond % 5) == 0))
+    {
+      // Check to see if the flash memory needs updating and update if needed
+      flash_check_config();
+      // Clear the flag
+      FlagWebRequestFlashCheck = FLAG_OFF;
+    }
+
 
     if (CurrentClockMode == MODE_SHOW_TIME) show_time;
 
@@ -2931,7 +2941,7 @@ float adc_read_voltage(void)
   adc_select_input(3);
 
   /* For Pico W, it is important that GPIO 25 be high to read the power supply voltage. */
-  if (PicoType == TYPE_PICO_W){
+  if (PicoType == TYPE_PICO_W) {
     led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
     // This must be a Pico W for web access to be called
     // For Pico W, it is important that GPIO 25 be high to read the power supply voltage.
@@ -2943,7 +2953,7 @@ float adc_read_voltage(void)
 
   /* Convert raw value to voltage value. */
   Volts = AdcValue * (3.3 / (1 << 12));
-  if (PicoType == TYPE_PICO_W){
+  if (PicoType == TYPE_PICO_W) {
     // Set LED back
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
   }
@@ -3044,18 +3054,19 @@ void adjust_clock_brightness(void)
          Ambient light level goes from around 200 (very dark) to 1500 (very bright). */
       AverageLevel = AverageLightLevel;
 
-      if (AverageLightLevel < BRIGHTNESS_MINLIGHTLEVEL) AverageLevel = BRIGHTNESS_MINLIGHTLEVEL;
-      if (AverageLightLevel > BRIGHTNESS_MAXLIGHTLEVEL) AverageLevel = BRIGHTNESS_MAXLIGHTLEVEL;
-      PWMCycles = (UINT16)((AverageLevel - BRIGHTNESS_MINLIGHTLEVEL) / ((BRIGHTNESS_MAXLIGHTLEVEL - BRIGHTNESS_MINLIGHTLEVEL) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
+      if (AverageLightLevel < FlashConfig.DimmerMinLightLevel)
+        AverageLevel = FlashConfig.DimmerMinLightLevel;
+      if (AverageLightLevel > (FlashConfig.DimmerMinLightLevel + BRIGHTNESS_LIGHTLEVELRANGE))
+        AverageLevel = (FlashConfig.DimmerMinLightLevel + BRIGHTNESS_LIGHTLEVELRANGE);
+      PWMCycles = (UINT16)((AverageLevel - FlashConfig.DimmerMinLightLevel) / (BRIGHTNESS_LIGHTLEVELRANGE / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
       pwm_set_cycles(PWMCycles);
 
       Dim_AverageLightLevel = AverageLightLevel;
-      Dim_AverageLevel = AverageLevel;
       Dim_PWMCycles = PWMCycles;
-      if (current_adc_light < Dim_Min_adc_value)
-        Dim_Min_adc_value = current_adc_light;
-      if (current_adc_light > Dim_Max_adc_value)
-        Dim_Max_adc_value = current_adc_light;
+      if (AverageLightLevel < Dim_Min_avgadc_value)
+        Dim_Min_avgadc_value = AverageLightLevel;
+      if (AverageLightLevel > Dim_Max_avgadc_value)
+        Dim_Max_avgadc_value = AverageLightLevel;
 
       if (DebugBitMask & DEBUG_BRIGHTNESS)
       {
@@ -4959,8 +4970,9 @@ UINT8 flash_display_config(void)
   uart_send(__LINE__, "[%X] FlagAutoBrightness:       0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
   uart_send(__LINE__, "[%X] FlagKeyclick:             0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
   uart_send(__LINE__, "[%X] FlagScrollEnable:         0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
-
-
+  uart_send(__LINE__, "[%X] FlagSummerTime:           0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagSummerTime, FlashConfig.FlagSummerTime);
+  uart_send(__LINE__, "[%X] DimmerMinLightLevel:       %3u\r", &FlashConfig.DimmerMinLightLevel, FlashConfig.DimmerMinLightLevel);
+  uart_send(__LINE__, "[%X] ShortSetKey:              0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.ShortSetKey, FlashConfig.ShortSetKey);
   /* Display Reserved1 data. */
   uart_send(__LINE__, "[%X] Reserved1 - size: 0x%2.2X (%3u):\r  ", &FlashConfig.Reserved1[Loop1UInt16], sizeof(FlashConfig.Reserved1), sizeof(FlashConfig.Reserved1));
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved1); ++Loop1UInt16)
@@ -5223,8 +5235,10 @@ UINT8 flash_read_config(void)
   FlashConfig.FlagAutoBrightness = FLAG_ON;               // flag indicating we are in "Auto Brightness" mode.
   FlashConfig.FlagKeyclick       = FLAG_ON;               // flag for keyclick ("button-press" tone)
   FlashConfig.FlagScrollEnable   = SCROLL_DEFAULT;        // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
+  FlashConfig.DimmerMinLightLevel= 225;                   // lowest average light level for dimmest display level
+  FlashConfig.ShortSetKey        = FLAG_ON;               // flag to say if the set key short press should set the time or the alarm
 
-  /* Make provosion for future parameters. */
+  /* Make provision for future parameters. */
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved1); ++Loop1UInt16)
   {
     FlashConfig.Reserved1[Loop1UInt16] = 0xFF;
@@ -5430,8 +5444,8 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
     return 1;
   }
 
-  /* A wear leveling algorithm has not been implemented since the flash usage for configuration parameters doesn't require it.
-     However, flash write should not be use for intensive data logging without adding a wear leveling algorithm. */
+  /* A wear levelling algorithm has not been implemented since the flash usage for configuration parameters doesn't require it.
+     However, flash write should not be use for intensive data logging without adding a wear levelling algorithm. */
   FlashBaseAddress = (UINT8 *)(XIP_BASE);
 
   if (DebugBitMask & DEBUG_FLASH)
@@ -18306,23 +18320,25 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
   return;
 }
 
-UCHAR* wfetch_hostname(void){
+UCHAR* wfetch_hostname(void) {
   return &FlashConfig.Hostname[4];
 }
 
-UCHAR* wfetch_wifissid(void){
+UCHAR* wfetch_wifissid(void) {
   return &FlashConfig.SSID[4];
 }
 
-UCHAR* wfetch_wifipass(void){
+UCHAR* wfetch_wifipass(void) {
   return &FlashConfig.Password[4];
 }
 
-void wwrite_networkcfg(UCHAR * new_hostname, UCHAR * new_wifissid, UCHAR * new_wifipass){
-  int16_t ReturnCode;
+void wwrite_networkcfg(UCHAR * new_hostname, UCHAR * new_wifissid, UCHAR * new_wifipass) {
+  // Update the configured values
   sprintf(&FlashConfig.Hostname[4], new_hostname);
   sprintf(&FlashConfig.Password[4], new_wifipass);
   sprintf(&FlashConfig.SSID[4], new_wifissid);
+  // Perform a flash configuration update check soon
+  FlagWebRequestFlashCheck = FLAG_ON;
 }
 
 struct human_time wfetch_current_datetime(void) {
@@ -18339,15 +18355,15 @@ struct human_time wfetch_current_datetime(void) {
   return current_time;
 }
 
-UINT8 wfetch_current_language(void){
+UINT8 wfetch_current_language(void) {
   return FlashConfig.Language;
 }
 
-UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek){
+UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek) {
   return DayName[the_language][the_dayofweek];
 }
 
-UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month){
+UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month) {
   return MonthName[the_language][the_month];
 }
 
@@ -18356,7 +18372,7 @@ void wwrite_day_of_month(UINT8 NewDayOfMonth) {
   return;
 }
 
-struct alarm wfetch_alarm(UINT8 alarm_to_fetch){
+struct alarm wfetch_alarm(UINT8 alarm_to_fetch) {
   struct alarm my_alarm;
   my_alarm.FlagStatus = FlashConfig.Alarm[alarm_to_fetch].FlagStatus;
   my_alarm.Second = FlashConfig.Alarm[alarm_to_fetch].Second;
@@ -18367,7 +18383,7 @@ struct alarm wfetch_alarm(UINT8 alarm_to_fetch){
   return my_alarm;
 }
 
-void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data){
+void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data) {
   UINT8 Dum1UInt8;
   UINT8 Loop1UInt8;
   // Set values into alarm structure, text data will be pre-checked for length so we only need one update.
@@ -18392,22 +18408,22 @@ void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data){
   return;
 }
 
-struct web_light_value wfetch_light_adc_level(void){
+struct web_light_value wfetch_light_adc_level(void) {
   struct web_light_value dimmer_light_values;
   dimmer_light_values.adc_current_value = adc_read_light();
   dimmer_light_values.AverageLightLevel = Dim_AverageLightLevel;
-  dimmer_light_values.AverageLevel = Dim_AverageLevel;
+  dimmer_light_values.MinLightLevel = FlashConfig.DimmerMinLightLevel;
   dimmer_light_values.Cycles = Dim_PWMCycles;
-  dimmer_light_values.pwm_level = Pwm[PWM_BRIGHTNESS].Level;
-  dimmer_light_values.Min_adc_value = Dim_Min_adc_value;
-  dimmer_light_values.Max_adc_value = Dim_Max_adc_value;
+  dimmer_light_values.Min_adc_value = Dim_Min_avgadc_value;
+  dimmer_light_values.Max_adc_value = Dim_Max_avgadc_value;
   return dimmer_light_values;
 }
 
-void wcalc_form(UINT16 mvalue, UINT16 nvalue){
-  UINT16 result;
-  result = mvalue * nvalue;
-  uart_send(__LINE__, "Multiplication of %d x %d = %d\r\n", mvalue, nvalue, result);
-  return;
+UINT8 fetch_AutoBrightness(void) {
+  return FlashConfig.FlagAutoBrightness;
+}
+
+void wwrite_dimminlightlevel(UINT16 new_lightlevel) {
+  FlashConfig.DimmerMinLightLevel = new_lightlevel;
 }
 

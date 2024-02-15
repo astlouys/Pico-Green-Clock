@@ -6,7 +6,7 @@
 #include "ssi.h"
 
 // SSI tags - tag length limited to 8 bytes by default
-const char * ssi_tags[] = {"host","wifissid","wifipass","volt","temp","led","date","light",
+const char * ssi_tags[] = {"host","wifissid","wifipass","volt","temp","led","date","light","autodim","dimlevel",
 "alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
 "alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
 "alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
@@ -19,7 +19,7 @@ const char * ssi_tags[] = {"host","wifissid","wifipass","volt","temp","led","dat
 };
 
 // Set the tag offset for the alarm table entries.
-#define ALARMBASE0 8
+#define ALARMBASE0 10
 #define ALARMBASE1 (ALARMBASE0 + 10)
 #define ALARMBASE2 (ALARMBASE1 + 10)
 #define ALARMBASE3 (ALARMBASE2 + 10)
@@ -94,8 +94,19 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   case 7: // light
     {
       struct web_light_value dimmer_light_values = wfetch_light_adc_level();
-      printed = snprintf(pcInsert, iInsertLen, "Instant level: %4u   Av1: %4u   Av2: %4u   PWM Cycles: %3u  PWM Brightness Level: %3u   Max ADC level: %4u   Min ADC level: %4u\r", dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.AverageLevel, dimmer_light_values.Cycles, dimmer_light_values.pwm_level, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
+      printed = snprintf(pcInsert, iInsertLen, "PWM Duty Cycle: %4.1f,  Instant light level: %4u,   Average light level: %4u,   Max light level: %4u,   Min light level: %4u", (dimmer_light_values.Cycles/10.0), dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
       // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
+    }
+    break;
+  case 8: // autodim
+    {
+        printed = snprintf(pcInsert, iInsertLen, "%d", fetch_AutoBrightness());
+    }
+    break;
+  case 9: // dimlevel
+    {
+      struct web_light_value dimmer_light_values = wfetch_light_adc_level();
+      printed = snprintf(pcInsert, iInsertLen, "%d", dimmer_light_values.MinLightLevel);
     }
     break;
   case (ALARMBASE0 + 0): // alm0enab

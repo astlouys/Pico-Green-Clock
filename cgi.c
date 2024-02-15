@@ -180,6 +180,28 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
     return "/index.shtml";
 }
 
+// CGI handler which is run when a request for /setdisplayadclevel.cgi is detected
+const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 Loop1UInt8;
+    UINT8 New_dimctrl = 0;
+    UINT16 New_adcvalue;
+    // parse the returned key and value pairs,
+    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
+    {
+      if (strcmp(pcParam[Loop1UInt8], "autodim") == 0) {
+        New_dimctrl = 1;
+      }
+      if (strcmp(pcParam[Loop1UInt8], "mindimadclevel") == 0) {
+        New_adcvalue = atoi(pcValue[Loop1UInt8]);
+      }
+    }
+    wwrite_dimminlightlevel(New_adcvalue);
+    // Send the index page back to the user
+    return "/index.shtml";
+
+}
+
+
 // http://172.22.42.169/htalarm.cgi?al0enab=alamenab&al0time=07%3A20&al0text=Time+to+get+up%21%21%21
 
 // struct alarm
@@ -209,6 +231,9 @@ static const tCGI cgi_handlers[] = {
     },
     {
         "/htalarm.cgi", cgi_htalarm_handler
+    },
+    {
+        "/setdisplayadclevel.cgi", cgi_setdisplaylevel_handler
     }
 
     // Add more functions here...
@@ -217,7 +242,7 @@ static const tCGI cgi_handlers[] = {
 
 void cgi_init(void) {
     // We have three handler
-    http_set_cgi_handlers(cgi_handlers, 4);
+    http_set_cgi_handlers(cgi_handlers, 5);
 }
 
 

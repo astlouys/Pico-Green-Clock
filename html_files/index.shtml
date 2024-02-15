@@ -5,13 +5,23 @@
     </head>
     <body> <h1><!--#host--> Pico Clock</h1>
         <h2>Status Information</h2>
-        <p>Hostname: <!--#host--></p>
+        <form action="/mynetwork.cgi">
+          <fieldset>
+          <legend>WiFi Network Configuration</legend>
+          <label for="Pico-W Hostname">New hostname:</label>
+          <input type="text" id="hostname" name="hostname" size='20' maxlength='40' value=<!--#host-->><br>
+          <label for="wifissid">New WiFi SSID:</label>
+          <input type="text" id="wifissid" name="wifissid" size='20' maxlength='40' value=<!--#wifissid-->>
+          <label for="wifipass">New WiFi Passphrase:</label>
+          <input type="password" id="wifipass" name="wifipass" size='20' maxlength='70' value=<!--#wifipass-->><br>
+          <input type="submit" value="Update"> (applied on next power up)
+          </fieldset>
+        </form>
+        <br>
         <p>Voltage: <!--#volt--> V</p>
         <p>Temp: <!--#temp--> Deg C</p>
         <p>LED is: <!--#led--></p>
         <p>Date is: <!--#date--></p>
-        <p>Clock display information: <!--#light--></p>
-        <br>
         <h2>Controls</h2>
         <a href="/led.cgi?led=1"><button>LED ON</button></a>
         <a href="/led.cgi?led=0"><button>LED OFF</button></a>
@@ -19,6 +29,8 @@
         <a href="/date.cgi?dayofmonth=1"><button>Month Day 1</button></a>
         <a href="/date.cgi?dayofmonth=2"><button>Month Day 2</button></a>
         <br>
+        <fieldset>
+        <legend>Configure Alarms</legend>
         <form action="/htalarm.cgi">
           <label for="alarms">Current Alarms:</label><br>
           <label for="alarms">Alarm 1: </label>
@@ -146,18 +158,17 @@
           <label for="al8text">Text:</label><input type="text" id="al8text" name="al8text" size='20' maxlength='40' value="<!--#alm8text-->">
           <input type="submit" value="Update Alarm 9"><br>
         </form>
+        </fieldset>
         <br>
-        <form action="/mynetwork.cgi">
-          WiFi Network Configuration - updates on next power up<br>
-          <label for="Pico-W Hostname">New hostname:</label><br>
-          <input type="text" id="hostname" name="hostname" value=<!--#host-->><br>
-          <label for="wifissid">New WiFi SSID:</label><br>
-          <input type="text" id="wifissid" name="wifissid" value=<!--#wifissid-->><br>
-          <label for="wifipass">New WiFi Passphrase:</label><br>
-          <input type="password" id="wifipass" name="wifipass" value=<!--#wifipass-->><br>
+        <form action="/setdisplayadclevel.cgi">
+          <fieldset>
+          <legend>Configure Display Dimming</legend>
+          <label for="autodim">Auto Dimming</label><input type="checkbox" <!--#autodim--> id="autodim" name="autodim" value="enautodim">
+          <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->"><br>
+          Useful ADC level information: <!--#light--><br>
           <input type="submit" value="Update">
+          </fieldset>
         </form>
-        <br>
         <a href="/index.shtml">Refresh</a>
    </body>
 </html>

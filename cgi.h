@@ -4,6 +4,7 @@ const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *
 const char * cgi_date_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
+const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 
 
 // cgi handler initialiser
