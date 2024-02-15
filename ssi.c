@@ -94,7 +94,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   case 7: // light
     {
       struct web_light_value dimmer_light_values = wfetch_light_adc_level();
-      printed = snprintf(pcInsert, iInsertLen, "PWM Duty Cycle: %4.1f,  Instant light level: %4u,   Average light level: %4u,   Max light level: %4u,   Min light level: %4u", (dimmer_light_values.Cycles/10.0), dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
+      printed = snprintf(pcInsert, iInsertLen, "PWM Duty Cycle: %4.1f,  Instant light level: %4u,   Average light level: %4u,   Max average light level: %4u,   Min average light level: %4u", (dimmer_light_values.DutyCycle/10.0), dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
       // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
     }
     break;

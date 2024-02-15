@@ -408,7 +408,7 @@ struct pwm
   UINT8  Channel;
   UINT32 Clock;
   float  ClockDivider;
-  UINT16 Cycles;
+  UINT16 DutyCycle;
   UINT32 Frequency;
   UINT8  Gpio;
   UINT16 Level;
@@ -492,7 +492,7 @@ struct web_light_value
   UINT16 adc_current_value;   // Current ADC value
   UINT16 AverageLightLevel;   // Average ADC value across the 20 measurement slots
   UINT16 MinLightLevel;       // Configured minimum average ADC value for dimmest display level
-  UINT16 Cycles;              // Current pwm active cycles
+  UINT16 DutyCycle;           // Current dimmer pwm duty cycle - value 0 to 1000 for 0 - 100.0%
   UINT16 Max_adc_value;       // Cumulative max value
   UINT16 Min_adc_value;       // Cumulative min value
 };
@@ -638,8 +638,8 @@ void pwm_initialize(void);
 /* Turn On or Off the PWM signal specified in argument. */
 void pwm_on_off(UINT8 PwmNumber, UINT8 FlagSwitch);
 
-/* Set the active cycles for the PWM used for clock display brightness. */
-void pwm_set_cycles(UINT16 Cycles);
+/* Set the active duty cycle for the PWM used for clock display brightness. */
+void pwm_set_duty_cycle(UINT16 DutyCycle);
 
 /* Set the frequency for the PWM used for passive buzzer. */
 void pwm_set_frequency(UINT16 Frequency);

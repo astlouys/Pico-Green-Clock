@@ -164,7 +164,7 @@
           <fieldset>
           <legend>Configure Display Dimming</legend>
           <label for="autodim">Auto Dimming</label><input type="checkbox" <!--#autodim--> id="autodim" name="autodim" value="enautodim">
-          <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->"><br>
+          <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->"> - set to 20 above Min average light level<br>
           Useful ADC level information: <!--#light--><br>
           <input type="submit" value="Update">
           </fieldset>

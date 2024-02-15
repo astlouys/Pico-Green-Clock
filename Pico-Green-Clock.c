@@ -711,7 +711,7 @@ UINT8  CurrentYearLowPart;                     // lowest two digits of the year 
 
 UINT64 DebugBitMask;                           // bitmask of code sections to be debugged through UART (see definitions of DEBUG sections above).
 UINT16 Dim_AverageLightLevel;                  // Average ADC value across the 20 measurement slots
-UINT16 Dim_PWMCycles;                          // Current pwm active cycle
+UINT16 Dim_DutyCycle;                          // Current pwm active cycle
 UINT16 Dim_Max_avgadc_value = 0;               // Cumulative adc light level max value, initialise with the minimum number
 UINT16 Dim_Min_avgadc_value = 65535;           // Cumulative adc light level min value, initialise with the maximum number
 UCHAR  DisplayBuffer[DISPLAY_BUFFER_SIZE];     // framebuffer containing the bitmap of the string to be displayed / scrolled on clock display.
@@ -3009,7 +3009,7 @@ void adjust_clock_brightness(void)
 
   UINT16 current_adc_light;
   UINT16 AverageLevel;
-  UINT16 PWMCycles;
+  UINT16 DutyCycle;
 
   static UINT16 AmbientLightMSecCounter;
   static UINT16 LightLevel[MAX_LIGHT_SLOTS] = {550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550};  // assume average ambient light level on entry.
@@ -3058,11 +3058,11 @@ void adjust_clock_brightness(void)
         AverageLevel = FlashConfig.DimmerMinLightLevel;
       if (AverageLightLevel > (FlashConfig.DimmerMinLightLevel + BRIGHTNESS_LIGHTLEVELRANGE))
         AverageLevel = (FlashConfig.DimmerMinLightLevel + BRIGHTNESS_LIGHTLEVELRANGE);
-      PWMCycles = (UINT16)((AverageLevel - FlashConfig.DimmerMinLightLevel) / (BRIGHTNESS_LIGHTLEVELRANGE / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
-      pwm_set_cycles(PWMCycles);
+      DutyCycle = (UINT16)((AverageLevel - FlashConfig.DimmerMinLightLevel) / (BRIGHTNESS_LIGHTLEVELRANGE / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
+      pwm_set_duty_cycle(DutyCycle);
 
       Dim_AverageLightLevel = AverageLightLevel;
-      Dim_PWMCycles = PWMCycles;
+      Dim_DutyCycle = DutyCycle;
       if (AverageLightLevel < Dim_Min_avgadc_value)
         Dim_Min_avgadc_value = AverageLightLevel;
       if (AverageLightLevel > Dim_Max_avgadc_value)
@@ -3071,7 +3071,7 @@ void adjust_clock_brightness(void)
       if (DebugBitMask & DEBUG_BRIGHTNESS)
       {
         uart_send(__LINE__, "Instant level: %4u   Av1: %4u   Av2: %4u   (Av2 - 230): %3u\r", adc_read_light(), AverageLightLevel, AverageLevel, (AverageLevel - 230));
-        uart_send(__LINE__, "((Av2 - 230) / 500.0): %3.2f   (UINT16)((Av2 - 230) / 500.0): %3u   PWM cycles: %3u\r\r", ((AverageLevel - 230) / 500.0), (UINT16)((AverageLevel - 230) / 500.0), PWMCycles);
+        uart_send(__LINE__, "((Av2 - 230) / 500.0): %3.2f   (UINT16)((Av2 - 230) / 500.0): %3u   PWM cycles: %3u\r\r", ((AverageLevel - 230) / 500.0), (UINT16)((AverageLevel - 230) / 500.0), DutyCycle);
       }
     }
   }
@@ -4453,11 +4453,11 @@ void display_pwm(struct pwm *Pwm, UCHAR *TitleString)
   }
 
   if (Pwm->Gpio == OE)
-    Pwm->Cycles = (UINT8)(100 - (((float)Pwm->Level / Pwm->Wrap) * 100.0));
+    Pwm->DutyCycle = (UINT8)(100 - (((float)Pwm->Level / Pwm->Wrap) * 100.0));
   else
-    Pwm->Cycles = (UINT8)(((float)Pwm->Level / Pwm->Wrap) * 100.0);
+    Pwm->DutyCycle = (UINT8)(((float)Pwm->Level / Pwm->Wrap) * 100.0);
 
-  uart_send(__LINE__, "Pwm->Cycles:    %u\r", Pwm->Cycles);
+  uart_send(__LINE__, "Pwm->DutyCycle:    %u\r", Pwm->DutyCycle);
   uart_send(__LINE__, "CurrentClockMode:  %u\r\r\r\r", CurrentClockMode);
 }
 
@@ -5388,7 +5388,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
 {
   UCHAR String[256];
 
-  UINT16 CurrentPWMCycles;
+  UINT16 CurrentDutyCycle;
   UINT8 *FlashBaseAddress;
   UINT8 OriginalClockMode;
 
@@ -5472,8 +5472,8 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
 
 
   /* Blank display so that we don't see frozen display while interrupts are disabled. */
-  CurrentPWMCycles = Pwm[PWM_BRIGHTNESS].Cycles;
-  pwm_set_cycles(0);
+  CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
+  pwm_set_duty_cycle(0);
 
   /* Erase flash before reprogramming. */
   flash_erase(SectorOffset);
@@ -5488,7 +5488,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
   restore_interrupts(InterruptMask);
 
   /* Restore display when done. */
-  pwm_set_cycles(CurrentPWMCycles);
+  pwm_set_duty_cycle(CurrentDutyCycle);
 
   if (DebugBitMask & DEBUG_FLASH)
     uart_send(__LINE__, "Exiting flash_write()\r\r\r");
@@ -8303,7 +8303,7 @@ void process_ir_command(UINT8 IrCommand)
               {
                 sprintf(String, "zobrazeni");
                 String[9] = (UINT8)131;  // i-acute
-                sprintf(String, "Automaticke nastaveni jasu je zapnuto. Jas: %u   hystereze: %u   %s: %u%c.", adc_read_light(), AverageLightLevel, String, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+                sprintf(String, "Automaticke nastaveni jasu je zapnuto. Jas: %u   hystereze: %u   %s: %u%c.", adc_read_light(), AverageLightLevel, String, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
                 String[10] = (UINT8)138;  // e-acute
                 String[20] = (UINT8)131;  // i-acute
               }
@@ -8318,7 +8318,7 @@ void process_ir_command(UINT8 IrCommand)
             case (FRENCH):
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
-                sprintf(String, "Intensite automatique est a On   Luminosite: %u   Hysteresis: %u   Affichage: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+                sprintf(String, "Intensite automatique est a On   Luminosite: %u   Hysteresis: %u   Affichage: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
                 String[8]  = (UINT8)31;  // e accent aigu.
                 String[41] = (UINT8)31;  // e accent aigu.
               }
@@ -8332,7 +8332,7 @@ void process_ir_command(UINT8 IrCommand)
             case (SPANISH):
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
-                sprintf(String, "Intensidad automatica esta activada   Luminosidad: %u   Hysteresis: %u   Monitor: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+                sprintf(String, "Intensidad automatica esta activada   Luminosidad: %u   Hysteresis: %u   Monitor: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
                 String[16] = (UINT8)129; // a-acute
                 String[25] = (UINT8)129; // a-acute
               }
@@ -8349,7 +8349,7 @@ void process_ir_command(UINT8 IrCommand)
             default:
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
-                sprintf(String, "Auto brightness is On   Light level: %u   Hysteresis: %u   Display: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+                sprintf(String, "Auto brightness is On   Light level: %u   Hysteresis: %u   Display: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
               }
               else
               {
@@ -8785,22 +8785,22 @@ void process_scroll_queue(void)
           switch (FlashConfig.Language)
           {
             case (CZECH):
-              sprintf(String, "Jas: %u   hystereze: %u   displej: %u%c.    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+              sprintf(String, "Jas: %u   hystereze: %u   displej: %u%c.    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
             break;
 
             case (FRENCH):
-              sprintf(String, "Luminosite: %u   Hysteresis: %u   Affichage: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+              sprintf(String, "Luminosite: %u   Hysteresis: %u   Affichage: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
               String[9] = (UINT8)31; // e accent aigu.
             break;
 
             case (SPANISH):
-              sprintf(String, "Luminosidad: %u   Hysteresis: %u   Monitor: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+              sprintf(String, "Luminosidad: %u   Hysteresis: %u   Monitor: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
             break;
 
             case (ENGLISH):
             case (GERMAN):
             default:
-              sprintf(String, "Ambient light: %u   Hysteresis: %u   Display: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
+              sprintf(String, "Ambient light: %u   Hysteresis: %u   Display: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
             break;
           }
           scroll_string(24, String);
@@ -9819,9 +9819,9 @@ void pwm_initialize(void)
         // Anything slower than 1KHz is visible on the LED display
         Pwm[Loop1UInt8].Frequency = BRIGHTNESS_PWM_FREQUENCY;
         Pwm[Loop1UInt8].Wrap      = (UINT16)(Pwm[Loop1UInt8].Clock / Pwm[Loop1UInt8].Frequency);
-        Pwm[Loop1UInt8].Cycles    = BRIGHTNESS_LIGHTLEVELSTEP;
+        Pwm[Loop1UInt8].DutyCycle = BRIGHTNESS_LIGHTLEVELSTEP;
         // OE is active low, so reverse the duty cycle.
-        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[Loop1UInt8].Cycles) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
+        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[Loop1UInt8].DutyCycle) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
 
         /* Set PWM frequency by setting a counter wrap value. */
         pwm_set_wrap(Pwm[Loop1UInt8].Slice, Pwm[Loop1UInt8].Wrap);
@@ -9838,8 +9838,8 @@ void pwm_initialize(void)
         /* Set current values in PWM structure. */
         Pwm[Loop1UInt8].Frequency = 250;
         Pwm[Loop1UInt8].Wrap      = (UINT16)(Pwm[Loop1UInt8].Clock / Pwm[Loop1UInt8].Frequency);
-        Pwm[Loop1UInt8].Cycles    = 50;
-        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * (Pwm[Loop1UInt8].Cycles / 100.0));
+        Pwm[Loop1UInt8].DutyCycle = 50;
+        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * (Pwm[Loop1UInt8].DutyCycle / 100.0));
 
         /* Set PWM frequency by setting a counter wrap value. */
         pwm_set_wrap(Pwm[Loop1UInt8].Slice, Pwm[Loop1UInt8].Wrap);
@@ -9891,28 +9891,29 @@ void pwm_on_off(UINT8 PwmNumber, UINT8 FlagSwitch)
 
 
 /* $PAGE */
-/* $TITLE=pwm_set_cycles() */
+/* $TITLE=pwm_set_duty_cycle() */
 /* ---------------------------------------------------------------------------- *\
      Set the duty cycle for the PWM controlling the clock display brightness.
      A value of 0 matches one cycle, giving a minimum level of 1 BRIGHTNESS_LIGHTLEVELSTEP
-     Note: active cycles is given as a ratio of PWMCycles to BRIGHTNESS_LIGHTLEVELSTEP.
+     Note: active cycles is given as a ratio of DutyCycle to BRIGHTNESS_LIGHTLEVELSTEP.
            For example, a value of (BRIGHTNESS_LIGHTLEVELSTEP/2) -1 means 50% of active cycles
    NOTE: Since "Output Enable" (OE) is active low, we reverse the active cycle
         so that we still have larger numbers for brighter LED levels.
+   NOTE: Dimmer DutyCycle takes values of 0 to 1000 to indicate 0 to 100.0% in 0.1% steps
 \* ---------------------------------------------------------------------------- */
-void pwm_set_cycles(UINT16 PWMCycles)
+void pwm_set_duty_cycle(UINT16 DutyCycle)
 {
   UCHAR String[256];
 
 
   /* Validate value specified for duty cycle. */
-  if (PWMCycles > BRIGHTNESS_LIGHTLEVELSTEP)
-    PWMCycles = BRIGHTNESS_LIGHTLEVELSTEP;
+  if (DutyCycle > BRIGHTNESS_LIGHTLEVELSTEP)
+    DutyCycle = BRIGHTNESS_LIGHTLEVELSTEP;
 
   /* Set current values in PWM structure. */
-  Pwm[PWM_BRIGHTNESS].Cycles = PWMCycles;
-  // Pwm[PWM_BRIGHTNESS].Cycles = 0;
-  Pwm[PWM_BRIGHTNESS].Level = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[PWM_BRIGHTNESS].Cycles) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
+  Pwm[PWM_BRIGHTNESS].DutyCycle = DutyCycle;
+  // Pwm[PWM_BRIGHTNESS].DutyCycle = 0;
+  Pwm[PWM_BRIGHTNESS].Level = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[PWM_BRIGHTNESS].DutyCycle) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
 
 
   /* Set PWM duty cycle given the Divider, Counter and Frequency current values. */
@@ -9944,7 +9945,7 @@ void pwm_set_frequency(UINT16 Frequency)
   pwm_set_wrap(Pwm[PWM_SOUND].Slice, Pwm[PWM_SOUND].Wrap);
 
   /* Since we change the frequency, adjust duty cycle accordingly. */
-  Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].Cycles / 100.0));
+  Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].DutyCycle / 100.0));
 
   /* Set PWM duty cycle given the Divider, Counter and Frequency current values. */
   pwm_set_chan_level(Pwm[PWM_SOUND].Slice, Pwm[PWM_SOUND].Channel, Pwm[PWM_SOUND].Level);
@@ -14748,9 +14749,9 @@ Test9:
         printf("Enter new duty cycle value (16 bits): ");
         input_string(String);
         if (String[0] == 0x0D) continue;
-        Pwm[PWM_SOUND].Cycles = atoi(String);
-        if (Pwm[PWM_SOUND].Cycles > 100) Pwm[PWM_SOUND].Cycles = 100;  // Validate value specified for duty cycle.
-        Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].Cycles / 100.0));
+        Pwm[PWM_SOUND].DutyCycle = atoi(String);
+        if (Pwm[PWM_SOUND].DutyCycle > 100) Pwm[PWM_SOUND].DutyCycle = 100;  // Validate value specified for duty cycle.
+        Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].DutyCycle / 100.0));
         pwm_set_chan_level(Pwm[PWM_SOUND].Slice, Pwm[PWM_SOUND].Channel, Pwm[PWM_SOUND].Level);
         printf("\r\r");
       break;
@@ -16079,10 +16080,10 @@ Test18:
         printf("Enter new duty cycle value (16 bits): ");
         input_string(String);
         if (String[0] == 0x0D) continue;
-        Pwm[PWM_BRIGHTNESS].Cycles = atoi(String);
-        if (Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_LIGHTLEVELSTEP)
-          Pwm[PWM_BRIGHTNESS].Cycles = BRIGHTNESS_LIGHTLEVELSTEP;  // Validate value specified for duty cycle.
-        Pwm[PWM_BRIGHTNESS].Level = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[PWM_BRIGHTNESS].Cycles) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
+        Pwm[PWM_BRIGHTNESS].DutyCycle = atoi(String);
+        if (Pwm[PWM_BRIGHTNESS].DutyCycle > BRIGHTNESS_LIGHTLEVELSTEP)
+          Pwm[PWM_BRIGHTNESS].DutyCycle = BRIGHTNESS_LIGHTLEVELSTEP;  // Validate value specified for duty cycle.
+        Pwm[PWM_BRIGHTNESS].Level = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[PWM_BRIGHTNESS].DutyCycle) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
         pwm_set_chan_level(Pwm[PWM_BRIGHTNESS].Slice, Pwm[PWM_BRIGHTNESS].Channel, Pwm[PWM_BRIGHTNESS].Level);
         printf("\r\r");
       break;
@@ -16132,7 +16133,7 @@ Test18:
 
   for (Loop1UInt16 = 100; Loop1UInt16 > 0; --Loop1UInt16)
   {
-    pwm_set_cycles(Loop1UInt16);
+    pwm_set_duty_cycle(Loop1UInt16);
 
     sprintf(String, "%4.4u", Loop1UInt16);
     fill_display_buffer_4X7(3,  String[0]);
@@ -16691,7 +16692,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   UCHAR String[128];
   UCHAR String1[64];
 
-  UINT16 CurrentPWMCycles;
+  UINT16 CurrentDutyCycle;
   UINT8 Dum1UInt8;
   static UINT8 FlagChimeDone     = FLAG_OFF;  // indicates that hourly chime has already been triggered for current hour.
   static UINT8 FlagChimeHalfDone = FLAG_OFF;  // if "On", indicates that half-hour chime has already been triggered for current hour.
@@ -16720,11 +16721,11 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
     if (PreviousTimer != 0)
     {
-      CurrentPWMCycles = Pwm[PWM_BRIGHTNESS].Cycles;
-      pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+      CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
+      pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
       uart_send(__LINE__, "\r\r=== CALLBACK S ===      Delay: %5llu mSec   Stack: 0x%8.8X\r\r", ((Timer1 - PreviousTimer) / 1000), &String[0]);
-      pwm_set_cycles(CurrentPWMCycles);  // restore display brightness.
+      pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
     }
 
     PreviousTimer = Timer1;
@@ -16822,12 +16823,12 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   if (DebugBitMask & DEBUG_CHIME)
   {
-    CurrentPWMCycles = Pwm[PWM_BRIGHTNESS].Cycles;
-    pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+    CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
+    pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
     uart_send(__LINE__, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting);
 
-    pwm_set_cycles(CurrentPWMCycles);  // restore display brightness.
+    pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
   }
 
 
@@ -17018,14 +17019,14 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
      (That is, will not sound between 9h00 and 21h00). */
   if (DebugBitMask & DEBUG_CHIME)
   {
-    CurrentPWMCycles = Pwm[PWM_BRIGHTNESS].Cycles;
-    pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+    CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
+    pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
     uart_send(__LINE__, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)   S: %2u   FCD: 0x%2.2X\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting, CurrentSecond, FlagChimeDone);
 
     uart_send(__LINE__, "ChimeMode:  %u   On: %2u   Off: %2u   FlagSetupClock[MIN]: 0x%2.2X\r\r", FlashConfig.ChimeMode, FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff, FlagSetupClock[SETUP_MINUTE]);
 
-    pwm_set_cycles(CurrentPWMCycles);  // restore display when done.
+    pwm_set_duty_cycle(CurrentDutyCycle);  // restore display when done.
   }
 
   // Chime on/off hours are set in 24h values, so use CurrentHourSetting to compare
@@ -17437,12 +17438,12 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     else
       sprintf(String1, "Winter Time");
 
-    CurrentPWMCycles = Pwm[PWM_BRIGHTNESS].Cycles;
-    pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+    CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
+    pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
     uart_send(__LINE__, "\r\r=== CALLBACK S ===   Duration: %5.2f mSec\r\r", ((Timer2 - Timer1) / 1000.0));
 
-    pwm_set_cycles(CurrentPWMCycles);  // restore display brightness.
+    pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
   }
   ***/
 
@@ -18413,7 +18414,7 @@ struct web_light_value wfetch_light_adc_level(void) {
   dimmer_light_values.adc_current_value = adc_read_light();
   dimmer_light_values.AverageLightLevel = Dim_AverageLightLevel;
   dimmer_light_values.MinLightLevel = FlashConfig.DimmerMinLightLevel;
-  dimmer_light_values.Cycles = Dim_PWMCycles;
+  dimmer_light_values.DutyCycle = Dim_DutyCycle;
   dimmer_light_values.Min_adc_value = Dim_Min_avgadc_value;
   dimmer_light_values.Max_adc_value = Dim_Max_avgadc_value;
   return dimmer_light_values;
