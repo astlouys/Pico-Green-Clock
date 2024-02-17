@@ -739,6 +739,7 @@ UINT8  FlagTone                   = FLAG_OFF;  // flag indicating there is a ton
 UINT8  FlagToneOn                 = FLAG_OFF;  // flag indicating it is time to make a tone.
 UINT8  FlagUpdateTime             = FLAG_OFF;  // flag indicating it is time to refresh the time on clock display.
 UINT8  FlagWebRequestNetworkInit  = FLAG_OFF;  // flag indicating that the web page control has updated network settings and would like it re-initialised
+UINT8  FlagWebRequestNTPSync      = FLAG_OFF;  // flag indicating that the web page control has requested a date & time sync with the NTP server
 UINT8  FlagWebRequestFlashCheck   = FLAG_OFF;  // flag indicating that the web page control has updated things that are stored in the flash and may need updating
 struct flash_config FlashConfig;               // Hold the flash data storage in a data structure
 UINT8 *FlashData;                                                       // pointer to an allocated RAM memory space used for flash operations.
@@ -2637,11 +2638,30 @@ int main(void)
       FlagWebRequestFlashCheck = FLAG_OFF;
     }
 
-    if ((FlagWebRequestNetworkInit == FLAG_ON) && ((CurrentSecond % 4) == 0))
+    /* Check to see if a web page update asks for a restart o the LwIP stack & WiFi connection */
+    if ((FlagWebRequestNetworkInit == FLAG_ON) && ((CurrentSecond % 5) == 4))
     {
       // Restart the LwIP networking stack
+      ReturnCode = ntp_init();
+      if (DebugBitMask & DEBUG_NTP)
+        uart_send(__LINE__, "WebRequest - ntp_init() return code: %d\r", ReturnCode);
+      // Initialise web server daemon
+      httpd_init();
+      // Initialise web ssi functions
+      ssi_init();
+      // Initialise web server cgi
+      cgi_init();
       // Clear the flag
       FlagWebRequestNetworkInit = FLAG_OFF;
+    }
+
+    /* Check to see if a web page asks for a date/time synchronisation with the NTP server */
+    if ((FlagWebRequestNTPSync == FLAG_ON) && ((CurrentSecond % 5) == 4))
+    {
+      /* Request a NTP re-sync if clock setup has been changed (Time, Date, or Timezone may have been changed). */
+      NTPData.FlagNTPResync = FLAG_ON;
+      // Clear the flag
+      FlagWebRequestNTPSync = FLAG_OFF;
     }
 
 
@@ -16596,7 +16616,7 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
             default:
               /* NOTE: Clock display auto-brightness toggling has been Added to the list of clock setup parameters.
                        Leave a copy of this function here for convenience and quicker access. */
-              /* If we are not in setup mode, toggle the "auto-brightness" On / Off and cycle through 5 levels of manual settings. */
+              /* If we are not in setup mode, toggle the "auto-brightness" On / Off and cycle through 4 levels of manual settings. */
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
                 FlashConfig.FlagAutoBrightness = FLAG_OFF;
@@ -16631,7 +16651,7 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
               {
                 FlashConfig.FlagAutoBrightness = FLAG_ON;
                 IndicatorAutoLightOn;
-                pwm_set_cycles(1000);
+                pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
               }
             break;
           }
@@ -18437,6 +18457,22 @@ void wwrite_current_datetime(struct human_time new_time) {
   return;
 }
 
+// Request an NTP synchronisation
+void wrequest_NTP_Sync() {
+  FlagWebRequestNTPSync = FLAG_ON;
+  return;
+}
+
+// Return NTP access error count
+UINT32 wfetch_NTP_Errors(void){
+  return NTPData.NTPErrors;
+}
+
+// Clear down NTP access error count
+void wwrite_clear_ntp_error(){
+  NTPData.NTPErrors = 0;
+}
+
 // Fetch the current language index from the flash config
 UINT8 wfetch_current_language(void) {
   return FlashConfig.Language;
@@ -18455,11 +18491,6 @@ UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month) {
 // Fetch the 12HR or 24HR hour display mode from the flash config
 UINT8 wfetch_current_hour_mode(void){
   return FlashConfig.TimeDisplayMode;
-}
-
-// Fetch the display dimming mode from the flash config
-UINT8 fetch_AutoBrightness(void) {
-  return FlashConfig.FlagAutoBrightness;
 }
 
 // Fetch the currently programmed data for an alarm from the flash config
@@ -18517,4 +18548,114 @@ void wwrite_dimminlightlevel(UINT16 new_lightlevel) {
   FlashConfig.DimmerMinLightLevel = new_lightlevel;
   return;
 }
+
+// Fetch the display dimming mode from the flash config
+UINT8 fetch_AutoBrightness(void) {
+  return FlashConfig.FlagAutoBrightness;
+}
+
+// Fetch the button press beep from the flash config
+UINT8 fetch_Keyclick(void) {
+  return FlashConfig.FlagKeyclick;
+}
+
+// Fetch the scrolling display mode from the flash config
+UINT8 fetch_ScrollEnable(void) {
+  return FlashConfig.FlagScrollEnable;
+}
+
+// Fetch the DST active flag from the flash config
+UINT8 fetch_SummerTime(void) {
+  return FlashConfig.FlagSummerTime;
+}
+
+// Fetch the DST configuration from the flash config
+UCHAR fetch_DSTCountry(void) {
+  return FlashConfig.DSTCountry;
+}
+
+// Fetch the UTC offset timezone from the flash config
+int8_t fetch_Timezone(void) {
+  return FlashConfig.Timezone;
+}
+
+// Write a new value for display dimming mode to the flash config, set as enabled/disabled or one of 4 manual levels - bright (1), mid (2), low (3) or dimmest (4)
+void wwriteAutoBrightness(UINT8 new_AutoBrightness, UINT8 new_ManualLevel) {
+  /* Set the "auto-brightness" On / Off and cycle through 4 levels of manual settings. */
+  if (new_AutoBrightness == FLAG_ON)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_ON;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 1)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 3));
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 2)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 8));
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 3)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 16));
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 4)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(0);
+  }
+  else
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_ON;
+    IndicatorAutoLightOn;
+    pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
+  }
+  return;
+}
+
+// Write a new value for button press beep enable to the flash config
+void wwriteKeyclick(UINT8 new_Keyclick) {
+  FlashConfig.FlagKeyclick = new_Keyclick;
+  return;
+}
+
+// Write a new value for scrolling display enable to the flash config
+void wwriteScrollEnable(UINT8 new_ScrollEnable) {
+  FlashConfig.FlagScrollEnable = new_ScrollEnable;
+  /* Setup the "Scroll" set indicator */
+  if (new_ScrollEnable == FLAG_ON) {
+    IndicatorScrollOn;
+  }
+  else {
+    IndicatorScrollOff;
+  }
+  return;
+}
+
+// Write a new value for DST active flag to the flash config
+void wwriteSummerTime(UINT8 new_SummerTime) {
+  FlashConfig.FlagSummerTime = new_SummerTime;
+  return;
+}
+
+// Write a new value for the DST configuration to the flash config
+void mwrite_DSTCountry(UCHAR new_DST_Country) {
+  FlashConfig.DSTCountry = new_DST_Country;
+  return;
+}
+
+// Write a new value for UTC offset timezone to the flash config
+void wwriteTimezone(int8_t new_Timezone) {
+  FlashConfig.Timezone = new_Timezone;
+  return;
+}
+
 

@@ -5,28 +5,54 @@
     </head>
     <body> <h1><!--#host--> Pico Clock</h1>
         <fieldset>
+        <legend>WiFi Network Configuration</legend>
           <form action="/myhostname.cgi">
-          <legend>WiFi Network Configuration</legend>
-            <label for="Pico-W Hostname">New hostname:</label>
-            <input type="text" id="hostname" name="hostname" size='20' maxlength='40' value=<!--#host-->>
-            <input type="submit" value="Update Hostname"> (applied on next power up)<br>
+            <label for="Pico-W Hostname">New hostname:</label>&ensp;&nbsp;
+            <input type="text" id="hostname" name="hostname" size='20' maxlength='40' value=<!--#host-->>&nbsp;
+            <input type="submit" value="Update Hostname"><br>
           </form>
           <form action="/mynetwork.cgi">
-            <label for="wifissid">New WiFi SSID:</label>
-            <input type="text" id="wifissid" name="wifissid" size='20' maxlength='40' value=<!--#wifissid-->>
-            <label for="wifipass">New WiFi Passphrase:</label>
-            <input type="password" id="wifipass" name="wifipass" size='20' maxlength='70' value=<!--#wifipass-->>
-            <input type="submit" value="Update WiFi"> (applied on next power up)
+            <label for="wifissid">New WiFi SSID:</label>&nbsp;
+            <input type="text" id="wifissid" name="wifissid" size='20' maxlength='40' value=<!--#wifissid-->>&nbsp;
+            <label for="wifipass">New WiFi Passphrase:</label>&nbsp;
+            <input type="password" id="wifipass" name="wifipass" size='20' maxlength='70' value=<!--#wifipass-->>&nbsp;
+            <input type="submit" value="Update WiFi">
           </form>
         </fieldset>
         <br>
         <fieldset>
           <legend>Set Date and Time Information</legend>
-          <!--#date--><br>
           <form action="/setdateandtime.cgi">
-            <label for="newtime">Today's Date and Time:</label>
-            <input type="datetime-local" id="newtime" name="newtime" value=<!--#datetime-->>
-            <input type="submit" value="Update Date and Time">
+            <!--#date--><br>
+            <label for="newtime">Today's Date and Time:</label>&nbsp;
+            <input type="datetime-local" id="newtime" name="newtime" value=<!--#datetime-->>&nbsp;
+            <input type="submit" name="UpdateTime" value="Update Date and Time">&emsp;
+            <input type="submit" name="SyncNTP" value="Synchronise NTP"><br>
+          </form>
+          <form action="/setdstcountry.cgi">
+            Daylight savings region set to <!--#dstzone-->&nbsp;&nbsp;
+            <label for="DSTZoneSel">Change Location:&nbsp;</label><select id="DSTZoneSel" name="DSTZoneSel">
+              <option value="null" selected disabled>Choose DST Location</option>
+              <option value="0">None</option>
+              <option value="1">Australia</option>
+              <option value="2">Australia - Howe</option>
+              <option value="3">Chile</option>
+              <option value="4">Cuba</option>
+              <option value="5">Europe</option>
+              <option value="6">Israel</option>
+              <option value="7">Lebanon</option>
+              <option value="8">Moldova</option>
+              <option value="9">New-Zealand</option>
+              <option value="10">North America</option>
+              <option value="11">Palestine</option>
+              <option value="12">Paraguay</option>
+            </select>&nbsp;
+            <input type="submit" name="SetDSTZone" value="Change DST Region">&ensp;
+            <label for="dstactive">Summertime Active</label><input type="checkbox" <!--#dstactve--> id="dstactive" name="dstactive" value="active" >
+            <input type="submit" value="Update Summertime"><br>
+          </form>
+          <form action="/clearntperrors.cgi">
+            <!--#ntpstat-->&emsp;<input type="submit" name="ClearNTPErr" value="Clear NTP Errors"><br>
           </form>
         </fieldset>
         <p>Voltage: <!--#volt--> V</p>
@@ -165,14 +191,14 @@
           </form>
         </fieldset>
         <br>
-        <form action="/setdisplayadclevel.cgi">
-          <fieldset>
+        <fieldset>
           <legend>Configure Display Dimming</legend>
-          <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->"> - set to 10 above Min average light level<br>
-          Useful ADC level information: <!--#light--><br>
-          <input type="submit" value="Update">
-          </fieldset>
-        </form>
+          <form action="/setdisplayadclevel.cgi">
+            <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->"> - set to 10 above Min average light level<br>
+            Useful ADC level information:&emsp;<!--#light--><br>
+            <input type="submit" value="Update">
+          </form>
+        </fieldset>
         <a href="/index.shtml">Refresh</a>
    </body>
 </html>

@@ -7,7 +7,8 @@
 
 // SSI tags - tag length limited to 8 bytes by default
 const char * ssi_tags[] = {
-"host","wifissid","wifipass","volt","temp","led","date","light","dimlevel","datetime","autodim",
+"host","wifissid","wifipass","volt","temp","led","date","light","dimlevel","datetime","ntpstat","autodim","dstzone",
+"dstactve",
 "alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
 "alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
 "alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
@@ -20,7 +21,7 @@ const char * ssi_tags[] = {
 };
 
 // Set the tag offset for the alarm table entries.
-#define ALARMBASE0 11
+#define ALARMBASE0 14
 #define ALARMBASE1 (ALARMBASE0 + 10)
 #define ALARMBASE2 (ALARMBASE1 + 10)
 #define ALARMBASE3 (ALARMBASE2 + 10)
@@ -156,10 +157,86 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%04d-%02d-%02dT%02d:%02d", my_year, my_month, my_date, my_hour, my_minute);
     }
     break;
-
-  case 10: // autodim
+  case 10: // ntpstat
     {
-        printed = snprintf(pcInsert, iInsertLen, "%d", fetch_AutoBrightness());
+      UINT32 NTP_Errors = wfetch_NTP_Errors();
+      printed = snprintf(pcInsert, iInsertLen, "NTP Error Count : %d", NTP_Errors);
+    }
+    break;
+  case 11: // autodim
+    {
+      printed = snprintf(pcInsert, iInsertLen, "%d", fetch_AutoBrightness());
+    }
+    break;
+  case 12: // dstzone
+    {
+      UCHAR * DST_Contry_Text;
+      UINT8 DSTCOUNTRY = (UINT8)(fetch_DSTCountry());
+      switch(DSTCOUNTRY){
+        case DST_NONE: {
+          DST_Contry_Text = "None";
+        }
+        break;
+        case DST_AUSTRALIA: {
+          DST_Contry_Text = "Australia";
+        }
+        break;
+        case DST_AUSTRALIA_HOWE: {
+          DST_Contry_Text = "Australia - Howe";
+        }
+        break;
+        case DST_CHILE: {
+          DST_Contry_Text = "Chile";
+        }
+        break;
+        case DST_CUBA: {
+          DST_Contry_Text = "Cuba";
+        }
+        break;
+        case DST_EUROPE: {
+          DST_Contry_Text = "Europe";
+        }
+        break;
+        case DST_ISRAEL: {
+          DST_Contry_Text = "Israel";
+        }
+        break;
+        case DST_LEBANON: {
+          DST_Contry_Text = "Lebanon";
+        }
+        break;
+        case DST_MOLDOVA: {
+          DST_Contry_Text = "Moldova";
+        }
+        break;
+        case DST_NEW_ZEALAND: {
+          DST_Contry_Text = "New-Zealand";
+        }
+        break;
+        case DST_NORTH_AMERICA: {
+          DST_Contry_Text = "North America";
+        }
+        break;
+        case DST_PALESTINE: {
+          DST_Contry_Text = "Palestine";
+        }
+        break;
+        case DST_PARAGUAY: {
+          DST_Contry_Text = "Paraguay";
+        }
+        break;
+        default: {
+          DST_Contry_Text = "None";
+        }
+        break;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", DST_Contry_Text);
+    }
+    break;
+  case 13: // dstactve
+    {
+      // send back the enable flag as a populated or empty text option string
+      printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_SummerTime() == FLAG_ON) ? "checked" : "");
     }
     break;
   case (ALARMBASE0 + 0): // alm0enab
@@ -167,7 +244,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 1st alarm 0
       my_alarm = wfetch_alarm(0);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -188,7 +265,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(0);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -200,7 +277,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(0);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -212,7 +289,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(0);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -224,7 +301,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(0);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -236,7 +313,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(0);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -248,7 +325,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(0);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -260,7 +337,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(0);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -278,7 +355,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 2nd alarm 1
       my_alarm = wfetch_alarm(1);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -299,7 +376,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -311,7 +388,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -323,7 +400,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -335,7 +412,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -347,7 +424,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -359,7 +436,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -371,7 +448,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -389,7 +466,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 3rd alarm 2
       my_alarm = wfetch_alarm(2);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -410,7 +487,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(2);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -422,7 +499,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(2);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -434,7 +511,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(2);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -446,7 +523,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(2);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -458,7 +535,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(2);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -470,7 +547,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(2);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -482,7 +559,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(2);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -500,7 +577,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 4th alarm 3
       my_alarm = wfetch_alarm(3);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -521,7 +598,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(3);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -533,7 +610,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(3);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -545,7 +622,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(3);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -557,7 +634,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(3);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -569,7 +646,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(3);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -581,7 +658,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(3);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -593,7 +670,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(3);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -612,7 +689,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 5th alarm 4
       my_alarm = wfetch_alarm(4);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -633,7 +710,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -645,7 +722,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -657,7 +734,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -669,7 +746,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -681,7 +758,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -693,7 +770,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -705,7 +782,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -723,7 +800,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 6th alarm 5
       my_alarm = wfetch_alarm(5);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -744,7 +821,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(5);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -756,7 +833,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(5);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -768,7 +845,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(5);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -780,7 +857,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(5);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -792,7 +869,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(5);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -804,7 +881,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(5);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -816,7 +893,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(5);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -834,7 +911,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 7th alarm 6
       my_alarm = wfetch_alarm(6);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -855,7 +932,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -867,7 +944,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -879,7 +956,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -891,7 +968,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -903,7 +980,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -915,7 +992,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -927,7 +1004,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -945,7 +1022,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 8th alarm 7
       my_alarm = wfetch_alarm(7);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -966,7 +1043,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(7);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -978,7 +1055,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(7);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -990,7 +1067,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(7);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1002,7 +1079,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(7);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1014,7 +1091,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(7);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1026,7 +1103,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(7);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1038,7 +1115,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(7);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1056,7 +1133,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       struct alarm my_alarm;
       // Get the flash information for 9th alarm 8
       my_alarm = wfetch_alarm(8);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", my_alarm.FlagStatus ? "checked" : "");
     }
     break;
@@ -1077,7 +1154,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Extract the flag bit for monday alarm
       Alarm_day = ((my_alarm.Day >> MON) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1089,7 +1166,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Extract the flag bit for tuesday alarm
       Alarm_day = ((my_alarm.Day >> TUE) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1101,7 +1178,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Extract the flag bit for wednesday alarm
       Alarm_day = ((my_alarm.Day >> WED) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1113,7 +1190,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Extract the flag bit for thursday alarm
       Alarm_day = ((my_alarm.Day >> THU) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1125,7 +1202,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Extract the flag bit for friday alarm
       Alarm_day = ((my_alarm.Day >> FRI) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1137,7 +1214,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Extract the flag bit for saturday alarm
       Alarm_day = ((my_alarm.Day >> SAT) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;
@@ -1149,7 +1226,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Extract the flag bit for sunday alarm
       Alarm_day = ((my_alarm.Day >> SUN) & 0x01);
-      // send back the enable flag as a decimal number
+      // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_day ? "checked" : "");
     }
     break;

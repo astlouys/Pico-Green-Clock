@@ -460,7 +460,7 @@ struct flash_config
   UCHAR  Version[6];          // firmware version number (format: "06.00" - including end-of-string).
   UINT8  CurrentYearCentile;  // assume we are in years 20xx on power-up but is adjusted when configuration is read (will your clock live long enough for a "21" ?!).
   UINT8  Language;            // language used for data display (including date scrolling).
-  UCHAR  DSTCountry;  // specifies how to handle the daylight saving time (see User Guide and / or clock options above).
+  UCHAR  DSTCountry;          // specifies how to handle the daylight saving time (see User Guide and / or clock options above).
   UINT8  TemperatureUnit;     // CELSIUS or FAHRENHEIT default value (see clock options above).
   UINT8  TimeDisplayMode;     // H24 or H12 default value (see clock options above).
   UINT8  ChimeMode;           // chime mode (Off / On / Day).
@@ -811,14 +811,22 @@ void wwrite_networkcfg(UCHAR * new_wifissid, UCHAR * new_wifipass);
 
 struct human_time wfetch_current_datetime(void);
 void wwrite_current_datetime(struct human_time new_time);
+void wrequest_NTP_Sync(void);
+UINT32 wfetch_NTP_Errors(void);
+void wwrite_clear_ntp_error(void);
+
+
+/* ------------------------------------------------------------------ *\
+              Web access and control function prototypes
+\* ------------------------------------------------------------------ */
 
 UINT8 wfetch_current_language(void);
-
-UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek);
 
 UINT16 wfetch_current_dayofmonth(void);
 
 UINT8 wfetch_current_hour_mode(void);
+
+UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek);
 
 UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month);
 
@@ -831,3 +839,15 @@ struct web_light_value wfetch_light_adc_level(void);
 void wwrite_dimminlightlevel(UINT16 new_lightlevel);
 
 UINT8 fetch_AutoBrightness(void);
+UINT8 fetch_Keyclick(void);
+UINT8 fetch_ScrollEnable(void);
+UINT8 fetch_SummerTime(void);
+UCHAR fetch_DSTCountry(void);
+int8_t fetch_Timezone(void);
+
+void wwriteAutoBrightness(UINT8 new_AutoBrightness, UINT8 new_ManualLevel);
+void wwriteKeyclick(UINT8 new_Keyclick);
+void wwriteScrollEnable(UINT8 new_ScrollEnable);
+void wwriteSummerTime(UINT8 new_SummerTime);
+void mwrite_DSTCountry(UCHAR new_DST_Country);
+void wwriteTimezone(int8_t new_Timezone);
