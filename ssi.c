@@ -6,7 +6,8 @@
 #include "ssi.h"
 
 // SSI tags - tag length limited to 8 bytes by default
-const char * ssi_tags[] = {"host","wifissid","wifipass","volt","temp","led","date","light","autodim","dimlevel",
+const char * ssi_tags[] = {
+"host","wifissid","wifipass","volt","temp","led","date","light","dimlevel","datetime","autodim",
 "alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
 "alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
 "alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
@@ -19,7 +20,7 @@ const char * ssi_tags[] = {"host","wifissid","wifipass","volt","temp","led","dat
 };
 
 // Set the tag offset for the alarm table entries.
-#define ALARMBASE0 10
+#define ALARMBASE0 11
 #define ALARMBASE1 (ALARMBASE0 + 10)
 #define ALARMBASE2 (ALARMBASE1 + 10)
 #define ALARMBASE3 (ALARMBASE2 + 10)
@@ -81,14 +82,52 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   case 6: // date
     {
       UINT8 my_language = wfetch_current_language();
+      // Fetch current date and time, year is in 4 digit format and hour in 24hr range
       struct human_time now_time = wfetch_current_datetime();
       UCHAR* my_weekdayname = wfetch_DayName(my_language, now_time.DayOfWeek);
       UINT16 my_dayofmonth = now_time.DayOfMonth;
       UCHAR* my_monthname = wfetch_MonthName(my_language, now_time.Month);
+      UINT16 my_year = now_time.Year;
       UINT16 my_hour = now_time.Hour;
       UINT16 my_minute = now_time.Minute;
       UINT16 my_second = now_time.Second;
-      printed = snprintf(pcInsert, iInsertLen, "%s %d %s\r\nTime is : %d:%02d:%02d", my_weekdayname, my_dayofmonth, my_monthname, my_hour, my_minute, my_second);
+      UINT8 Flag_24hr = wfetch_current_hour_mode();
+      UCHAR* time_suffix;
+      if (Flag_24hr == H24) {
+        // No time suffix, null string
+        time_suffix = '\0';
+      } else {
+        switch (my_hour) {
+          case 0:
+            {
+              time_suffix = "AM";
+              my_hour = 12;
+            }
+            break;
+          case 1 ... 11:
+            {
+              time_suffix = "AM";
+            }
+            break;
+          case 12:
+            {
+              time_suffix = "PM";
+            }
+            break;
+          case 13 ... 23:
+            {
+              time_suffix = "PM";
+              my_hour = my_hour - 12;
+            }
+            break;
+          default:
+            {
+              time_suffix = '\0';
+            }
+            break;
+        }
+      }
+      printed = snprintf(pcInsert, iInsertLen, "Current date is : %s %d %s %04d     Current time is : %d:%02d:%02d %s", my_weekdayname, my_dayofmonth, my_monthname, my_year, my_hour, my_minute, my_second, time_suffix);
     }
     break;
   case 7: // light
@@ -98,15 +137,29 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
     }
     break;
-  case 8: // autodim
-    {
-        printed = snprintf(pcInsert, iInsertLen, "%d", fetch_AutoBrightness());
-    }
-    break;
-  case 9: // dimlevel
+  case 8: // dimlevel
     {
       struct web_light_value dimmer_light_values = wfetch_light_adc_level();
       printed = snprintf(pcInsert, iInsertLen, "%d", dimmer_light_values.MinLightLevel);
+    }
+    break;
+  case 9: // datetime,   newtime=2024-02-16T09:20
+    {
+      // Fetch current date and time, year is in 4 digit format and hour in 24hr range
+      struct human_time now_time = wfetch_current_datetime();
+      UINT16 my_date = now_time.DayOfMonth;
+      UINT16 my_month = now_time.Month;
+      UINT16 my_year = now_time.Year;
+      UINT16 my_hour = now_time.Hour;
+      UINT16 my_minute = now_time.Minute;
+      UINT16 my_second = now_time.Second;
+      printed = snprintf(pcInsert, iInsertLen, "%04d-%02d-%02dT%02d:%02d", my_year, my_month, my_date, my_hour, my_minute);
+    }
+    break;
+
+  case 10: // autodim
+    {
+        printed = snprintf(pcInsert, iInsertLen, "%d", fetch_AutoBrightness());
     }
     break;
   case (ALARMBASE0 + 0): // alm0enab

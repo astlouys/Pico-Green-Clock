@@ -738,6 +738,7 @@ UINT8  FlagTimerCountDownEnd      = FLAG_OFF;  // flag indicating the count down
 UINT8  FlagTone                   = FLAG_OFF;  // flag indicating there is a tone sounding.
 UINT8  FlagToneOn                 = FLAG_OFF;  // flag indicating it is time to make a tone.
 UINT8  FlagUpdateTime             = FLAG_OFF;  // flag indicating it is time to refresh the time on clock display.
+UINT8  FlagWebRequestNetworkInit  = FLAG_OFF;  // flag indicating that the web page control has updated network settings and would like it re-initialised
 UINT8  FlagWebRequestFlashCheck   = FLAG_OFF;  // flag indicating that the web page control has updated things that are stored in the flash and may need updating
 struct flash_config FlashConfig;               // Hold the flash data storage in a data structure
 UINT8 *FlashData;                                                       // pointer to an allocated RAM memory space used for flash operations.
@@ -983,7 +984,6 @@ int main(void)
   UINT8  IrCommand;        // command received from remote control.
   UINT8  Loop1UInt8;
   UINT8  SundayCounter;    // used to find daylight saving time current status.
-  UINT8  TargetDayOfWeek;
 
   int8_t UtcTime;          // used for DST algorithm.
 
@@ -1198,7 +1198,7 @@ int main(void)
   CurrentSecond      = HumanTime.Second;
   CurrentDayOfMonth  = HumanTime.DayOfMonth;
   CurrentMonth       = HumanTime.Month;
-  CurrentYearLowPart = HumanTime.Year - 2000;
+  CurrentYearLowPart = (HumanTime.Year % 100);
   CurrentYear        = HumanTime.Year;
   CurrentDayOfWeek   = HumanTime.DayOfWeek;
   get_current_time(&HumanTime);
@@ -1746,7 +1746,7 @@ int main(void)
   CurrentSecond      = HumanTime.Second;
   CurrentDayOfMonth  = HumanTime.DayOfMonth;
   CurrentMonth       = HumanTime.Month;
-  CurrentYearLowPart = HumanTime.Year - 2000;
+  CurrentYearLowPart = (HumanTime.Year % 100);
   CurrentYear        = HumanTime.Year;
   CurrentDayOfWeek   = HumanTime.DayOfWeek;
 
@@ -2629,12 +2629,19 @@ int main(void)
     }
 
     /* Check to see if a web page update asks for a flash stored value to be changed */
-    if ((FlagWebRequestFlashCheck == FLAG_ON) && ((CurrentSecond % 5) == 0))
+    if ((FlagWebRequestFlashCheck == FLAG_ON) && (FlagWebRequestNetworkInit == FLAG_OFF) && ((CurrentSecond % 5) == 0))
     {
       // Check to see if the flash memory needs updating and update if needed
       flash_check_config();
       // Clear the flag
       FlagWebRequestFlashCheck = FLAG_OFF;
+    }
+
+    if ((FlagWebRequestNetworkInit == FLAG_ON) && ((CurrentSecond % 4) == 0))
+    {
+      // Restart the LwIP networking stack
+      // Clear the flag
+      FlagWebRequestNetworkInit = FLAG_OFF;
     }
 
 
@@ -3062,7 +3069,7 @@ void adjust_clock_brightness(void)
       pwm_set_cycles(Cycles);
 
       Dim_AverageLightLevel = AverageLightLevel;
-      Dim_DutyCycle = 1000 - Pwm[PWM_BRIGHTNESS].Level;
+      Dim_DutyCycle = (1000 - Pwm[PWM_BRIGHTNESS].Level);
       if (AverageLightLevel < Dim_Min_avgadc_value)
         Dim_Min_avgadc_value = AverageLightLevel;
       if (AverageLightLevel > Dim_Max_avgadc_value)
@@ -3077,7 +3084,7 @@ void adjust_clock_brightness(void)
   }
   else
   {
-    Dim_DutyCycle = 1000 - Pwm[PWM_BRIGHTNESS].Level;
+    Dim_DutyCycle = (1000 - Pwm[PWM_BRIGHTNESS].Level);
   }
   return;
 }
@@ -11009,6 +11016,7 @@ void set_and_save_credentials(void)
 void set_mode_out(void)
 {
   UINT8 Loop1UInt8;
+  UINT8 TargetDayOfWeek;
 
 
   if (DebugBitMask & DEBUG_DST)
@@ -11023,25 +11031,28 @@ void set_mode_out(void)
   if ((FlagSetupRTC == FLAG_ON) && (FlagSetupClock[SETUP_MONTH]  == FLAG_ON))
   {
     set_month(CurrentMonth);
-    set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    TargetDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+    set_day_of_week(TargetDayOfWeek);
     update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
-    update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
+    update_top_indicators(TargetDayOfWeek, FLAG_ON);
   }
 
   if ((FlagSetupRTC == FLAG_ON) && (FlagSetupClock[SETUP_DAY_OF_MONTH] == FLAG_ON))
   {
     set_day_of_month(CurrentDayOfMonth);
-    set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    TargetDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+    set_day_of_week(TargetDayOfWeek);
     update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
-    update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
+    update_top_indicators(TargetDayOfWeek, FLAG_ON);
   }
 
   if ((FlagSetupRTC == FLAG_ON) && (FlagSetupClock[SETUP_YEAR] == FLAG_ON))
   {
     set_year(CurrentYearLowPart);
-    set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    TargetDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+    set_day_of_week(TargetDayOfWeek);
     update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
-    update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
+    update_top_indicators(TargetDayOfWeek, FLAG_ON);
   }
 
   FlagBlinking[SetupStep] = 0xFF;
@@ -18349,30 +18360,51 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
   return;
 }
 
+/* ------------------------------------------------------------------ *\
+           Web control and status information routines.
+\* ------------------------------------------------------------------ */
+// Fetch the hostname from the flash config
 UCHAR* wfetch_hostname(void) {
   return &FlashConfig.Hostname[4];
 }
 
+// Fetch the WiFi SSID from the flash config
 UCHAR* wfetch_wifissid(void) {
   return &FlashConfig.SSID[4];
 }
 
+// Fetch the WiFi passphrase from the flash config
 UCHAR* wfetch_wifipass(void) {
   return &FlashConfig.Password[4];
 }
 
-void wwrite_networkcfg(UCHAR * new_hostname, UCHAR * new_wifissid, UCHAR * new_wifipass) {
+// Write the hostname to the flash config fairly soon and restart the network
+void wwrite_hostname(UCHAR * new_hostname) {
   // Update the configured values
   sprintf(&FlashConfig.Hostname[4], new_hostname);
-  sprintf(&FlashConfig.Password[4], new_wifipass);
-  sprintf(&FlashConfig.SSID[4], new_wifissid);
+  // Reinitialise the network
+  FlagWebRequestNetworkInit = FLAG_ON;
   // Perform a flash configuration update check soon
   FlagWebRequestFlashCheck = FLAG_ON;
+  return;
 }
 
+// Write the WiFi SSID and passphrase to the flash config fairly soon and restart the network
+void wwrite_networkcfg(UCHAR * new_wifissid, UCHAR * new_wifipass) {
+  // Update the configured values
+  sprintf(&FlashConfig.Password[4], new_wifipass);
+  sprintf(&FlashConfig.SSID[4], new_wifissid);
+  // Reinitialise the network
+  FlagWebRequestNetworkInit = FLAG_ON;
+  // Perform a flash configuration update check soon
+  FlagWebRequestFlashCheck = FLAG_ON;
+  return;
+}
+
+// Fetch the current time from the main clock routine
 struct human_time wfetch_current_datetime(void) {
   struct human_time current_time;
-  current_time.Hour = CurrentHour;
+  current_time.Hour = CurrentHourSetting;
   current_time.Minute = CurrentMinute;
   current_time.Second = CurrentSecond;
   current_time.DayOfMonth = CurrentDayOfMonth;
@@ -18384,23 +18416,53 @@ struct human_time wfetch_current_datetime(void) {
   return current_time;
 }
 
+// Write a new date and time to the RTC and display
+void wwrite_current_datetime(struct human_time new_time) {
+  UINT8 shortyear;
+  UINT16 longyear;
+  // Update the current time, as if the set buttons were used
+  CurrentSecond = new_time.Second;
+  CurrentMinute = new_time.Minute;
+  CurrentHourSetting = new_time.Hour;
+  CurrentDayOfMonth = new_time.DayOfMonth;
+  CurrentMonth = new_time.Month;
+  CurrentYearLowPart = (new_time.Year % 100);
+  CurrentYear = new_time.Year;
+  CurrentDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+  CurrentDayOfYear = get_day_of_year(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+  // Set the RTC using the same methods as the PicoW NTP synchronisation
+  set_time(CurrentSecond, CurrentMinute, CurrentHourSetting, CurrentDayOfWeek, CurrentDayOfMonth, CurrentMonth, CurrentYearLowPart);
+  // Request time display update when all completed
+  FlagUpdateTime = FLAG_ON;
+  return;
+}
+
+// Fetch the current language index from the flash config
 UINT8 wfetch_current_language(void) {
   return FlashConfig.Language;
 }
 
+// Fetch the day name text in the current language from the main routine's table
 UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek) {
   return DayName[the_language][the_dayofweek];
 }
 
+// Fetch the month name text in the current language from the main routine's table
 UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month) {
   return MonthName[the_language][the_month];
 }
 
-void wwrite_day_of_month(UINT8 NewDayOfMonth) {
-  CurrentDayOfMonth = NewDayOfMonth;
-  return;
+// Fetch the 12HR or 24HR hour display mode from the flash config
+UINT8 wfetch_current_hour_mode(void){
+  return FlashConfig.TimeDisplayMode;
 }
 
+// Fetch the display dimming mode from the flash config
+UINT8 fetch_AutoBrightness(void) {
+  return FlashConfig.FlagAutoBrightness;
+}
+
+// Fetch the currently programmed data for an alarm from the flash config
 struct alarm wfetch_alarm(UINT8 alarm_to_fetch) {
   struct alarm my_alarm;
   my_alarm.FlagStatus = FlashConfig.Alarm[alarm_to_fetch].FlagStatus;
@@ -18412,6 +18474,7 @@ struct alarm wfetch_alarm(UINT8 alarm_to_fetch) {
   return my_alarm;
 }
 
+// write a new alarm data to the flash config and update the alarm set display indicator
 void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data) {
   UINT8 Dum1UInt8;
   UINT8 Loop1UInt8;
@@ -18437,6 +18500,7 @@ void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data) {
   return;
 }
 
+// Fetch a set of status data on the display dimming levels to help calibrate the minimum setting
 struct web_light_value wfetch_light_adc_level(void) {
   struct web_light_value dimmer_light_values;
   dimmer_light_values.adc_current_value = adc_read_light();
@@ -18448,11 +18512,9 @@ struct web_light_value wfetch_light_adc_level(void) {
   return dimmer_light_values;
 }
 
-UINT8 fetch_AutoBrightness(void) {
-  return FlashConfig.FlagAutoBrightness;
-}
-
+// Write a new value for the minimum display very dim level to the flash config
 void wwrite_dimminlightlevel(UINT16 new_lightlevel) {
   FlashConfig.DimmerMinLightLevel = new_lightlevel;
+  return;
 }
 

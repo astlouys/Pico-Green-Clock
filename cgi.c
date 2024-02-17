@@ -4,44 +4,11 @@
 #include "Pico-Green-Clock.h"
 #include "cgi.h"
 
-// CGI handler which is run when a request for /led.cgi is detected
-const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    // Check if an request for LED has been made (/led.cgi?led=x)
-    // Check first parameter only as don't care about others
-    if (strcmp(pcParam[0] , "led") == 0){
-        // Look at the argument to check if LED is to be turned on (x=1) or off (x=0)
-        if(strcmp(pcValue[0], "0") == 0)
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-        else if(strcmp(pcValue[0], "1") == 0)
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-    }
-    // Send the index page back to the user
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /date.cgi is detected
-const char * cgi_date_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-    // Check if an request for day of the month has been made (date.cgi?dayofmonth==x)
-    // Check first parameter only as don't care about others
-    if (strcmp(pcParam[0], "dayofmonth") == 0) {
-        if(strcmp(pcValue[0], "1") == 0)
-          wwrite_day_of_month(1);
-        else if(strcmp(pcValue[0], "2") == 0)
-          wwrite_day_of_month(2);
-    }
-    // Send the index page back to the user
-    return "/index.shtml";
-}
-
-// CGI handler which is run when a request for /mynetwork.cgi is detected
-const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+// CGI handler which is run when a request for /myhostname.cgi is detected
+const char * cgi_myhostname_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
     UINT8 Loop1UInt8;
     UCHAR destHostname[40];
-    UCHAR destSSID[40];
-    UCHAR destPassword[70];
     UCHAR *new_hostname = destHostname;
-    UCHAR *new_wifissid = destSSID;
-    UCHAR *new_wifipass = destPassword;
     int unesclength;
     int esclength;
     for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
@@ -61,6 +28,23 @@ const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], 
         unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
         strcpy(new_hostname, unesctext);
       }
+    }
+    // Update the network configuration
+    wwrite_hostname(new_hostname);
+    // Send the index page back to the user
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /mynetwork.cgi is detected
+const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    UINT8 Loop1UInt8;
+    UCHAR destSSID[40];
+    UCHAR destPassword[70];
+    UCHAR *new_wifissid = destSSID;
+    UCHAR *new_wifipass = destPassword;
+    int unesclength;
+    int esclength;
+    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
       if (strcmp(pcParam[Loop1UInt8], "wifissid") == 0) {
         // Create a new SSID, but must escape the input
         unesclength = 40;
@@ -93,7 +77,57 @@ const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], 
       }
     }
     // Update the network configuration
-    wwrite_networkcfg(new_hostname, new_wifissid, new_wifipass);
+    wwrite_networkcfg(new_wifissid, new_wifipass);
+    // Send the index page back to the user
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /setdateandtime.cgi is detected
+const char * cgi_setdateandtime_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+//   newtime=2024-02-16T19%3A04
+    UINT8 Loop1UInt8;
+    struct human_time new_time = wfetch_current_datetime();
+    UINT16 my_date;
+    UINT16 my_month;
+    UINT16 my_year;
+    UINT16 my_hour;
+    UINT16 my_minute;
+    UINT16 my_second;
+    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+      if (strcmp(pcParam[Loop1UInt8], "newtime") == 0) {
+        // Pick out the digits from the field, year is 2 digits only, hour in 24hr format
+        my_year = ((UINT)(pcValue[Loop1UInt8][0] - '0') * 1000) + ((UINT)(pcValue[Loop1UInt8][1] - '0') * 100) + ((UINT)(pcValue[Loop1UInt8][2] - '0') * 10) + (UINT)(pcValue[Loop1UInt8][3] - '0');
+        my_month = ((UINT)(pcValue[Loop1UInt8][5] - '0') * 10) + (UINT)(pcValue[Loop1UInt8][6] - '0');
+        my_date = ((UINT)(pcValue[Loop1UInt8][8] - '0') * 10) + (UINT)(pcValue[Loop1UInt8][9] - '0');
+        my_hour = ((UINT)(pcValue[Loop1UInt8][11] - '0') * 10) + (UINT)(pcValue[Loop1UInt8][12] - '0');
+        my_minute = ((UINT)(pcValue[Loop1UInt8][16] - '0') * 10) + (UINT)(pcValue[Loop1UInt8][17] - '0');
+        my_second = 1; // Allow for processing delays
+      }
+    }
+    // Update with the new date and time, other values are unchanged
+    new_time.DayOfMonth = my_date;
+    new_time.Month = my_month;
+    new_time.Year = my_year;
+    new_time.Hour = my_hour;
+    new_time.Minute = my_minute;
+    new_time.Second = my_second;
+    // Update the values
+    wwrite_current_datetime(new_time);
+    // Send the index page back to the user
+    return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /led.cgi is detected
+const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+    // Check if an request for LED has been made (/led.cgi?led=x)
+    // Check first parameter only as don't care about others
+    if (strcmp(pcParam[0] , "led") == 0) {
+        // Look at the argument to check if LED is to be turned on (x=1) or off (x=0)
+        if(strcmp(pcValue[0], "0") == 0)
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        else if(strcmp(pcValue[0], "1") == 0)
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+    }
     // Send the index page back to the user
     return "/index.shtml";
 }
@@ -113,8 +147,7 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
     // Fetch the alarm number from the first returned value - fixed start of alx, note '0' is a char and "0" is a null terminated string array
     alarmnumber = (pcParam[0][2] - '0');
     // parse the returned key and value pairs,
-    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
-    {
+    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
       // Set the alarm number in the paramters to a default of 0 before processing, note '0' is a char and "0" is a null terminated string array
       *(pcParam[Loop1UInt8] + 2) = '0';
       // Check box form element returns id=value
@@ -183,14 +216,9 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
 // CGI handler which is run when a request for /setdisplayadclevel.cgi is detected
 const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
     UINT8 Loop1UInt8;
-    UINT8 New_dimctrl = 0;
     UINT16 New_adcvalue;
     // parse the returned key and value pairs,
-    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
-    {
-      if (strcmp(pcParam[Loop1UInt8], "autodim") == 0) {
-        New_dimctrl = 1;
-      }
+    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
       if (strcmp(pcParam[Loop1UInt8], "mindimadclevel") == 0) {
         New_adcvalue = atoi(pcValue[Loop1UInt8]);
       }
@@ -202,32 +230,20 @@ const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcPar
 }
 
 
-// http://172.22.42.169/htalarm.cgi?al0enab=alamenab&al0time=07%3A20&al0text=Time+to+get+up%21%21%21
-
-// struct alarm
-// {
-//   UINT8 FlagStatus;
-//   UINT8 Second;
-//   UINT8 Minute;
-//   UINT8 Hour;
-//   UINT8 Day;
-//   UCHAR Text[40];
-// };
-
-
-
 // tCGI Struct
 // Fill this with all of the CGI requests and their respective handlers
 static const tCGI cgi_handlers[] = {
     {
-        // Html request for "/led.cgi" triggers cgi_handler
-        "/led.cgi", cgi_led_handler
-    },
-    {
-        "/date.cgi", cgi_date_handler
+        "/myhostname.cgi", cgi_myhostname_handler
     },
     {
         "/mynetwork.cgi", cgi_mynetwork_handler
+    },
+    {
+        "/setdateandtime.cgi", cgi_setdateandtime_handler
+    },
+    {
+        "/led.cgi", cgi_led_handler
     },
     {
         "/htalarm.cgi", cgi_htalarm_handler
@@ -244,7 +260,6 @@ void cgi_init(void) {
     // We have three handler
     http_set_cgi_handlers(cgi_handlers, 5);
 }
-
 
 // Routine to process the returned text box values to return
 // escaped characters to their ASCII equivalent and replace + with space

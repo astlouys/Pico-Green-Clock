@@ -806,9 +806,11 @@ void process_ir_command(UINT8 IrCommand);
 UCHAR* wfetch_hostname(void);
 UCHAR* wfetch_wifissid(void);
 UCHAR* wfetch_wifipass(void);
-void wwrite_networkcfg(UCHAR * new_hostname, UCHAR * new_wifissid, UCHAR * new_wifipass);
+void wwrite_hostname(UCHAR * new_hostname);
+void wwrite_networkcfg(UCHAR * new_wifissid, UCHAR * new_wifipass);
 
 struct human_time wfetch_current_datetime(void);
+void wwrite_current_datetime(struct human_time new_time);
 
 UINT8 wfetch_current_language(void);
 
@@ -816,9 +818,9 @@ UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek);
 
 UINT16 wfetch_current_dayofmonth(void);
 
-UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month);
+UINT8 wfetch_current_hour_mode(void);
 
-void wwrite_day_of_month(UINT8 NewDayOfMonth);
+UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month);
 
 struct alarm wfetch_alarm(UINT8 alarm_to_fetch);
 
@@ -826,7 +828,6 @@ void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data);
 
 struct web_light_value wfetch_light_adc_level(void);
 
-UINT8 fetch_AutoBrightness(void);
-
 void wwrite_dimminlightlevel(UINT16 new_lightlevel);
 
+UINT8 fetch_AutoBrightness(void);
