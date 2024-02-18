@@ -62,7 +62,7 @@
         </fieldset>
         <br>
         <fieldset>
-          <legend>Configuration</legend>
+          <legend>Clock Operation</legend>
           <form action="/setlanguage.cgi">
             Language :
             <input type="radio" id="Engl" name="langmode" <!--#langengl--> value="Engl"> <label for="Engl">Eng</label>
@@ -114,7 +114,7 @@
         </fieldset>
         <br>
         <fieldset>
-          <legend>Configure Alarms</legend>
+          <legend>Manage Alarms</legend>
           <form action="/htalarm.cgi">
             <label for="alarms">Alarm 1: </label>
             <label for="al0enab">Enable</label><input type="checkbox" <!--#alm0enab--> id="al0enab" name="al0enab" value="alamenab" >
@@ -244,7 +244,7 @@
         </fieldset>
         <br>
         <fieldset>
-          <legend>Configure Display Dimming</legend>
+          <legend>Control Display Dimming</legend>
           <form action="/setdisplayadclevel.cgi">
             <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->">&nbsp;
             <input type="submit" value="Update">&emsp;- set to 10 above Min average light level<br>

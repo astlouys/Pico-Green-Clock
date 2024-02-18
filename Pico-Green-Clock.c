@@ -1202,7 +1202,7 @@ int main(void)
            So, it is possible to keep all logging information and use the debug before launching the callback, or it is required to trim down
            the logged information if there is a need to consult the logged information during the callback flash configuration update. */
   DebugBitMask  = DEBUG_NONE;
-  DebugBitMask += DEBUG_ALARMS;
+  // DebugBitMask += DEBUG_ALARMS;
   // DebugBitMask += DEBUG_BME280;
   // DebugBitMask += DEBUG_BRIGHTNESS;
   // DebugBitMask += DEBUG_CHIME;
@@ -16339,9 +16339,16 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
             break;
 
             default:
-              /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
-              FlagSetClock = FLAG_ON;
-              SetupSource = SETUP_SOURCE_CLOCK;
+              if (FlashConfig.ShortSetKey == FLAG_ON) {
+                /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
+                FlagSetClock = FLAG_ON;
+                SetupSource = SETUP_SOURCE_CLOCK;
+              }
+              else {
+                /* If we are not already in setup mode, enter alarm setup mode. */
+                FlagSetAlarm = FLAG_ON;  // enter alarm setup mode.
+                SetupSource  = SETUP_SOURCE_ALARM;
+              }
               ++SetupStep;
             break;
           }
@@ -16361,9 +16368,16 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
           }
           set_mode_out(); // housekeeping;
 
-          /* If we are not already in setup mode, enter alarm setup mode. */
-          FlagSetAlarm = FLAG_ON;  // enter alarm setup mode.
-          SetupSource  = SETUP_SOURCE_ALARM;
+          if (FlashConfig.ShortSetKey == FLAG_ON) {
+            /* If we are not already in setup mode, enter alarm setup mode. */
+            FlagSetAlarm = FLAG_ON;  // enter alarm setup mode.
+            SetupSource  = SETUP_SOURCE_ALARM;
+          }
+          else {
+            /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
+            FlagSetClock = FLAG_ON;
+            SetupSource = SETUP_SOURCE_CLOCK;
+          }
           ++SetupStep; // process through all alarm setup steps.
         }
       }
@@ -18685,7 +18699,6 @@ void wwrite_ClockHourMode(UINT8 new_hourmode){
   }
   return;
 }
-
 
 void wwrite_ChimeMode(UINT8 new_ChimeMode) {
   if (new_ChimeMode == CHIME_OFF) {
