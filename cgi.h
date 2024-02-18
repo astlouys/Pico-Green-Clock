@@ -8,6 +8,7 @@ const char * cgi_clearntperrors_handler(int iIndex, int iNumParams, char *pcPara
 const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
+const char * cgi_setdisplaymode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 
 
 

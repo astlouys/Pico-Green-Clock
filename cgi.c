@@ -277,7 +277,50 @@ const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcPar
       New_adcvalue = atoi(pcValue[Loop1UInt8]);
     }
   }
+  // Now act on a button press
   wwrite_dimminlightlevel(New_adcvalue);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
+// http://172.22.42.200/index.shtml?dispdimmode=auto
+// http://172.22.42.200/index.shtml?dispdimmode=dark
+
+// CGI handler which is run when a request for /setdisplayadclevel.cgi is detected
+const char * cgi_setdisplaymode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+  UINT8 Loop1UInt8;
+  UINT8 New_DimMode_Auto = FLAG_OFF;
+  UINT8 New_DimMode_Manual = 0;
+  // parse the returned key and value pairs,
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "dispdimmode") == 0) {
+      // Default to auto mode
+      New_DimMode_Auto = FLAG_ON;
+      New_DimMode_Manual = 0;
+      if (strcmp(pcValue[Loop1UInt8], "full") == 0) {
+        New_DimMode_Auto = FLAG_OFF;
+        New_DimMode_Manual = 1;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "high") == 0) {
+        New_DimMode_Auto = FLAG_OFF;
+        New_DimMode_Manual = 2;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "mid") == 0) {
+        New_DimMode_Auto = FLAG_OFF;
+        New_DimMode_Manual = 3;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "low") == 0) {
+        New_DimMode_Auto = FLAG_OFF;
+        New_DimMode_Manual = 4;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "dark") == 0) {
+        New_DimMode_Auto = FLAG_OFF;
+        New_DimMode_Manual = 5;
+      }
+    }
+  }
+  // Now act on a button press
+  wwriteAutoBrightness(New_DimMode_Auto, New_DimMode_Manual);
   // Send the index page back to the user
   return "/index.shtml";
 }
@@ -309,6 +352,9 @@ static const tCGI cgi_handlers[] = {
     },
     {
         "/setdisplayadclevel.cgi", cgi_setdisplaylevel_handler
+    },
+    {
+        "/setdisplaymode.cgi", cgi_setdisplaymode_handler
     }
 
     // Add more functions here...
@@ -316,8 +362,8 @@ static const tCGI cgi_handlers[] = {
 };
 
 void cgi_init(void) {
-    // We have eight handlers
-    http_set_cgi_handlers(cgi_handlers, 8);
+    // We have nine handlers
+    http_set_cgi_handlers(cgi_handlers, 9);
 }
 
 // Routine to process the returned text box values to return

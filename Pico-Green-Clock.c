@@ -472,34 +472,6 @@
 #define CHIME_HOUR_COUNT_BEEP_DURATION 300  // duration of "hour count" beeps (in msec) when flag above is On.
 /* NOTE: See also revision history above (or User guide) about "night time workers" support for hourly chime. */
 
-/* For active buzzer integrated in Pico Green Clock. Number of "tones" for each "sound pack" (first level of repetition). */
-#define TONE_CHIME_REPEAT1     2
-#define TONE_EVENT_REPEAT1     5
-#define TONE_KEYCLICK_REPEAT1  1
-#define TONE_TIMER_REPEAT1     4
-
-/* For active buzzer integrated in Pico Green Clock.
-   Number of times the "sound pack" above will repeat itself for each tone type (second level of repetition).
-   for example, if TONE_CHIME_REPEAT_1 is set to 3 and TONE_CHIME_REPEAT_2 is set to 2, we will hear:
-   beep-beep-beep..........beep-beep-beep (three beeps, twice). */
-#define TONE_CHIME_REPEAT2     3
-#define TONE_EVENT_REPEAT2     3
-#define TONE_KEYCLICK_REPEAT2  1
-#define TONE_TIMER_REPEAT2     2
-
-/* For active buzzer integrated in Pico Green Clock.
-   Time duration for different tone types (in milliseconds). This is the time of each sound inside one "sound pack".
-   will be rounded-up by the clock to the next 50 milliseconds multiple.
-   We can separate sounds - or group of sound - by adding a silence (for example: "sound_queue_active(50, SILENT);"). */
-#define TONE_CHIME_DURATION     50   // when sounding an hourly chime.
-#define TONE_EVENT_DURATION    200   // when scrolling a calendar event.
-#define TONE_KEYCLICK_DURATION  50   // when pressing a button ("keyclick").
-#define TONE_TIMER_DURATION    100   // when count-down timer reaches 00m00s.
-
-#define BRIGHTNESS_PWM_FREQUENCY   1000   // PWM LED driver base frequency in Hz - lower value the lower the light level
-#define BRIGHTNESS_LIGHTLEVELRANGE  300   // Light sensor reading range between display full dim and full brightness
-#define BRIGHTNESS_LIGHTLEVELSTEP   300   // The number of light level steps, was 100 but when reduce PWM frequency, this gives a coarse drop in levels
-
 /* ================================================================== *\
             ===== END OF CLOCK CONFIGURATION OR OPTIONS =====
 \* ================================================================== */
@@ -16616,32 +16588,32 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
             default:
               /* NOTE: Clock display auto-brightness toggling has been Added to the list of clock setup parameters.
                        Leave a copy of this function here for convenience and quicker access. */
-              /* If we are not in setup mode, toggle the "auto-brightness" On / Off and cycle through 4 levels of manual settings. */
+              /* If we are not in setup mode, toggle the "auto-brightness" On / Off and cycle through 5 levels of manual settings. */
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
                 FlashConfig.FlagAutoBrightness = FLAG_OFF;
                 IndicatorAutoLightOff;
                 pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
               }
-              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_LIGHTLEVELSTEP && Pwm[PWM_BRIGHTNESS].Cycles > (BRIGHTNESS_LIGHTLEVELSTEP / 3)))
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_LIGHTLEVELSTEP && Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_MANUALDIV1))
               {
                 FlashConfig.FlagAutoBrightness = FLAG_OFF;
                 IndicatorAutoLightOff;
-                pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 3));
+                pwm_set_cycles(BRIGHTNESS_MANUALDIV1);
               }
-              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= (BRIGHTNESS_LIGHTLEVELSTEP / 3) && Pwm[PWM_BRIGHTNESS].Cycles > (BRIGHTNESS_LIGHTLEVELSTEP / 8)))
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_MANUALDIV1 && Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_MANUALDIV2))
               {
                 FlashConfig.FlagAutoBrightness = FLAG_OFF;
                 IndicatorAutoLightOff;
-                pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 8));
+                pwm_set_cycles(BRIGHTNESS_MANUALDIV2);
               }
-              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= (BRIGHTNESS_LIGHTLEVELSTEP / 8) && Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_LIGHTLEVELSTEP / 16))
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_MANUALDIV2 && Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_MANUALDIV3))
               {
                 FlashConfig.FlagAutoBrightness = FLAG_OFF;
                 IndicatorAutoLightOff;
-                pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 16));
+                pwm_set_cycles(BRIGHTNESS_MANUALDIV3);
               }
-              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= (BRIGHTNESS_LIGHTLEVELSTEP / 16) && Pwm[PWM_BRIGHTNESS].Cycles > 0))
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_MANUALDIV3 && Pwm[PWM_BRIGHTNESS].Cycles > 0))
               {
                 FlashConfig.FlagAutoBrightness = FLAG_OFF;
                 IndicatorAutoLightOff;
@@ -18554,6 +18526,11 @@ UINT8 fetch_AutoBrightness(void) {
   return FlashConfig.FlagAutoBrightness;
 }
 
+// Fetch the display manual dimming value from the current PWM setting
+UINT16 fetch_ManualBrightness(void) {
+  return Pwm[PWM_BRIGHTNESS].Cycles;
+}
+
 // Fetch the button press beep from the flash config
 UINT8 fetch_Keyclick(void) {
   return FlashConfig.FlagKeyclick;
@@ -18581,32 +18558,38 @@ int8_t fetch_Timezone(void) {
 
 // Write a new value for display dimming mode to the flash config, set as enabled/disabled or one of 4 manual levels - bright (1), mid (2), low (3) or dimmest (4)
 void wwriteAutoBrightness(UINT8 new_AutoBrightness, UINT8 new_ManualLevel) {
-  /* Set the "auto-brightness" On / Off and cycle through 4 levels of manual settings. */
+  /* Set the "auto-brightness" On / Off and cycle through 5 levels of manual settings. */
   if (new_AutoBrightness == FLAG_ON)
   {
     FlashConfig.FlagAutoBrightness = FLAG_ON;
-    IndicatorAutoLightOff;
+    IndicatorAutoLightOn;
     pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
   }
   else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 1)
   {
     FlashConfig.FlagAutoBrightness = FLAG_OFF;
     IndicatorAutoLightOff;
-    pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 3));
+    pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
   }
   else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 2)
   {
     FlashConfig.FlagAutoBrightness = FLAG_OFF;
     IndicatorAutoLightOff;
-    pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 8));
+    pwm_set_cycles(BRIGHTNESS_MANUALDIV1);
   }
   else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 3)
   {
     FlashConfig.FlagAutoBrightness = FLAG_OFF;
     IndicatorAutoLightOff;
-    pwm_set_cycles((BRIGHTNESS_LIGHTLEVELSTEP / 16));
+    pwm_set_cycles(BRIGHTNESS_MANUALDIV2);
   }
   else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 4)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(BRIGHTNESS_MANUALDIV3);
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 5)
   {
     FlashConfig.FlagAutoBrightness = FLAG_OFF;
     IndicatorAutoLightOff;

@@ -7,8 +7,8 @@
 
 // SSI tags - tag length limited to 8 bytes by default
 const char * ssi_tags[] = {
-"host","wifissid","wifipass","volt","temp","led","date","light","dimlevel","datetime","ntpstat","autodim","dstzone",
-"dstactve",
+"host", "wifissid", "wifipass", "volt", "temp", "led", "date", "light", "dimlevel", "datetime", "ntpstat", "dstzone",
+"dstactve", "autodim", "mdimfull", "mdimhigh", "mdimmid", "mdimlow", "mdimdark",
 "alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
 "alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
 "alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
@@ -21,7 +21,7 @@ const char * ssi_tags[] = {
 };
 
 // Set the tag offset for the alarm table entries.
-#define ALARMBASE0 14
+#define ALARMBASE0 19
 #define ALARMBASE1 (ALARMBASE0 + 10)
 #define ALARMBASE2 (ALARMBASE1 + 10)
 #define ALARMBASE3 (ALARMBASE2 + 10)
@@ -163,12 +163,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "NTP Error Count : %d", NTP_Errors);
     }
     break;
-  case 11: // autodim
-    {
-      printed = snprintf(pcInsert, iInsertLen, "%d", fetch_AutoBrightness());
-    }
-    break;
-  case 12: // dstzone
+  case 11: // dstzone
     {
       UCHAR * DST_Contry_Text;
       UINT8 DSTCOUNTRY = (UINT8)(fetch_DSTCountry());
@@ -233,10 +228,70 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", DST_Contry_Text);
     }
     break;
-  case 13: // dstactve
+  case 12: // dstactve
     {
       // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_SummerTime() == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 13: // autodim
+    {
+      printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_AutoBrightness() == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 14: // mdimfull
+    {
+      UINT8 Automode = fetch_AutoBrightness();
+      UINT8 Manualhigh = FLAG_OFF;
+      UINT16 Manuallevel = fetch_ManualBrightness();
+      // Set if not auto and pwm.Cycles equal to BRIGHTNESS_LIGHTLEVELSTEP
+      if (Automode == FLAG_OFF && Manuallevel == BRIGHTNESS_LIGHTLEVELSTEP)
+        Manualhigh = FLAG_ON;
+      printed = snprintf(pcInsert, iInsertLen, "%s", (Manualhigh == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 15: // mdimhigh
+    {
+      UINT8 Automode = fetch_AutoBrightness();
+      UINT8 Manualhigh = FLAG_OFF;
+      UINT16 Manuallevel = fetch_ManualBrightness();
+      // Set if not auto and pwm.Cycles less than BRIGHTNESS_LIGHTLEVELSTEP and greater than or equal to BRIGHTNESS_MANUALDIV1
+      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_LIGHTLEVELSTEP && Manuallevel >= BRIGHTNESS_MANUALDIV1))
+        Manualhigh = FLAG_ON;
+      printed = snprintf(pcInsert, iInsertLen, "%s", (Manualhigh == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 16: // mdimmid
+    {
+      UINT8 Automode = fetch_AutoBrightness();
+      UINT8 Manualmid = FLAG_OFF;
+      UINT16 Manuallevel = fetch_ManualBrightness();
+      // Set if not auto and pwm.Cycles less than BRIGHTNESS_MANUALDIV1 and greater than or equal to BRIGHTNESS_MANUALDIV2
+      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_MANUALDIV1 && Manuallevel >= BRIGHTNESS_MANUALDIV2))
+        Manualmid = FLAG_ON;
+      printed = snprintf(pcInsert, iInsertLen, "%s", (Manualmid == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 17: // mdimlow
+    {
+      UINT8 Automode = fetch_AutoBrightness();
+      UINT8 Manuallow = FLAG_OFF;
+      UINT16 Manuallevel = fetch_ManualBrightness();
+      // Set if not auto and pwm.Cycles less than BRIGHTNESS_MANUALDIV2 and greater than or equal to BRIGHTNESS_MANUALDIV3
+      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_MANUALDIV2 && Manuallevel >= BRIGHTNESS_MANUALDIV3))
+        Manuallow = FLAG_ON;
+      printed = snprintf(pcInsert, iInsertLen, "%s", (Manuallow == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 18: // mdimdark
+    {
+      UINT8 Automode = fetch_AutoBrightness();
+      UINT8 Manualdark = FLAG_OFF;
+      UINT16 Manuallevel = fetch_ManualBrightness();
+      // Set if not auto and pwm.Cycles equal to 0
+      if (Automode == FLAG_OFF && Manuallevel == 0)
+        Manualdark = FLAG_ON;
+      printed = snprintf(pcInsert, iInsertLen, "%s", (Manualdark == FLAG_ON) ? "checked" : "");
     }
     break;
   case (ALARMBASE0 + 0): // alm0enab

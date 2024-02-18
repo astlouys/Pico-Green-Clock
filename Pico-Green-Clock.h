@@ -9,6 +9,53 @@ typedef uint64_t      UINT64;
 typedef unsigned char UCHAR;
 
 
+
+
+/* $TITLE=Clock configuration or options. */
+/* $PAGE */
+/* ================================================================== *\
+              ===== CLOCK CONFIGURATION OR OPTIONS =====
+     SOME OF THESE ITEMS ARE ADJUSTABLE AT RUNTIME, OTHERS ARE NOT.
+     NOTE: Structure "CalendarEvent" should also be initialized
+             according to user needs. It is in the file:
+                     "CalendarEventsGeneric.cpp".
+\* ================================================================== */
+/* For active buzzer integrated in Pico Green Clock. Number of "tones" for each "sound pack" (first level of repetition). */
+#define TONE_CHIME_REPEAT1     2
+#define TONE_EVENT_REPEAT1     5
+#define TONE_KEYCLICK_REPEAT1  1
+#define TONE_TIMER_REPEAT1     4
+
+/* For active buzzer integrated in Pico Green Clock.
+   Number of times the "sound pack" above will repeat itself for each tone type (second level of repetition).
+   for example, if TONE_CHIME_REPEAT_1 is set to 3 and TONE_CHIME_REPEAT_2 is set to 2, we will hear:
+   beep-beep-beep..........beep-beep-beep (three beeps, twice). */
+#define TONE_CHIME_REPEAT2     3
+#define TONE_EVENT_REPEAT2     3
+#define TONE_KEYCLICK_REPEAT2  1
+#define TONE_TIMER_REPEAT2     2
+
+/* For active buzzer integrated in Pico Green Clock.
+   Time duration for different tone types (in milliseconds). This is the time of each sound inside one "sound pack".
+   will be rounded-up by the clock to the next 50 milliseconds multiple.
+   We can separate sounds - or group of sound - by adding a silence (for example: "sound_queue_active(50, SILENT);"). */
+#define TONE_CHIME_DURATION     50   // when sounding an hourly chime.
+#define TONE_EVENT_DURATION    200   // when scrolling a calendar event.
+#define TONE_KEYCLICK_DURATION  50   // when pressing a button ("keyclick").
+#define TONE_TIMER_DURATION    100   // when count-down timer reaches 00m00s.
+
+#define BRIGHTNESS_PWM_FREQUENCY   1000   // PWM LED driver base frequency in Hz - lower value the lower the light level
+#define BRIGHTNESS_LIGHTLEVELRANGE  300   // Light sensor reading range between display full dim and full brightness
+#define BRIGHTNESS_LIGHTLEVELSTEP   300   // The number of light level steps, was 100 but when reduce PWM frequency, this gives a coarse drop in levels
+#define BRIGHTNESS_MANUALDIV1      BRIGHTNESS_LIGHTLEVELSTEP / 3   // The manual cycle divider cutoff for full to high light level
+#define BRIGHTNESS_MANUALDIV2      BRIGHTNESS_LIGHTLEVELSTEP / 8   // The manual cycle divider cutoff for high to medium light level
+#define BRIGHTNESS_MANUALDIV3      BRIGHTNESS_LIGHTLEVELSTEP / 16  // The manual cycle divider cutoff for medium to low light level
+
+/* ================================================================== *\
+            ===== END OF CLOCK CONFIGURATION OR OPTIONS =====
+\* ================================================================== */
+
+
 /* ------------------------------------------------------------------ *\
                     Definitions and include files
                        (in alphabetical order)
@@ -58,6 +105,7 @@ typedef unsigned char UCHAR;
 #define TYPE_PICO                 0x01      // microcontroller is a Pico
 #define TYPE_PICO_W               0x02      // microcontroller is a Pico W
 
+
 /* DayOfWeek definitions. */
 #define ALL 0x00  // All days
 #define SUN 0x01  // Sunday
@@ -92,7 +140,6 @@ typedef unsigned char UCHAR;
 #define CZECH             0x04
 #define SPANISH           0x05
 #define LANGUAGE_HI_LIMIT 0x06
-
 
 
 /* List of commands to be processed by command queue handler (while in the "main()" thread context). */
@@ -839,6 +886,7 @@ struct web_light_value wfetch_light_adc_level(void);
 void wwrite_dimminlightlevel(UINT16 new_lightlevel);
 
 UINT8 fetch_AutoBrightness(void);
+UINT16 fetch_ManualBrightness(void);
 UINT8 fetch_Keyclick(void);
 UINT8 fetch_ScrollEnable(void);
 UINT8 fetch_SummerTime(void);
