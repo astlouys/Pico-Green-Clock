@@ -11,8 +11,7 @@ const char * cgi_myhostname_handler(int iIndex, int iNumParams, char *pcParam[],
   UCHAR *new_hostname = destHostname;
   int unesclength;
   int esclength;
-  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8)
-  {
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
     if (strcmp(pcParam[Loop1UInt8], "hostname") == 0) {
       // Create a new hostname, but must escape the input
       unesclength = 40;
@@ -84,8 +83,6 @@ const char * cgi_mynetwork_handler(int iIndex, int iNumParams, char *pcParam[], 
 
 // CGI handler which is run when a request for /setdateandtime.cgi is detected
 const char * cgi_setdateandtime_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-//   newtime=2024-02-16T19%3A04
-//setdateandtime.cgi?newtime=2024-02-17T14%3A33&SyncNTP=Synchronise+NTP
   UINT8 Loop1UInt8;
   struct human_time new_time = wfetch_current_datetime();
   UINT16 my_date;
@@ -128,6 +125,22 @@ const char * cgi_setdateandtime_handler(int iIndex, int iNumParams, char *pcPara
   return "/index.shtml";
 }
 
+// CGI handler which is run when a request for /settimezone.cgi is detected
+const char * cgi_settimezone_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
+  UINT8 Loop1UInt8;
+  int8_t New_houroffset;
+  // parse the returned key and value pairs,
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "timezoneoffset") == 0) {
+      New_houroffset = atoi(pcValue[Loop1UInt8]);
+    }
+  }
+  // Now act on a button press
+  wwriteTimezone(New_houroffset);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
 // CGI handler which is run when a request for /setdstcountry.cgi is detected
 const char * cgi_setdstcountry_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
   UINT8 Loop1UInt8;
@@ -136,25 +149,30 @@ const char * cgi_setdstcountry_handler(int iIndex, int iNumParams, char *pcParam
   UINT8 new_SummerTime = FLAG_OFF;
   UINT8 DSTCountry_Request = FLAG_OFF;
   UINT8 Summertime_Request = FLAG_OFF;
-  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
-    if (strcmp(pcParam[Loop1UInt8], "DSTZoneSel") == 0) {
-      my_DSTCountry = atoi(pcValue[Loop1UInt8]);
-      DSTCountry_Request = FLAG_ON;
-    }
-    if (strcmp(pcParam[Loop1UInt8], "dstactive") == 0) {
-      new_SummerTime = FLAG_ON;
+  // If no value is sent, then nothing in the web form is sent. This is the DST flag cleared
+  if (iNumParams == 0) {
+      new_SummerTime = FLAG_OFF;
       Summertime_Request = FLAG_ON;
+  }
+  else {
+    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+      if (strcmp(pcParam[Loop1UInt8], "DSTZoneSel") == 0) {
+        my_DSTCountry = atoi(pcValue[Loop1UInt8]);
+        DSTCountry_Request = FLAG_ON;
+      }
+      if (strcmp(pcParam[Loop1UInt8], "dstactive") == 0) {
+        new_SummerTime = FLAG_ON;
+        Summertime_Request = FLAG_ON;
+      }
     }
   }
-  if (DSTCountry_Request == FLAG_ON)
-  {
+  if (DSTCountry_Request == FLAG_ON) {
     // Convert the contry code from an integer to a UCHAR
     my_DSTCountry_char = (UCHAR)(my_DSTCountry);
     // Set the DST country code
     mwrite_DSTCountry(my_DSTCountry_char);
   }
-  if (Summertime_Request == FLAG_ON)
-  {
+  if (Summertime_Request == FLAG_ON) {
     // Update the configuration flag
     wwriteSummerTime(new_SummerTime);
   }
@@ -170,6 +188,176 @@ const char * cgi_clearntperrors_handler(int iIndex, int iNumParams, char *pcPara
   return "/index.shtml";
 }
 
+// CGI handler which is run when a request for /setlanguage.cgi is detected
+const char * cgi_setlanguage_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+  UINT8 Loop1UInt8;
+  UINT8 new_language = 0;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "langmode") == 0) {
+      if (strcmp(pcValue[Loop1UInt8], "Engl") == 0) {
+        new_language = ENGLISH;
+      }
+      else if (strcmp(pcValue[Loop1UInt8], "Frch") == 0) {
+        new_language = FRENCH;
+      }
+      else if (strcmp(pcValue[Loop1UInt8], "Germ") == 0) {
+        new_language = GERMAN;
+      }
+      else if (strcmp(pcValue[Loop1UInt8], "Czec") == 0) {
+        new_language = CZECH;
+      }
+      else if (strcmp(pcValue[Loop1UInt8], "Span") == 0) {
+        new_language = SPANISH;
+      }
+    }
+  }
+  // Update the language in the flash config
+  mwritelanguage(new_language);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /setkeyclick.cgi is detected
+const char * cgi_setkeyclick_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+  UINT8 Loop1UInt8;
+  UINT8 new_keyclick = FLAG_OFF;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "keyclick") == 0) {
+      new_keyclick = FLAG_ON;
+    }
+  }
+  // Update the keyclick setting
+  wwriteKeyclick(new_keyclick);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /setdisplayscroll.cgi is detected
+const char * cgi_setdisplayscroll_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+  UINT8 Loop1UInt8;
+  UINT8 new_dispscroll = FLAG_OFF;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "dispscroll") == 0) {
+      new_dispscroll = FLAG_ON;
+    }
+  }
+  // Update the display scrolling setting
+  wwriteScrollEnable(new_dispscroll);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /disphourmode.cgi is detected
+const char * cgi_disphourmode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+  UINT8 Loop1UInt8;
+  // default flag to initial 24Hr setting
+  UINT8 new_hourdispmode = H24;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "disphourmode") == 0) {
+      if (strcmp(pcValue[Loop1UInt8], "set24hrmode") == 0) {
+        new_hourdispmode = H24;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "set12hrmode") == 0) {
+        new_hourdispmode = H12;
+      }
+    }
+  }
+  // Update the hour display mode
+  wwrite_ClockHourMode(new_hourdispmode);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
+
+// CGI handler which is run when a request for /shortsetkey.cgi is detected
+const char * cgi_shortsetkey_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+  UINT8 Loop1UInt8;
+  // default flag to normal operation - short press on the set key controls the date & time
+  UINT8 new_setkeymode = FLAG_ON;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "setshortkey") == 0) {
+      if (strcmp(pcValue[Loop1UInt8], "settime") == 0) {
+        new_setkeymode = FLAG_ON;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "setalarm") == 0) {
+        new_setkeymode = FLAG_OFF;
+      }
+    }
+  }
+  // Update the set key mode
+  wwriteShortSeyKey(new_setkeymode);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /setchimemode.cgi is detected
+const char * cgi_setchimemode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+  UINT8 Loop1UInt8;
+  // default flag to initial CHIME_OFF setting
+  UINT8 new_ChimeMode = CHIME_OFF;
+  UINT8 new_ChimeStart = 0;
+  UINT8 new_ChimeStop = 0;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "chimemode") == 0) {
+      if (strcmp(pcValue[Loop1UInt8], "chimeoff") == 0) {
+        new_ChimeMode = CHIME_OFF;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "chimeday") == 0) {
+        new_ChimeMode = CHIME_DAY;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "chimeon") == 0) {
+        new_ChimeMode = CHIME_ON;
+      }
+    }
+    if (strcmp(pcParam[Loop1UInt8], "chimestart") == 0) {
+      new_ChimeStart = atoi(pcValue[Loop1UInt8]);
+    }
+    if (strcmp(pcParam[Loop1UInt8], "chimestop") == 0) {
+      new_ChimeStop = atoi(pcValue[Loop1UInt8]);
+    }
+  }
+  wwrite_ChimeMode(new_ChimeMode);
+  wwrite_ChimeStart(new_ChimeStart);
+  wwrite_ChimeStop(new_ChimeStop);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
+
+// CGI handler which is run when a request for /setnightlightmode.cgi is detected
+const char * cgi_setnightlightmode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+  UINT8 Loop1UInt8;
+  // default flag to initial NIGHT_LIGHT_OFF setting
+  UINT8 new_NightLightMode = NIGHT_LIGHT_OFF;
+  UINT8 new_NightLightStart = 0;
+  UINT8 new_NightLightStop = 0;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "nighgtmode") == 0) {
+      if (strcmp(pcValue[Loop1UInt8], "nighgtoff") == 0) {
+        new_NightLightMode = NIGHT_LIGHT_OFF;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "nighgtauto") == 0) {
+        new_NightLightMode = NIGHT_LIGHT_AUTO;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "nighgtnite") == 0) {
+        new_NightLightMode = NIGHT_LIGHT_NIGHT;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "nighgton") == 0) {
+        new_NightLightMode = NIGHT_LIGHT_ON;
+      }
+    }
+    if (strcmp(pcParam[Loop1UInt8], "nighgtstart") == 0) {
+      new_NightLightStart = atoi(pcValue[Loop1UInt8]);
+    }
+    if (strcmp(pcParam[Loop1UInt8], "nighgtstop") == 0) {
+      new_NightLightStop = atoi(pcValue[Loop1UInt8]);
+    }
+  }
+  wwrite_NightLightMode(new_NightLightMode);
+  wwrite_NightLightStart(new_NightLightStart);
+  wwrite_NightLightStop(new_NightLightStop);
+  // Send the index page back to the user
+  return "/index.shtml";
+}
 
 // CGI handler which is run when a request for /led.cgi is detected
 const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
@@ -283,9 +471,6 @@ const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcPar
   return "/index.shtml";
 }
 
-// http://172.22.42.200/index.shtml?dispdimmode=auto
-// http://172.22.42.200/index.shtml?dispdimmode=dark
-
 // CGI handler which is run when a request for /setdisplayadclevel.cgi is detected
 const char * cgi_setdisplaymode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
   UINT8 Loop1UInt8;
@@ -339,10 +524,34 @@ static const tCGI cgi_handlers[] = {
         "/setdateandtime.cgi", cgi_setdateandtime_handler
     },
     {
+        "/settimezone.cgi", cgi_settimezone_handler
+    },
+    {
         "/setdstcountry.cgi", cgi_setdstcountry_handler
     },
     {
         "/clearntperrors.cgi", cgi_clearntperrors_handler
+    },
+    {
+        "/setlanguage.cgi", cgi_setlanguage_handler
+    },
+    {
+        "/setkeyclick.cgi", cgi_setkeyclick_handler
+    },
+    {
+        "/setdisplayscroll.cgi", cgi_setdisplayscroll_handler
+    },
+    {
+        "/disphourmode.cgi", cgi_disphourmode_handler
+    },
+    {
+        "/shortsetkey.cgi", cgi_shortsetkey_handler
+    },
+    {
+        "/setchimemode.cgi", cgi_setchimemode_handler
+    },
+    {
+        "/setnightlightmode.cgi", cgi_setnightlightmode_handler
     },
     {
         "/led.cgi", cgi_led_handler
@@ -356,14 +565,12 @@ static const tCGI cgi_handlers[] = {
     {
         "/setdisplaymode.cgi", cgi_setdisplaymode_handler
     }
-
-    // Add more functions here...
     // and update the cgi_init number of handlers
 };
 
 void cgi_init(void) {
-    // We have nine handlers
-    http_set_cgi_handlers(cgi_handlers, 9);
+    // We have seventeen handlers
+    http_set_cgi_handlers(cgi_handlers, 17);
 }
 
 // Routine to process the returned text box values to return

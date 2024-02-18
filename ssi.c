@@ -8,7 +8,9 @@
 // SSI tags - tag length limited to 8 bytes by default
 const char * ssi_tags[] = {
 "host", "wifissid", "wifipass", "volt", "temp", "led", "date", "light", "dimlevel", "datetime", "ntpstat", "dstzone",
-"dstactve", "autodim", "mdimfull", "mdimhigh", "mdimmid", "mdimlow", "mdimdark",
+"dstactve", "autodim", "mdimfull", "mdimhigh", "mdimmid", "mdimlow", "mdimdark", "timezone", "shsktime", "shskalrm",
+"langengl", "langfrch", "langgerm", "langczec", "langspan", "keyclick", "discroll", "hr12mode", "hr24mode", "chmenoff",
+"chmenday", "chmenon", "chmstart", "chimstop", "nliteoff", "nlitauto", "nltnight", "ntliteon", "nltstart", "nlgtstop",
 "alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
 "alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
 "alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
@@ -21,7 +23,7 @@ const char * ssi_tags[] = {
 };
 
 // Set the tag offset for the alarm table entries.
-#define ALARMBASE0 19
+#define ALARMBASE0 42
 #define ALARMBASE1 (ALARMBASE0 + 10)
 #define ALARMBASE2 (ALARMBASE1 + 10)
 #define ALARMBASE3 (ALARMBASE2 + 10)
@@ -41,12 +43,16 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
     }
     break;
   case 1: // wifissid
+    {
       UCHAR* my_wifissid = wfetch_wifissid();
       printed = snprintf(pcInsert, iInsertLen, "%s", my_wifissid);
+    }
     break;
   case 2: // wifipass
+    {
       UCHAR* my_wifipassphrase = wfetch_wifipass();
       printed = snprintf(pcInsert, iInsertLen, "%s", my_wifipassphrase);
+    }
     break;
   case 3: // volt
     {
@@ -245,8 +251,9 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       UINT8 Manualhigh = FLAG_OFF;
       UINT16 Manuallevel = fetch_ManualBrightness();
       // Set if not auto and pwm.Cycles equal to BRIGHTNESS_LIGHTLEVELSTEP
-      if (Automode == FLAG_OFF && Manuallevel == BRIGHTNESS_LIGHTLEVELSTEP)
+      if (Automode == FLAG_OFF && Manuallevel == BRIGHTNESS_LIGHTLEVELSTEP) {
         Manualhigh = FLAG_ON;
+      }
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualhigh == FLAG_ON) ? "checked" : "");
     }
     break;
@@ -256,8 +263,9 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       UINT8 Manualhigh = FLAG_OFF;
       UINT16 Manuallevel = fetch_ManualBrightness();
       // Set if not auto and pwm.Cycles less than BRIGHTNESS_LIGHTLEVELSTEP and greater than or equal to BRIGHTNESS_MANUALDIV1
-      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_LIGHTLEVELSTEP && Manuallevel >= BRIGHTNESS_MANUALDIV1))
+      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_LIGHTLEVELSTEP && Manuallevel >= BRIGHTNESS_MANUALDIV1)) {
         Manualhigh = FLAG_ON;
+      }
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualhigh == FLAG_ON) ? "checked" : "");
     }
     break;
@@ -267,8 +275,9 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       UINT8 Manualmid = FLAG_OFF;
       UINT16 Manuallevel = fetch_ManualBrightness();
       // Set if not auto and pwm.Cycles less than BRIGHTNESS_MANUALDIV1 and greater than or equal to BRIGHTNESS_MANUALDIV2
-      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_MANUALDIV1 && Manuallevel >= BRIGHTNESS_MANUALDIV2))
+      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_MANUALDIV1 && Manuallevel >= BRIGHTNESS_MANUALDIV2)) {
         Manualmid = FLAG_ON;
+      }
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualmid == FLAG_ON) ? "checked" : "");
     }
     break;
@@ -278,8 +287,9 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       UINT8 Manuallow = FLAG_OFF;
       UINT16 Manuallevel = fetch_ManualBrightness();
       // Set if not auto and pwm.Cycles less than BRIGHTNESS_MANUALDIV2 and greater than or equal to BRIGHTNESS_MANUALDIV3
-      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_MANUALDIV2 && Manuallevel >= BRIGHTNESS_MANUALDIV3))
+      if (Automode == FLAG_OFF && (Manuallevel < BRIGHTNESS_MANUALDIV2 && Manuallevel >= BRIGHTNESS_MANUALDIV3)) {
         Manuallow = FLAG_ON;
+      }
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manuallow == FLAG_ON) ? "checked" : "");
     }
     break;
@@ -289,11 +299,216 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       UINT8 Manualdark = FLAG_OFF;
       UINT16 Manuallevel = fetch_ManualBrightness();
       // Set if not auto and pwm.Cycles equal to 0
-      if (Automode == FLAG_OFF && Manuallevel == 0)
+      if (Automode == FLAG_OFF && Manuallevel == 0) {
         Manualdark = FLAG_ON;
+      }
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualdark == FLAG_ON) ? "checked" : "");
     }
     break;
+  case 19: // timezone
+    {
+      printed = snprintf(pcInsert, iInsertLen, "%d", fetch_Timezone());
+    }
+    break;
+
+  case 20: // shsktime
+    {
+      UINT8 my_setkeymode = fetch_ShortSeyKey();
+      UINT8 my_setkeyflag = FLAG_OFF;
+      // Allow for all non-zero values
+      if (my_setkeymode != FLAG_OFF) {
+        my_setkeyflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_setkeyflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 21: // shskalrm
+    {
+      UINT8 my_setkeymode = fetch_ShortSeyKey();
+      UINT8 my_setkeyflag = FLAG_OFF;
+      // Invert mode for alternate radio button, alarm
+      if (my_setkeymode == FLAG_OFF) {
+        my_setkeyflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_setkeyflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 22: // langengl
+    {
+      UINT8 my_language = wfetch_current_language();
+      UINT8 LangFlag = FLAG_OFF;
+      if (my_language == ENGLISH) {
+        LangFlag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 23: // langfrch
+    {
+      UINT8 my_language = wfetch_current_language();
+      UINT8 LangFlag = FLAG_OFF;
+      if (my_language == FRENCH) {
+        LangFlag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 24: // langgerm
+    {
+      UINT8 my_language = wfetch_current_language();
+      UINT8 LangFlag = FLAG_OFF;
+      if (my_language == GERMAN) {
+        LangFlag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 25: // langczec
+    {
+      UINT8 my_language = wfetch_current_language();
+      UINT8 LangFlag = FLAG_OFF;
+      if (my_language == CZECH) {
+        LangFlag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 26: // langspan
+    {
+      UINT8 my_language = wfetch_current_language();
+      UINT8 LangFlag = FLAG_OFF;
+      if (my_language == SPANISH) {
+        LangFlag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 27: // keyclick
+    {
+      printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_Keyclick() == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 28: // discroll
+    {
+      printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_ScrollEnable() == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 29:// hr12mode
+    {
+      UINT8 my_hr12mode = fetch_ClockHourMode();
+      UINT8 my_hr12flag = FLAG_OFF;
+      if (my_hr12mode == H12) {
+        my_hr12flag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_hr12flag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 30:// hr24mode
+    {
+      UINT8 my_hr24mode = fetch_ClockHourMode();
+      UINT8 my_hr24flag = FLAG_OFF;
+      if (my_hr24mode == H24) {
+        my_hr24flag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_hr24flag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 31:// chmenoff
+    {
+      UINT8 my_chimemode = fetch_ChimeMode();
+      UINT8 my_chimeflag = FLAG_OFF;
+      if (my_chimemode == CHIME_OFF) {
+        my_chimeflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_chimeflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 32:// chmenday
+    {
+      UINT8 my_chimemode = fetch_ChimeMode();
+      UINT8 my_chimeflag = FLAG_OFF;
+      if (my_chimemode == CHIME_DAY) {
+        my_chimeflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_chimeflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 33:// chmenon
+    {
+      UINT8 my_chimemode = fetch_ChimeMode();
+      UINT8 my_chimeflag = FLAG_OFF;
+      if (my_chimemode == CHIME_ON) {
+        my_chimeflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_chimeflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 34:// chmstart
+    {
+
+      printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_ChimeStart());
+    }
+    break;
+  case 35:// chimstop
+    {
+
+      printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_ChimeStop());
+    }
+
+    break;
+  case 36:// nliteoff
+    {
+      UINT8 my_nightlightmode = fetch_NightLightMode();
+      UINT8 my_nightlightflag = FLAG_OFF;
+      if (my_nightlightmode == NIGHT_LIGHT_OFF) {
+        my_nightlightflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 37:// nlitauto
+    {
+      UINT8 my_nightlightmode = fetch_NightLightMode();
+      UINT8 my_nightlightflag = FLAG_OFF;
+      if (my_nightlightmode == NIGHT_LIGHT_AUTO) {
+        my_nightlightflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 38:// nltnight
+    {
+      UINT8 my_nightlightmode = fetch_NightLightMode();
+      UINT8 my_nightlightflag = FLAG_OFF;
+      if (my_nightlightmode == NIGHT_LIGHT_NIGHT) {
+        my_nightlightflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 39:// ntliteon
+    {
+      UINT8 my_nightlightmode = fetch_NightLightMode();
+      UINT8 my_nightlightflag = FLAG_OFF;
+      if (my_nightlightmode == NIGHT_LIGHT_ON) {
+        my_nightlightflag = FLAG_ON;
+      }
+      printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
+    }
+    break;
+  case 40:// nltstart
+    {
+
+      printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_NightLightStart());
+    }
+    break;
+  case 41:// nlgtstop
+    {
+
+      printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_NightLightStop());
+    }
+    break;
+
   case (ALARMBASE0 + 0): // alm0enab
     {
       struct alarm my_alarm;

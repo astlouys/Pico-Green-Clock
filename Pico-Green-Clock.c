@@ -710,7 +710,6 @@ UINT8  FlagTimerCountDownEnd      = FLAG_OFF;  // flag indicating the count down
 UINT8  FlagTone                   = FLAG_OFF;  // flag indicating there is a tone sounding.
 UINT8  FlagToneOn                 = FLAG_OFF;  // flag indicating it is time to make a tone.
 UINT8  FlagUpdateTime             = FLAG_OFF;  // flag indicating it is time to refresh the time on clock display.
-UINT8  FlagWebRequestNetworkInit  = FLAG_OFF;  // flag indicating that the web page control has updated network settings and would like it re-initialised
 UINT8  FlagWebRequestNTPSync      = FLAG_OFF;  // flag indicating that the web page control has requested a date & time sync with the NTP server
 UINT8  FlagWebRequestFlashCheck   = FLAG_OFF;  // flag indicating that the web page control has updated things that are stored in the flash and may need updating
 struct flash_config FlashConfig;               // Hold the flash data storage in a data structure
@@ -1668,8 +1667,14 @@ int main(void)
   /* ---------------------------------------------------------------- *\
         Clock "Setup order" in most languages is Day-Month(-Year),
                   as opposed to English Month-Day(-Year).
+              Also include European English in this
   \* ---------------------------------------------------------------- */
   if ((FlashConfig.Language == FRENCH) || (FlashConfig.Language == SPANISH) || (FlashConfig.Language == CZECH))
+  {
+    SETUP_DAY_OF_MONTH = 0x03;
+    SETUP_MONTH        = 0x04;
+  }
+  if (FlashConfig.Language == ENGLISH && FlashConfig.DSTCountry == DST_EUROPE)
   {
     SETUP_DAY_OF_MONTH = 0x03;
     SETUP_MONTH        = 0x04;
@@ -2602,29 +2607,12 @@ int main(void)
     }
 
     /* Check to see if a web page update asks for a flash stored value to be changed */
-    if ((FlagWebRequestFlashCheck == FLAG_ON) && (FlagWebRequestNetworkInit == FLAG_OFF) && ((CurrentSecond % 5) == 0))
+    if ((FlagWebRequestFlashCheck == FLAG_ON) && ((CurrentSecond % 5) == 0))
     {
       // Check to see if the flash memory needs updating and update if needed
       flash_check_config();
       // Clear the flag
       FlagWebRequestFlashCheck = FLAG_OFF;
-    }
-
-    /* Check to see if a web page update asks for a restart o the LwIP stack & WiFi connection */
-    if ((FlagWebRequestNetworkInit == FLAG_ON) && ((CurrentSecond % 5) == 4))
-    {
-      // Restart the LwIP networking stack
-      ReturnCode = ntp_init();
-      if (DebugBitMask & DEBUG_NTP)
-        uart_send(__LINE__, "WebRequest - ntp_init() return code: %d\r", ReturnCode);
-      // Initialise web server daemon
-      httpd_init();
-      // Initialise web ssi functions
-      ssi_init();
-      // Initialise web server cgi
-      cgi_init();
-      // Clear the flag
-      FlagWebRequestNetworkInit = FLAG_OFF;
     }
 
     /* Check to see if a web page asks for a date/time synchronisation with the NTP server */
@@ -18374,8 +18362,6 @@ UCHAR* wfetch_wifipass(void) {
 void wwrite_hostname(UCHAR * new_hostname) {
   // Update the configured values
   sprintf(&FlashConfig.Hostname[4], new_hostname);
-  // Reinitialise the network
-  FlagWebRequestNetworkInit = FLAG_ON;
   // Perform a flash configuration update check soon
   FlagWebRequestFlashCheck = FLAG_ON;
   return;
@@ -18386,8 +18372,6 @@ void wwrite_networkcfg(UCHAR * new_wifissid, UCHAR * new_wifipass) {
   // Update the configured values
   sprintf(&FlashConfig.Password[4], new_wifipass);
   sprintf(&FlashConfig.SSID[4], new_wifissid);
-  // Reinitialise the network
-  FlagWebRequestNetworkInit = FLAG_ON;
   // Perform a flash configuration update check soon
   FlagWebRequestFlashCheck = FLAG_ON;
   return;
@@ -18541,6 +18525,11 @@ UINT8 fetch_ScrollEnable(void) {
   return FlashConfig.FlagScrollEnable;
 }
 
+// Fetch the scrolling display mode from the flash config
+UINT8 fetch_ShortSeyKey(void){
+  return FlashConfig.ShortSetKey;
+}
+
 // Fetch the DST active flag from the flash config
 UINT8 fetch_SummerTime(void) {
   return FlashConfig.FlagSummerTime;
@@ -18555,6 +18544,31 @@ UCHAR fetch_DSTCountry(void) {
 int8_t fetch_Timezone(void) {
   return FlashConfig.Timezone;
 }
+
+// Fetch the 12/24HR display mode from the flash config
+UINT8 fetch_ClockHourMode(void) {
+  return FlashConfig.TimeDisplayMode;
+}
+
+UINT8 fetch_ChimeMode(void) {
+  return FlashConfig.ChimeMode;
+}
+UINT8 fetch_ChimeStart(void) {
+  return FlashConfig.ChimeTimeOn;
+}
+UINT8 fetch_ChimeStop(void) {
+  return FlashConfig.ChimeTimeOff;
+}
+UINT8 fetch_NightLightMode(void) {
+  return FlashConfig.NightLightMode;
+}
+UINT8 fetch_NightLightStart(void) {
+  return FlashConfig.NightLightTimeOn;
+}
+UINT8 fetch_NightLightStop(void) {
+  return FlashConfig.NightLightTimeOff;
+}
+
 
 // Write a new value for display dimming mode to the flash config, set as enabled/disabled or one of 4 manual levels - bright (1), mid (2), low (3) or dimmest (4)
 void wwriteAutoBrightness(UINT8 new_AutoBrightness, UINT8 new_ManualLevel) {
@@ -18606,26 +18620,40 @@ void wwriteAutoBrightness(UINT8 new_AutoBrightness, UINT8 new_ManualLevel) {
 
 // Write a new value for button press beep enable to the flash config
 void wwriteKeyclick(UINT8 new_Keyclick) {
-  FlashConfig.FlagKeyclick = new_Keyclick;
+  if ((new_Keyclick == FLAG_OFF) || (new_Keyclick == FLAG_ON)) {
+    FlashConfig.FlagKeyclick = new_Keyclick;
+  }
   return;
 }
 
 // Write a new value for scrolling display enable to the flash config
 void wwriteScrollEnable(UINT8 new_ScrollEnable) {
-  FlashConfig.FlagScrollEnable = new_ScrollEnable;
-  /* Setup the "Scroll" set indicator */
-  if (new_ScrollEnable == FLAG_ON) {
-    IndicatorScrollOn;
+  if ((new_ScrollEnable == FLAG_OFF) || (new_ScrollEnable == FLAG_ON)) {
+    FlashConfig.FlagScrollEnable = new_ScrollEnable;
+    /* Setup the "Scroll" set indicator */
+    if (new_ScrollEnable == FLAG_ON) {
+      IndicatorScrollOn;
+    }
+    else {
+      IndicatorScrollOff;
+    }
   }
-  else {
-    IndicatorScrollOff;
+  return;
+}
+
+// Write a new value for teh short set key operation to the flash config
+void wwriteShortSeyKey(UINT8 new_SetKeyMode){
+  if ((new_SetKeyMode == FLAG_OFF) || (new_SetKeyMode == FLAG_ON)) {
+    FlashConfig.ShortSetKey = new_SetKeyMode;
   }
   return;
 }
 
 // Write a new value for DST active flag to the flash config
 void wwriteSummerTime(UINT8 new_SummerTime) {
-  FlashConfig.FlagSummerTime = new_SummerTime;
+  if (new_SummerTime == FLAG_OFF || new_SummerTime == FLAG_ON) {
+    FlashConfig.FlagSummerTime = new_SummerTime;
+  }
   return;
 }
 
@@ -18638,6 +18666,91 @@ void mwrite_DSTCountry(UCHAR new_DST_Country) {
 // Write a new value for UTC offset timezone to the flash config
 void wwriteTimezone(int8_t new_Timezone) {
   FlashConfig.Timezone = new_Timezone;
+  return;
+}
+
+// Write a new value for language to the flash config if in the correct range
+void mwritelanguage(UINT8 new_language) {
+  if (new_language > LANGUAGE_LO_LIMIT && new_language < LANGUAGE_HI_LIMIT) {
+    FlashConfig.Language = new_language;
+  }
+  return;
+}
+
+void wwrite_ClockHourMode(UINT8 new_hourmode){
+  if ((new_hourmode == H12) || (new_hourmode == H24)) {
+    FlashConfig.TimeDisplayMode = new_hourmode;
+    // Request time display update when all completed
+    FlagUpdateTime = FLAG_ON;
+  }
+  return;
+}
+
+
+void wwrite_ChimeMode(UINT8 new_ChimeMode) {
+  if (new_ChimeMode == CHIME_OFF) {
+    FlashConfig.ChimeMode = CHIME_OFF;
+    IndicatorHourlyChimeOff;
+  }
+  else if (new_ChimeMode == CHIME_ON) {
+    FlashConfig.ChimeMode = CHIME_ON;
+    IndicatorHourlyChimeOn;
+  }
+  else if (new_ChimeMode == CHIME_DAY) {
+    FlashConfig.ChimeMode = CHIME_DAY;
+    IndicatorHourlyChimeDay;
+  }
+  return;
+}
+
+void wwrite_ChimeStart(UINT8 new_ChimeStart) {
+  FlashConfig.ChimeTimeOn = new_ChimeStart;
+  return;
+}
+
+void wwrite_ChimeStop(UINT8 new_ChimeStop) {
+  FlashConfig.ChimeTimeOff = new_ChimeStop;
+  return;
+}
+
+void wwrite_NightLightMode(UINT8 new_NightLightMode) {
+  if (new_NightLightMode == NIGHT_LIGHT_OFF) {
+    FlashConfig.NightLightMode = NIGHT_LIGHT_OFF;
+    IndicatorButtonLightsOff;
+  }
+  else if (new_NightLightMode == NIGHT_LIGHT_ON){
+    FlashConfig.NightLightMode = NIGHT_LIGHT_ON;
+    IndicatorButtonLightsOn;
+  }
+  else if (new_NightLightMode == NIGHT_LIGHT_AUTO) {
+    FlashConfig.NightLightMode = NIGHT_LIGHT_AUTO;
+    UINT16 LightLevel = adc_read_light();
+    if (LightLevel < 295) {
+      IndicatorButtonLightsOn;
+    }
+    if (LightLevel > 400) {
+      IndicatorButtonLightsOff;
+    }
+  }
+  else if (new_NightLightMode == NIGHT_LIGHT_NIGHT) {
+    FlashConfig.NightLightMode = NIGHT_LIGHT_NIGHT;
+    if ((CurrentHourSetting >= FlashConfig.NightLightTimeOn) || (CurrentHourSetting < FlashConfig.NightLightTimeOff)) {
+      IndicatorButtonLightsOn;
+    }
+    if ((CurrentHourSetting >= FlashConfig.NightLightTimeOff) && (CurrentHourSetting < FlashConfig.NightLightTimeOn)) {
+      IndicatorButtonLightsOff;
+    }
+  }
+  return;
+}
+
+void wwrite_NightLightStart(UINT8 new_NightLightStart) {
+  FlashConfig.NightLightTimeOn = new_NightLightStart;
+  return;
+}
+
+void wwrite_NightLightStop(UINT8 new_NightLightStop) {
+  FlashConfig.NightLightTimeOff = new_NightLightStop;
   return;
 }
 

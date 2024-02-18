@@ -9,25 +9,30 @@
           <form action="/myhostname.cgi">
             <label for="Pico-W Hostname">New hostname:</label>&ensp;&nbsp;
             <input type="text" id="hostname" name="hostname" size='20' maxlength='40' value=<!--#host-->>&nbsp;
-            <input type="submit" value="Update Hostname"><br>
+            <input type="submit" value="Update Hostname"> - updates on next power cycle<br>
           </form>
           <form action="/mynetwork.cgi">
             <label for="wifissid">New WiFi SSID:</label>&nbsp;
             <input type="text" id="wifissid" name="wifissid" size='20' maxlength='40' value=<!--#wifissid-->>&nbsp;
             <label for="wifipass">New WiFi Passphrase:</label>&nbsp;
             <input type="password" id="wifipass" name="wifipass" size='20' maxlength='70' value=<!--#wifipass-->>&nbsp;
-            <input type="submit" value="Update WiFi">
+            <input type="submit" value="Update WiFi"> - updates on next power cycle
           </form>
         </fieldset>
         <br>
         <fieldset>
           <legend>Set Date and Time Information</legend>
+          <!--#date--><br>
           <form action="/setdateandtime.cgi">
-            <!--#date--><br>
             <label for="newtime">Today's Date and Time:</label>&nbsp;
             <input type="datetime-local" id="newtime" name="newtime" value=<!--#datetime-->>&nbsp;
             <input type="submit" name="UpdateTime" value="Update Date and Time">&emsp;
             <input type="submit" name="SyncNTP" value="Synchronise NTP"><br>
+          </form>
+          <form action="/settimezone.cgi">
+            <label for="timezoneoffset">Timezone:</label><input type="number" id="timezoneoffset" name="timezoneoffset" min="-12" max="12" value="<!--#timezone-->">&nbsp;
+            hours offset&emsp;
+            <input type="submit" value="Update">
           </form>
           <form action="/setdstcountry.cgi">
             Daylight savings region set to <!--#dstzone-->&nbsp;&nbsp;
@@ -55,13 +60,60 @@
             <!--#ntpstat-->&emsp;<input type="submit" name="ClearNTPErr" value="Clear NTP Errors"><br>
           </form>
         </fieldset>
-        <p>Voltage: <!--#volt--> V</p>
-        <p>Temp: <!--#temp--> Deg C</p>
-        <p>LED is: <!--#led--></p>
-        <a href="/led.cgi?led=1"><button>LED ON</button></a>
-        <a href="/led.cgi?led=0"><button>LED OFF</button></a>
         <br>
-        <fieldset><br>
+        <fieldset>
+          <legend>Configuration</legend>
+          <form action="/setlanguage.cgi">
+            Language :
+            <input type="radio" id="Engl" name="langmode" <!--#langengl--> value="Engl"> <label for="Engl">Eng</label>
+            <input type="radio" id="Frch" name="langmode" <!--#langfrch--> value="Frch"> <label for="Frch">Fr</label>
+            <input type="radio" id="Germ" name="langmode" <!--#langgerm--> value="Germ"> <label for="Germ">Ger</label>
+            <input type="radio" id="Czec" name="langmode" <!--#langczec--> value="Czec"> <label for="Czec">Cz</label>
+            <input type="radio" id="Span" name="langmode" <!--#langspan--> value="Span"> <label for="Span">Esp</label>
+            <input type="submit" value="Select Language">
+          </form>
+          <form action="/setkeyclick.cgi">
+            <label for="keyclick">Button Press Beep</label><input type="checkbox" <!--#keyclick--> id="keyclick" name="keyclick" value="active" >
+            <input type="submit" value="Update Keyclick"><br>
+          </form>
+          <form action="/setdisplayscroll.cgi">
+            <label for="dispscroll">Display Scroll</label><input type="checkbox" <!--#discroll--> id="dispscroll" name="dispscroll" value="active" >
+            <input type="submit" value="Update Display Scroll"><br>
+          </form>
+          <form action="/disphourmode.cgi">
+            Clock Hour display:
+            <input type="radio" id="set12hrmode" name="disphourmode" <!--#hr12mode--> value="set12hrmode"> <label for="set12hrmode">12Hr Mode</label>
+            <input type="radio" id="set24hrmode" name="disphourmode" <!--#hr24mode--> value="set24hrmode"> <label for="set24hrmode">24Hr Mode</label>
+            <input type="submit" value="Update Mode"><br>
+          </form>
+          <form action="/shortsetkey.cgi">
+            Short "Set" key sets :
+            <input type="radio" id="settime" name="setshortkey" <!--#shsktime--> value="settime"> <label for="settime">Date and Time</label>
+            <input type="radio" id="setalarm" name="setshortkey" <!--#shskalrm--> value="setalarm"> <label for="setalarm">Alarms</label>
+            <input type="submit" value="Update Mode"><br>
+          </form>
+          <form action="/setchimemode.cgi">
+            Chime Mode:
+            <input type="radio" id="chimeoff" name="chimemode" <!--#chmenoff--> value="chimeoff"> <label for="chimeoff">Off</label>
+            <input type="radio" id="chimeday" name="chimemode" <!--#chmenday--> value="chimeday"> <label for="chimeday">Day time</label>
+            <input type="radio" id="chimeon" name="chimemode" <!--#chmenon--> value="chimeon"> <label for="chimeon">On</label>&emsp;
+            <label for="chimestart">Start hour:</label><input type="number" id="chimestart" name="chimestart" min="0" max="23" value="<!--#chmstart-->" size="2"> (24Hr)&ensp;
+            <label for="chimestop">Stop hour:</label><input type="number" id="chimestop" name="chimestop" min="0" max="23" value="<!--#chimstop-->" size="2"> (24Hr)&ensp;
+            <input type="submit" value="Update">
+          </form>
+          <form action="/setnightlightmode.cgi">
+            Nightlight Mode:
+            <input type="radio" id="nighgtoff" name="nighgtmode" <!--#nliteoff--> value="nighgtoff"> <label for="nighgtoff">Off</label>
+            <input type="radio" id="nighgtauto" name="nighgtmode" <!--#nlitauto--> value="nighgtauto"> <label for="nighgtauto">Auto</label>
+            <input type="radio" id="nighgtnite" name="nighgtmode" <!--#nltnight--> value="nighgtnite"> <label for="nighgtnite">Night time</label>
+            <input type="radio" id="nighgton" name="nighgtmode" <!--#ntliteon--> value="nighgton"> <label for="nighgton">On</label>&emsp;
+            <label for="nighgtstart">Start hour:</label><input type="number" id="nighgtstart" name="nighgtstart" min="0" max="23" value="<!--#nltstart-->" size="2"> (24Hr)&ensp;
+            <label for="nighgtstop">Stop hour:</label><input type="number" id="nighgtstop" name="nighgtstop" min="0" max="23" value="<!--#nlgtstop-->" size="2"> (24Hr)&ensp;
+            <input type="submit" value="Update">
+          </form>
+        </fieldset>
+        <br>
+        <fieldset>
           <legend>Configure Alarms</legend>
           <form action="/htalarm.cgi">
             <label for="alarms">Alarm 1: </label>
@@ -194,12 +246,13 @@
         <fieldset>
           <legend>Configure Display Dimming</legend>
           <form action="/setdisplayadclevel.cgi">
-            <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->">&nbsp;<input type="submit" value="Update">&emsp;- set to 10 above Min average light level<br>
-            Useful ADC level information:&emsp;<!--#light--><br>
+            <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->">&nbsp;
+            <input type="submit" value="Update">&emsp;- set to 10 above Min average light level<br>
           </form>
+          Useful ADC level information:&emsp;<!--#light--><br>
           <form action="/setdisplaymode.cgi">
             <input type="radio" id="auto" name="dispdimmode" <!--#autodim--> value="auto"> <label for="auto">Auto</label>
-            &emsp;or Manual&nbsp;
+            &emsp;or&emsp;Manual&nbsp;
             <input type="radio" id="full" name="dispdimmode" <!--#mdimfull--> value="full"> <label for="full">Full</label>
             <input type="radio" id="high" name="dispdimmode" <!--#mdimhigh--> value="high"> <label for="high">High</label>
             <input type="radio" id="mid" name="dispdimmode" <!--#mdimmid--> value="mid"> <label for="mid">Medium</label>
