@@ -2935,10 +2935,12 @@ float adc_read_voltage(void)
 
   /* For Pico W, it is important that GPIO 25 be high to read the power supply voltage. */
   if (PicoType == TYPE_PICO_W) {
+    #ifdef PICO_W
     led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
     // This must be a Pico W for web access to be called
     // For Pico W, it is important that GPIO 25 be high to read the power supply voltage.
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+    #endif  // PICO_W
   }
 
   /* Read ADC converter raw value. */
@@ -2947,8 +2949,10 @@ float adc_read_voltage(void)
   /* Convert raw value to voltage value. */
   Volts = AdcValue * (3.3 / (1 << 12));
   if (PicoType == TYPE_PICO_W) {
+    #ifdef PICO_W
     // Set LED back
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
+    #endif  // PICO_W
   }
 
   if (DebugBitMask & DEBUG_PICO_W)
@@ -2959,12 +2963,16 @@ float adc_read_voltage(void)
 
   /* Reset output to low level. */
   if (PicoType == TYPE_PICO_W) {
+    #ifdef PICO_W
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+    #endif  // PICO_W
 
     /* Read ADC converter raw value. */
     AdcValue = adc_read();
+    #ifdef PICO_W
     // Set LED back
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
+    #endif  // PICO_W
 
     /* Convert raw value to voltage value. */
     Voltswl = AdcValue * (3.3 / (1 << 12));
