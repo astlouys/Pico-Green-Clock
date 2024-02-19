@@ -1,8 +1,16 @@
 # Pico Green Clock
-Firmware Version 9.03 released 09-SEP-2023
+Firmware Version 10.00 released 19-FEB-2024
 
-NOTE: Source code still shows 9.02. You may check near line 1257... If Spanish month names are there, it means you have Version 9.03.
-      Also, be aware that posted ".uf2" versions are still 9.02 (without Spanish support). You'll have to rebuild executables to get Spanish language support for now.
+
+NEW WITH FIRMWARE 10.00:
+=======================
+- Add hostname to the flash configuration to idenify multiple clocks on a DHCP server.
+- Add web page to control the clock settings. This can change many things. Accessed as http://<host>/index.shtml
+- Reduce the display minimum dim level by altering the display PWM frequency.
+- Add a step dimmer on the lower button to switch between auto dimming and 5 levels of manual modes.
+- Add a web control to set a local level for the minimum light level for maximum dimming. This can vary between clocks. Value stored in flash.
+- Add a web control to swap the operaton of the set key from short press to set clock to short press to set the alarms.
+- Fix triggering of afternoon alarms when in 12hr display mode.
 
 NEW WITH FIRMWARE 9.02 and 9.03:
 =======================
@@ -17,8 +25,11 @@ NEW WITH FIRMWARE 9.02 and 9.03:
 NOTE: I went through a system crash before the release of version 9.02 and lost a few weeks of work. Also, I had less time for testing / quality control
       before Firmare Version 9.02 release. Please kindly let me know if you find "undocumented features" in the code (read: "bugs").
 
+NOTE: Source code still shows 9.02. You may check near line 1257... If Spanish month names are there, it means you have Version 9.03.
+      Also, be aware that posted ".uf2" versions are still 9.02 (without Spanish support). You'll have to rebuild executables to get Spanish language support for now.
 
-Firmware Hilights:
+
+Firmware Highlights:
 ==================
 - User Guide updated to cover current Firmware Version.
 - Support for Network Time Protocol ("NTP"). When using a PicoW, the Green Clock will re-synchronize itself from a time reference server over Internet.
