@@ -217,6 +217,12 @@
                      - Add Czech language support. Thanks to KaeroDot for the excellent work and translation on this feature !
 
    29-JAN-2024 10.00 - Add hostname to the NTP and networking initialisation. Add to flash structure too.
+   19-FEB-2024 10.00 - Add web page to control the clock settings. This can change many things. Accessed as http://hostname or IP/index.shtml
+                     - Reduce the display minimum dim level by altering the display PWM frequency.
+                     - Add a step dimmer on the lower button to switch between auto dimming and 5 levels of manual modes.
+                     - Add a web control to set a local level for the minimum light level for maximum dimming. This can vary between clocks. Value stored in flash.
+                     - Add a web control to swap the operaton of the set key from short press to set clock to short press to set the alarms.
+                     - Fix triggering of afternoon alarms when in 12hr display mode.
 
 \* ================================================================== */
 
