@@ -5,7 +5,7 @@ Firmware Version 10.00 released 19-FEB-2024
 NEW WITH FIRMWARE 10.00:
 =======================
 - Add hostname to the flash configuration to idenify multiple clocks on a DHCP server.
-- Add web page to control the clock settings. This can change many things. Accessed as http://<host>/index.shtml
+- Add web page to control the clock settings. This can change many things. Accessed as http://hostname or IP/index.shtml
 - Reduce the display minimum dim level by altering the display PWM frequency.
 - Add a step dimmer on the lower button to switch between auto dimming and 5 levels of manual modes.
 - Add a web control to set a local level for the minimum light level for maximum dimming. This can vary between clocks. Value stored in flash.
