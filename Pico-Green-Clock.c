@@ -307,6 +307,61 @@
 /* Release or Developer Version: Make selective choices or options. */
 #define RELEASE_VERSION  ///
 
+/* Load custom calendar and reminder files for Andre*/
+// This is used when creating developer and debug builds
+// #define DEVELOPER_IS_ANDRE
+
+/* ---------------------------------------------------------------------------------- *\
+                          Options that can be installed by user.
+\* ---------------------------------------------------------------------------------- */
+
+/* Support for an optional passive buzzer. This buzzer must be provided by user and is not included with the Green Clock.
+   It allows variable frequency sounds on the clock.
+   If you did install one, cut this block and paste is outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define PASSIVE_PIEZO_SUPPORT". */
+#define PASSIVE_PIEZO_SUPPORT  /// if a passive buzzer has been installed by user.
+#ifdef PASSIVE_PIEZO_SUPPORT
+#warning Built with PASSIVE_PIEZO support
+#endif  // PASSIVE_PIEZO_SUPPORT
+
+
+/* Support of an optional (external) temperature and humidity sensor (DHT22) or temperature, humidity and atmospheric pressure sensor (BME280)
+   to read and display those parameters. The sensors must be bought and installed by user. They are not included with the Pico Green Clock.
+   If you did install one, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define DHT_SUPPORT and / or
+   "#define BME280_SUPPORT". */
+// #define DHT_SUPPORT  /// if a DHT22 temperature and humidity sensor has been installed by user.
+#ifdef DHT_SUPPORT
+#warning Built with DHT22 support
+#endif  // DHT_SUPPORT
+
+// #define BME280_SUPPORT  /// if a BME280 temperature, humidity and barometric pressure sensor has been installed by user.
+#ifdef BME280_SUPPORT
+#warning Built with BME280 support
+#endif  // BME280_SUPPORT
+
+
+/* Support of an optional remote control to interact with the clock remotely, for example when the clock is installed
+   too high and is out of reach. There is no remote control provided with the clock. It must be bought by the user.
+   Current support is for a Memorex remote control, model MCR 5221 that I had readily available. If another brand of
+   remote control is to be used, user will have to decode its protocol and implement it in the Green Clock firmware.
+   (a file similar to "memorex.cpp" must be created to support the new remote control).
+   If you did install an infrared sensor, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define IR_SUPPORT".
+   You also need to replace the default "REMOTE_FILENAME" by the filename you created containing the infrared timing / codes corresponding to your remote control.
+   You may want to check the Pico-Remote-Analyzer utility in one of my repositories. */
+// #define IR_SUPPORT // if an infrared sensor (VS1838B-type) has been installed by the user and IR protocol of the remote control has been analyzed and implemented.
+
+/* Specify the file containing the remote control protocol to be used. */
+#define REMOTE_FILENAME "memorex.cpp"
+
+/* Silence period request unit (in minutes). Needs remote control. */
+#define SILENCE_PERIOD_UNIT 30
+#ifdef IR_SUPPORT
+#warning Built with INFRARED support
+#endif  // IR_SUPPORT
+
+/* ----------------------------------------------------------------------------------------------------------------------- *\
+                                         End of Options that can be installed by user.
+\* ----------------------------------------------------------------------------------------------------------------------- */
+
 
 
 /* ----------------------------------------------------------------------------------------------------------------------- *\
@@ -320,12 +375,11 @@
 
 /* Specify the filename of reminders to merge with this version of firmware. */
 #define REMINDER_FILENAME "RemindersGeneric.cpp"
+
 #endif  // RELEASE_VERSION
 /* ----------------------------------------------------------------------------------------------------------------------- *\
                                            End of setup specific to RELEASE version.
 \* ----------------------------------------------------------------------------------------------------------------------- */
-
-
 
 
 
@@ -337,12 +391,19 @@
 #define DEVELOPER_VERSION
 #warning Built as DEVELOPER_VERSION
 
+// Load custom calendar and reminder files for each developer.
 /* Specify the filename of calendar events to merge with this version of firmware. */
+#ifdef DEVELOPER_IS_ANDRE
 #define CALENDAR_FILENAME "CalendarEventsAndre.cpp"
 
 /* Specify the filename of calendar events to merge with this version of firmware. */
 #define REMINDER_FILENAME "RemindersAndre.cpp"
+#else
+#define CALENDAR_FILENAME "CalendarEventsGeneric.cpp"
 
+/* Specify the filename of calendar events to merge with this version of firmware. */
+#define REMINDER_FILENAME "RemindersGeneric.cpp"
+#endif
 /* Conditional compile to allow a quicker power-up sequence by-passing some device tests. */
 #define QUICK_START  ///
 #ifdef QUICK_START
@@ -362,58 +423,12 @@
 
 /* Loop at the beginning of the code until a USB CDC connection has been established. Quick beeps will be heard during waiting so that user
    is aware of what's going on. */
-#define USB_CONNECTION  ///
+// #define USB_CONNECTION  ///
 #ifdef USB_CONNECTION
 #warning Built with USB_CONNECTION
 #endif  // USB_CONNECTION
 
-/* ---------------------------------------------------------------------------------- *\
-                          Options that can be installed by user.
-\* ---------------------------------------------------------------------------------- */
-/* Support for an optional passive buzzer. This buzzer must be provided by user and is not included with the Green Clock.
-   It allows variable frequency sounds on the clock.
-   If you did install one, cut this block and paste is outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define PASSIVE_PIEZO_SUPPORT". */
-// #define PASSIVE_PIEZO_SUPPORT  /// if a passive buzzer has been installed by user.
-#ifdef PASSIVE_PIEZO_SUPPORT
-#warning Built with PASSIVE_PIEZO support
-#endif  // PASSIVE_PIEZO_SUPPORT
-
-
-/* Support of an optional (external) temperature and humidity sensor (DHT22) or temperature, humidity and atmospheric pressure sensor (BME280)
-   to read and display those parameters. The sensors must be bought and installed by user. They are not included with the Pico Green Clock.
-   If you did install one, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define DHT_SUPPORT and / or
-   "#define BME280_SUPPORT". */
-#define DHT_SUPPORT  /// if a DHT22 temperature and humidity sensor has been installed by user.
-#ifdef DHT_SUPPORT
-#warning Built with DHT22 support
-#endif  // DHT_SUPPORT
-
-#define BME280_SUPPORT  /// if a BME280 temperature, humidity and barometric pressure sensor has been installed by user.
-#ifdef BME280_SUPPORT
-#warning Built with BME280 support
-#endif  // BME280_SUPPORT
-
-
-/* Support of an optional remote control to interact with the clock remotely, for example when the clock is installed
-   too high and is out of reach. There is no remote control provided with the clock. It must be bought by the user.
-   Current support is for a Memorex remote control, model MCR 5221 that I had readily available. If another brand of
-   remote control is to be used, user will have to decode its protocol and implement it in the Green Clock firmware.
-   (a file similar to "memorex.cpp" must be created to support the new remote control).
-   If you did install an infrared sensor, cut this block and paste it outside of the "#ifdef DEVELOPER_VERSION" and "#endif" to enable the "#define IR_SUPPORT".
-   You also need to replace the default "REMOTE_FILENAME" by the filename you created containing the infrared timing / codes corresponding to your remote control.
-   You may want to check the Pico-Remote-Analyzer utility in one of my repositories. */
-#define IR_SUPPORT // if an infrared sensor (VS1838B-type) has been installed by the user and IR protocol of the remote control has been analyzed and implemented.
-
-/* Specify the file containing the remote control protocol to be used. */
-#define REMOTE_FILENAME "memorex.cpp"
-
-/* Silence period request unit (in minutes). Needs remote control. */
-#define SILENCE_PERIOD_UNIT 30
-#ifdef IR_SUPPORT
-#warning Built with INFRARED support
-#endif  // IR_SUPPORT
 #endif  // DEVELOPER_VERSION
-
 /* ----------------------------------------------------------------------------------------------------------------------- *\
                                             End of setup specific to DEVELOPER version
 \* ----------------------------------------------------------------------------------------------------------------------- */
@@ -457,30 +472,6 @@
 #define CHIME_HOUR_COUNT_BEEP_DURATION 300  // duration of "hour count" beeps (in msec) when flag above is On.
 /* NOTE: See also revision history above (or User guide) about "night time workers" support for hourly chime. */
 
-/* For active buzzer integrated in Pico Green Clock. Number of "tones" for each "sound pack" (first level of repetition). */
-#define TONE_CHIME_REPEAT1     2
-#define TONE_EVENT_REPEAT1     5
-#define TONE_KEYCLICK_REPEAT1  1
-#define TONE_TIMER_REPEAT1     4
-
-/* For active buzzer integrated in Pico Green Clock.
-   Number of times the "sound pack" above will repeat itself for each tone type (second level of repetition).
-   for example, if TONE_CHIME_REPEAT_1 is set to 3 and TONE_CHIME_REPEAT_2 is set to 2, we will hear:
-   beep-beep-beep..........beep-beep-beep (three beeps, twice). */
-#define TONE_CHIME_REPEAT2     3
-#define TONE_EVENT_REPEAT2     3
-#define TONE_KEYCLICK_REPEAT2  1
-#define TONE_TIMER_REPEAT2     2
-
-/* For active buzzer integrated in Pico Green Clock.
-   Time duration for different tone types (in milliseconds). This is the time of each sound inside one "sound pack".
-   will be rounded-up by the clock to the next 50 milliseconds multiple.
-   We can separate sounds - or group of sound - by adding a silence (for example: "sound_queue_active(50, SILENT);"). */
-#define TONE_CHIME_DURATION     50   // when sounding an hourly chime.
-#define TONE_EVENT_DURATION    200   // when scrolling a calendar event.
-#define TONE_KEYCLICK_DURATION  50   // when pressing a button ("keyclick").
-#define TONE_TIMER_DURATION    100   // when count-down timer reaches 00m00s.
-
 /* ================================================================== *\
             ===== END OF CLOCK CONFIGURATION OR OPTIONS =====
 \* ================================================================== */
@@ -495,293 +486,7 @@
                     Definitions and include files
                        (in alphabetical order)
 \* ------------------------------------------------------------------ */
-/* Miscellaneous defines. */
-#define ALARM_PERIOD              5         // alarm ringer restart every x seconds (part of the whole "nine alarms algorithm").
-#define CELSIUS                   0x00
-#define CHIME_DAY                 0x02      // hourly chime is ON during defined daily hours (between CHIME_TIME_ON and CHIME_TIME_OFF).
-#define CHIME_OFF                 0x00      // hourly chime is OFF.
-#define CHIME_ON                  0x01      // hourly chime is ON.
-#define COUNT_DOWN_DELAY          7         // number of seconds between each count-down alarm sound burst.
-#define CRC16_POLYNOM             0x1021    // different polynom values are used by different authorities. (0x8005, 0x1021, 0x1DCF, 0x755B, 0x5935, 0x3D65, 0x8BB7, 0x0589, 0xC867, 0xA02B, 0x2F15, 0x6815, 0xC599, 0x202D, 0x0805, 0x1CF5)
-#define DEFAULT_YEAR_CENTILE      20        // to be used as a default before flash configuration is read (to be displayed in debug log).
-#define DELTA_TIME                60000000ll
-#define DISPLAY_BUFFER_SIZE       248       // size of framebuffer.
-#define EVENT_MINUTE1             14        // (Must be between 0 and 57) Calendar Events will checked when minutes reach this number (should preferably be selected out of peak periods).
-#define EVENT_MINUTE2             44        // (Must be between 0 and 57) Calendar Events will checked when minutes reach this number (should preferably be selected out of peak periods).
-#define FAHRENHEIT                !CELSIUS  // temperature unit to display.
-#define FALSE                     0x00
-#define FLAG_OFF                  0x00      // flag is OFF.
-#define FLAG_ON                   0x01      // flag is ON.
-#define FLAG_POLL                 0x02
-#define FLAG_WAIT                 0x03      // special flag asking passive sound queue to wait for active sound queue to complete.
-#define FLASH_CONFIG_OFFSET       0x1FF000  // offset in the Pico's 2 MB where to save data. Starting at 2.00MB - 4096 bytes (very end of flash).
-#define H12                       FLAG_OFF  // 12-hours time format.
-#define H24                       FLAG_ON   // 24-hours time format.
-#define MAX_ACTIVE_SOUND_QUEUE    100       // maximum number of "sounds" in the active buzzer sound queue.
-#define MAX_ALARMS                9         // total number of alarms available.
-#define MAX_LIGHT_SLOTS           24        // number of slots for ambient light level hysteresis.
-#define MAX_COMMAND_QUEUE         25        // maximim number of active commands in command queue.
-#define MAX_CORE_QUEUE            25        // maximum number of active commands in each circular buffers for inter-core communication (core0-to-core1 and core1-to-core0).
-#define MAX_COUNT_DOWN_ALARM_DURATION 30    // maximum period of time (in minutes) during which count-down alarm will ring if not reset by user (quick press on "Set" button).
-#define MAX_DHT_READINGS          100       // maximum number of "logic level changes" while reading DHT22 data stream.
-#define MAX_EVENTS                50        // maximum number of "calendar events" that can be programmed in the source code.
-#define MAX_IR_READINGS           500       // maximum number of "logic level changes" while receiving data from IR remote control.
-#define MAX_PASSIVE_SOUND_QUEUE   500       // maximum number of "sounds" in the passive buzzer sound queue.
-#define MAX_REMINDERS1            50        // maximum number of "reminders" of type 1 that can be defined.
-#define MAX_SCROLL_QUEUE          75        // maximum number of messages in the scroll buffer queue (big enough to cover MAX_EVENTS defined for the same day + a few extra date scrolls).
-#define NIGHT_LIGHT_AUTO          0x03      // night light will turn On when ambient light is low enough
-#define NIGHT_LIGHT_NIGHT         0x02      // night light On between NightLightTimeOn and NightLightTimeOff.
-#define NIGHT_LIGHT_OFF           0x00      // night light always Off.
-#define NIGHT_LIGHT_ON            0x01      // night light always On.
-#define TIMER_COUNT_DOWN          0x01      // timer mode is "Count Down".
-#define TIMER_COUNT_UP            0x02      // timer mode is "Count Up".
-#define TIMER_OFF                 0x00      // timer is currently OFF.
-#define TRUE                      0x01
-#define TYPE_PICO                 0x01      // microcontroller is a Pico
-#define TYPE_PICO_W               0x02      // microcontroller is a Pico W
-
-
-/* DayOfWeek definitions. */
-#define ALL 0x00  // All days
-#define SUN 0x01  // Sunday
-#define MON 0x02  // Monday
-#define TUE 0x03  // Tuesday
-#define WED 0x04  // Wednesday
-#define THU 0x05  // Thursday
-#define FRI 0x06  // Friday
-#define SAT 0x07  // Saturday
-
-
-/* Month definitions. */
-#define JAN 1   // January
-#define FEB 2   // February
-#define MAR 3   // March
-#define APR 4   // April
-#define MAY 5   // May
-#define JUN 6   // June
-#define JUL 7   // July
-#define AUG 8   // August
-#define SEP 9   // September
-#define OCT 10  // October
-#define NOV 11  // November
-#define DEC 12  // December
-
-
-/* Language and locals used. */
-#define LANGUAGE_LO_LIMIT 0x00
-#define ENGLISH           0x01
-#define FRENCH            0x02
-#define GERMAN            0x03
-#define CZECH             0x04
-#define SPANISH           0x05
-#define LANGUAGE_HI_LIMIT 0x06
-
-
-/* List of commands to be processed by command queue handler (while in the "main()" thread context). */
-#define COMMAND_PLAY_JINGLE       0x01
-
-
-/* Inter-core commands / messages. */
-/* For target: core 0. */
-#define CORE0_DHT_ERROR           0x01
-#define CORE0_DHT_READ_COMPLETED  0x02
-
-/* For target: core 1. */
-#define CORE1_READ_DHT            0x01
-
-
-/* "Display modes" used with remote control while in "Generic display mode". */
-#define DISPLAY_LO_LIMIT     0x00
-#define DISPLAY_TIME         0x01
-#define DISPLAY_DATE         0x02
-#define DISPLAY_DST          0x03
-#define DISPLAY_BEEP         0x04
-#define DISPLAY_SCROLLING    0x05
-#define DISPLAY_TEMP_UNIT    0x06
-#define DISPLAY_LANGUAGE     0x07
-#define DISPLAY_TIME_FORMAT  0x08
-#define DISPLAY_HOURLY_CHIME 0x09
-#define DISPLAY_NIGHT_LIGHT  0x0A
-#define DISPLAY_DIM          0x0B
-#define DISPLAY_HI_LIMIT     0x0C
-
-
-/* DST_COUNTRY valid choices (see details in User Guide). */
-// #define DST_DEBUG                    /// this define to be used only for intensive DST debugging purposes.
-#define DST_LO_LIMIT        0           // this specific define only to make the logic easier in the code.
-#define DST_NONE            0           // there is no "Daylight Saving Time" in user's country.
-#define DST_AUSTRALIA       1           // daylight saving time for most of Australia.
-#define DST_AUSTRALIA_HOWE  2           // daylight saving time for Australia - Lord Howe Island.
-#define DST_CHILE           3           // daylight saving time for Chile.
-#define DST_CUBA            4           // daylight saving time for Cuba.
-#define DST_EUROPE          5           // daylight saving time for European Union.
-#define DST_ISRAEL          6           // daylight saving time for Israel.
-#define DST_LEBANON         7           // daylight saving time for Lebanon.
-#define DST_MOLDOVA         8           // daylight saving time for Moldova.
-#define DST_NEW_ZEALAND     9           // daylight saving time for New Zealand.
-#define DST_NORTH_AMERICA  10           // daylight saving time for most of Canada and United States.
-#define DST_PALESTINE      11           // daylight saving time for Palestine.
-#define DST_PARAGUAY       12           // daylight saving time for Paraguay.IR_DISPLAY_GENERIC
-#define DST_HI_LIMIT       13           // to make the logic easier in the firmware.
-
-
-/* List or commands available with remote control. */
-#ifdef  IR_SUPPORT
-#define IR_LO_LIMIT                  0x00
-#define IR_BUTTON_TOP_QUICK          0x01
-#define IR_BUTTON_TOP_LONG           0x02
-#define IR_BUTTON_MIDDLE_QUICK       0x03
-#define IR_BUTTON_MIDDLE_LONG        0x04
-#define IR_BUTTON_BOTTOM_QUICK       0x05
-#define IR_BUTTON_BOTTOM_LONG        0x06
-#define IR_DICE_ROLLING              0x07
-#define IR_DISPLAY_AMBIENT_LIGHT     0x08
-#define IR_DISPLAY_EVENTS_THIS_WEEK  0x09
-#define IR_DISPLAY_EVENTS_TODAY      0x0A
-#define IR_DISPLAY_GENERIC           0x0B
-#define IR_DISPLAY_OUTSIDE_TEMP      0x0C
-#define IR_DISPLAY_SECOND            0x0D
-#define IR_FULL_TEST                 0x0E
-#define IR_IDLE_TIME                 0x0F
-#define IR_POWER_ON_OFF              0x10
-#define IR_SILENCE_PERIOD            0x11
-#define IR_HI_LIMIT                  0x12
-#endif
-
-
-/* Clock mode definitions. */
-#define MODE_LO_LIMIT      0x00
-#define MODE_UNDEFINED     0x00  // mode is currently undefined.
-#define MODE_ALARM_SETUP   0x01  // user is setting up one or more alarms.
-#define MODE_CLOCK_SETUP   0x02  // user is setting up clock parameters.
-#define MODE_DISPLAY       0x03  // generic display mode used with IR remote control.
-#define MODE_POWER_UP      0x04  // clock has just been powered-up.
-#define MODE_SCROLLING     0x05  // clock is scrolling data on the display.
-#define MODE_SHOW_TIME     0x06  // clock is displaying time ("normal" mode).
-#define MODE_SHOW_VOLTAGE  0x07  // clock is displaying power supply voltage.
-#define MODE_TEST          0x08  // clock is in test mode (to disable automatic clock behaviors on the display).
-#define MODE_TIMER_SETUP   0x09  // user is setting up a timer.
-#define MODE_HI_LIMIT      0x10
-
-
-/* PWM - "Pulse Wide Modulation" is currently used to control sound on passive buzzer and clock display brightness. */
-#define PWM_LO_LIMIT       0x00
-#define PWM_SOUND          0x00
-#define PWM_BRIGHTNESS     0x01
-#define PWM_HI_LIMIT       0x02
-
-
-/* Alarm setup steps definitions. */
-#define SETUP_ALARM_LO_LIMIT  0x00
-#define SETUP_ALARM_NUMBER    0x01
-#define SETUP_ALARM_ON_OFF    0x02
-#define SETUP_ALARM_HOUR      0x03
-#define SETUP_ALARM_MINUTE    0x04
-#define SETUP_ALARM_DAY       0x05
-#define SETUP_ALARM_HI_LIMIT  0x06
-
-/* NOTE: Clock setup step definitions are kept as variables and can be seen in the variables section below. */
-
-/* Setup source definitions. */
-#define SETUP_SOURCE_NONE     0x00
-#define SETUP_SOURCE_ALARM    0x01
-#define SETUP_SOURCE_CLOCK    0x02
-#define SETUP_SOURCE_TIMER    0x03
-
-
-/* Timer setup steps definitions. */
-#define SETUP_TIMER_LO_LIMIT  0x00
-#define SETUP_TIMER_UP_DOWN   0x01
-#define SETUP_TIMER_MINUTE    0x02
-#define SETUP_TIMER_SECOND    0x03
-#define SETUP_TIMER_READY     0x04
-#define SETUP_TIMER_HI_LIMIT  0x05
-
-
-/* Tags that can be used in process_scroll() function. */
-#define TAG_AMBIENT_LIGHT      0xFF   // tag used to scroll current ambient light information.
-#define TAG_BME280_DEVICE_ID   0xFE   // tag used to scroll the BME280 device id (should be 0x60 for a "real" BME280).
-#define TAG_BME280_TEMP        0xFD   // tag used to display temperature, relative humidity and atmospheric pressure read from an optional BME280 sensor.
-#define TAG_WIFI_CREDENTIALS   0xFC
-#define TAG_DATE               0xFB   // tag used to scroll current date, temperature and power supply voltage.
-#define TAG_DEBUG              0xFA   // tag used to scroll variables for debug purposes, while in main() context.
-#define TAG_DHT22_TEMP         0xF9   // tag used to display temperature read from an optional DHT22 temperature and humidity sensor.
-#define TAG_DS3231_TEMP        0xF8   // tag used to display ambient temperature read from DS3231 real-time IC in the Green Clock.
-#define TAG_DST                0xF7   // tag used to scroll daylight saving time ("DST") information and status on clock display.
-#define TAG_FIRMWARE_VERSION   0xF6   // tag used to display Pico Green Clock firmware version.
-#define TAG_IDLE_MONITOR       0xF5   // tag used to scroll current System Idle Monitor on clock display.
-#define TAG_INFO               0xF4   // tag used to display information while in "main()" context.
-#define TAG_NTP_ERRORS         0xF3   // tag used to scroll cumulative number of errors in NTP requests.
-#define TAG_NTP_STATUS         0xF2   // tag used to scroll cumulative number of errors in NTP requests.
-#define TAG_PICO_TEMP          0xF1   // tag used to display Pico internal temperature.
-#define TAG_PICO_TYPE          0xF0   // tag used to display the type of microcontroller installed (Pico or Pico W).
-#define TAG_PICO_UNIQUE_ID     0xEF   // tag used to display Pico (flash) unique ID.
-#define TAG_QUEUE              0xEE   // tag used to display "Head", "Tail", and "Tag" of currently used scroll queue (for debugging purposes).
-#define TAG_TIMEZONE           0xED   // tag used to display Universal Coordinated Time information.
-#define TAG_VOLTAGE            0xEC   // tag used to display power supply voltage.
-
-
-#define SILENT        0
-#define WAIT_4_ACTIVE 0xFFFF  // request passive sound queue to wait for active sound queue to complete.
-
-
-/* Music tones definitions. */
-#ifdef PASSIVE_PIEZO_SUPPORT
-#define DO_a         262
-#define DO_DIESE_a   277
-#define RE_a         294
-#define RE_DIESE_a   311
-#define MI_a         330
-#define FA_a         349
-#define FA_DIESE_a   370
-#define SOL_a        392
-#define SOL_DIESE_a  415
-#define LA_a         440
-#define LA_DIESE_a   466
-#define SI_a         494
-#define DO_b         523
-#define DO_DIESE_b   554
-#define RE_b         587
-#define RE_DIESE_b   622
-#define MI_b         659
-#define FA_b         699
-#define FA_DIESE_b   740
-#define SOL_b        784
-#define SOL_DIESE_b  831
-#define LA_b         880
-#define LA_DIESE_b   932
-#define SI_b         988
-#define DO_c        1047
-#define DO_DIESE_c  1109
-#define RE_c        1175
-#define RE_DIESE_c  1245
-#define MI_c        1319
-#define FA_c        1397
-#define FA_DIESE_c  1480
-#define SOL_c       1568
-#define SOL_DIESE_c 1661
-#define LA_c        1760
-#define LA_DIESE_c  1865
-#define SI_c        1976
-
-
-/* Jingle definitions. */
-#define JINGLE_LO_LIMIT  0x00
-#define JINGLE_BIRTHDAY  0x01
-#define JINGLE_ENCOUNTER 0x02
-#define JINGLE_FETE      0x03
-#define JINGLE_RACING    0x04
-#define JINGLE_HI_LIMIT  0x05
-#else
-/* Jingle definitions. Placeholder only if not using a passive piezo. */
-#define JINGLE_LO_LIMIT  0x00
-#define JINGLE_BIRTHDAY  0x00
-#define JINGLE_ENCOUNTER 0x00
-#define JINGLE_FETE      0x00
-#define JINGLE_RACING    0x00
-#define JINGLE_HI_LIMIT  0x00
-#endif
-
+// Now moved into Pico-Green-Clock.h
 
 /* Include files. */
 #include "bitmap.h"
@@ -812,16 +517,14 @@
 
 #ifdef PICO_W
 #include "picow_ntp_client.h"
+#include "lwip/apps/httpd.h"
+#include "pico/cyw43_arch.h"
+#include "lwipopts.h"
+#include "ssi.h"
+#include "cgi.h"
 #endif  // PICO_W
 
-
-typedef unsigned int  UINT;   // processor-optimized.
-typedef uint8_t       UINT8;
-typedef uint16_t      UINT16;
-typedef uint32_t      UINT32;
-typedef uint64_t      UINT64;
-typedef unsigned char UCHAR;
-
+#include "Pico-Green-Clock.h"
 
 /* Clock setup step definitions. */
 /* They are not categorized as #define since there is a difference in the
@@ -875,191 +578,14 @@ UINT8 SETUP_AUTO_BRIGHT =          0x13;
          NOTE: No validation is done on the date. If an invalid date is set, the event will never be scrolled.
                Also if, for example, 29-FEB is set, the event will be scrolled only every 4 years.
 \* ------------------------------------------------------------------ */
-/* Calendar events definition. */
-struct event
-{
-  UINT64 Day;
-  UINT8  Month;
-  UINT16 Jingle;
-  UCHAR  Description[51];
-};
 
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
 #include CALENDAR_FILENAME
 
-
-/* Alarm definitions. */
-struct alarm
-{
-  UINT8 FlagStatus;
-  UINT8 Second;
-  UINT8 Minute;
-  UINT8 Hour;
-  UINT8 Day;
-  UCHAR Text[40];
-};
-
-
-/* Command definitions for command queue. */
-struct command
-{
-  UINT16 Command;
-  UINT16 Parameter;
-};
-
-
-/* Summer Time / Winter Time parameters definitions. */
-struct dst_parameters
-{
-  UINT8  StartMonth;
-  UINT8  StartDayOfWeek;
-  int8_t StartDayOfMonthLow;
-  int8_t StartDayOfMonthHigh;
-  UINT8  StartHour;
-  UINT16 StartDayOfYear;
-  UINT8  EndMonth;
-  UINT8  EndDayOfWeek;
-  int8_t EndDayOfMonthLow;
-  int8_t EndDayOfMonthHigh;
-  UINT8  EndHour;
-  UINT16 EndDayOfYear;
-  UINT8  ShiftMinutes;
-};
-
-
-/* Structure to contain time stamp under "human" format instead of "tm" standard. */
-struct human_time
-{
-  UINT16 Hour;
-  UINT16 Minute;
-  UINT16 Second;
-  UINT16 DayOfMonth;
-  UINT16 Month;
-  UINT16 Year;
-  UINT16 DayOfWeek;
-  UINT16 DayOfYear;
-  UINT8  FlagDst;
-};
-
-
-/* NTP data structure. */
-struct ntp_data
-{
-  /* Time-related data. */
-  UINT8  CurrentDayOfWeek;
-  UINT8  CurrentDayOfMonth;
-  UINT8  CurrentMonth;
-  UINT16 CurrentYear;
-  UINT8  CurrentYearLowPart;
-  UINT8  CurrentHour;
-  UINT8  CurrentMinute;
-  UINT8  CurrentSecond;
-
-  /* Generic data. */
-  time_t Epoch;
-  UINT8  FlagNTPResync;   // flag set to On if there is a specific reason to request an NTP update without delay.
-  UINT8  FlagNTPSuccess;  // flag indicating that NTP date and time request has succeeded.
-  UINT64 NTPDelta;
-  UINT32 NTPErrors;       // cumulative number of errors while trying to re-sync with NTP.
-  UINT64 NTPGetTime;
-  UINT64 NTPLastUpdate;
-  UINT32 NTPReadCycles;   // total number of re-sync cycles through NTP.
-}NTPData;
-
-
-/* Clock display pixel definitions. */
-struct pixel
-{
-  UINT8 DisplayBuffer;
-  UINT8 BitNumber;
-};
-
-
-/* Pulse Wide Modulation (PWM) parameters definitions. */
-struct pwm
-{
-  UINT8  Channel;
-  UINT32 Clock;
-  float  ClockDivider;
-  UINT8  DutyCycle;
-  UINT32 Frequency;
-  UINT8  Gpio;
-  UINT16 Level;
-  UINT8  OnOff;
-  UINT8  Slice;
-  UINT16 Wrap;
-};
-
-
-/* Type 1 Reminders. */
-struct reminder1
-{
-  struct human_time StartPeriod;
-  UINT64 StartPeriodEpoch;
-  struct human_time EndPeriod;
-  UINT64 EndPeriodEpoch;
-  struct human_time FirstRing;
-  UINT64 FirstRingEpoch;
-  UINT64 RingDuration;
-  UINT64 RingRepeatTime;
-  UINT64 NextReminderDelay;
-  UCHAR  Description[51];
-};
-
-
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
 #include REMINDER_FILENAME
 
-
-/* Active buzzer sound parameters definitions. */
-struct sound_active
-{
-  UINT16 MSec;
-  UINT16 RepeatCount;
-};
-
-
-/* Passive buzzer sound parameters definitions. */
-struct sound_passive
-{
-  UINT16 Freq;
-  UINT16 MSec;
-};
-
-
-/* Structure containing the Green Clock configuration being saved to flash memory.
-   Those variables will be restored after a reboot and / or power failure. */
-/* IMPORTANT: Version must always be the first element of the structure and
-              CRC16   must always be the  last element of the structure. */
-struct flash_config
-{
-  UCHAR  Version[6];          // firmware version number (format: "06.00" - including end-of-string).
-  UINT8  CurrentYearCentile;  // assume we are in years 20xx on power-up but is adjusted when configuration is read (will your clock live long enough for a "21" ?!).
-  UINT8  Language;            // language used for data display (including date scrolling).
-  UCHAR  DSTCountry;  // specifies how to handle the daylight saving time (see User Guide and / or clock options above).
-  UINT8  TemperatureUnit;     // CELSIUS or FAHRENHEIT default value (see clock options above).
-  UINT8  TimeDisplayMode;     // H24 or H12 default value (see clock options above).
-  UINT8  ChimeMode;           // chime mode (Off / On / Day).
-  UINT8  ChimeTimeOn;         // hourly chime will begin at this hour.
-  UINT8  ChimeTimeOff;        // hourly chime will stop after this hour.
-  UINT8  NightLightMode;      // night light mode (On / Off / Auto / Night).
-  UINT8  NightLightTimeOn;    // default night light time On.
-  UINT8  NightLightTimeOff;   // default night light time Off.
-  UINT8  FlagAutoBrightness;  // flag indicating we are in "Auto Brightness" mode.
-  UINT8  FlagKeyclick;        // flag for keyclick ("button-press" tone)
-  UINT8  FlagScrollEnable;    // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
-  UINT8  FlagSummerTime;      // flag indicating the current status (On or Off) of Daylight Saving Time / Summer Time.
-  int8_t Timezone;            // (in hours) value to add to UTC time (Universal Time Coordinate) to get the local time.
-  UINT8  Reserved1[48];       // reserved for future use.
-  struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask.
-  UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
-  UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
-  UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5 of the variable string, for the same reason as SSID above.
-  UCHAR  Reserved2[48];       // reserved for future use.
-  UINT16 Crc16;               // crc16 of all data above to validate configuration.
-} FlashConfig;
-
-
+// Define data structures for optional hardware.
 #ifdef BME280_SUPPORT
 /* BME280 calibration parameters computed from data written in the device. */
 struct bme280_data
@@ -1156,6 +682,10 @@ UINT16 CurrentYear;                            // current year (4 digits).
 UINT8  CurrentYearLowPart;                     // lowest two digits of the year (battery backed-up).
 
 UINT64 DebugBitMask;                           // bitmask of code sections to be debugged through UART (see definitions of DEBUG sections above).
+UINT16 Dim_AverageLightLevel;                  // Average ADC value across the 20 measurement slots
+UINT16 Dim_DutyCycle;                          // Current pwm active cycle
+UINT16 Dim_Max_avgadc_value = 0;               // Cumulative adc light level max value, initialise with the minimum number
+UINT16 Dim_Min_avgadc_value = 65535;           // Cumulative adc light level min value, initialise with the maximum number
 UCHAR  DisplayBuffer[DISPLAY_BUFFER_SIZE];     // framebuffer containing the bitmap of the string to be displayed / scrolled on clock display.
 UINT16 DotBlinkCount;                          // cumulate milliseconds to blink the two "middle dots" on clock display.
 
@@ -1180,6 +710,9 @@ UINT8  FlagTimerCountDownEnd      = FLAG_OFF;  // flag indicating the count down
 UINT8  FlagTone                   = FLAG_OFF;  // flag indicating there is a tone sounding.
 UINT8  FlagToneOn                 = FLAG_OFF;  // flag indicating it is time to make a tone.
 UINT8  FlagUpdateTime             = FLAG_OFF;  // flag indicating it is time to refresh the time on clock display.
+UINT8  FlagWebRequestNTPSync      = FLAG_OFF;  // flag indicating that the web page control has requested a date & time sync with the NTP server
+UINT8  FlagWebRequestFlashCheck   = FLAG_OFF;  // flag indicating that the web page control has updated things that are stored in the flash and may need updating
+struct flash_config FlashConfig;               // Hold the flash data storage in a data structure
 UINT8 *FlashData;                                                       // pointer to an allocated RAM memory space used for flash operations.
 UINT8 *FlashMemoryAddress = (UINT8 *)(XIP_BASE + FLASH_CONFIG_OFFSET);  // pointer to flash memory used to store clock configuration (flash base address + offset).
 UINT8 *FlashMemoryOffset  = (UINT8 *)FLASH_CONFIG_OFFSET;               // offset from Pico's beginning of flash where data will be stored.
@@ -1207,6 +740,7 @@ UINT8  MonthDays[2][12] = {{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},  //
 
 UINT8  NightLightTimeOffDisplay;    // to adapt to 12 or 24-hours time format.
 UINT8  NightLightTimeOnDisplay;     // to adapt to 12 or 24-hours time format.
+struct ntp_data NTPData;            // Hold the NTP returned data in a data structure
 
 UINT8  PicoType;                    // microcontroller type (Pico or Pico W).
 UCHAR  PicoUniqueId[40];            // Pico Unique ID read from flash IC.
@@ -1361,27 +895,9 @@ struct dht_data DhtData;
 /* $PAGE */
 /* ------------------------------------------------------------------ *\
                          Function prototypes
+  Provide prototype declaration for functions that use local variables
+  with structures for inputs - pass by reference
 \* ------------------------------------------------------------------ */
-/* Read ambient light level from Pico's analog-to-digital gpio. */
-UINT16 adc_read_light(void);
-
-/* Read Pico's internal temperature from Pico's analog-to-digital gpio. */
-void adc_read_pico_temp(float *DegreeC, float *DegreeF);
-
-/* Read power supply voltage from Pico's analog-to-digital gpio. */
-float adc_read_voltage(void);
-
-/* If auto-brightness is On, adjust clock brightness according to average ambient light level. */
-void adjust_clock_brightness(void);
-
-/* Clear all the leds on clock display. */
-void clear_all_leds(void);
-
-/* Clear the display framebuffer. */
-void clear_framebuffer(UINT8 StartColumn);
-
-/* Convert a 24-hour format time to 12-hour format. */
-UINT8 convert_h24_to_h12(UINT8 Hour, UINT8 *AmFlag, UINT8 *PmFlag);
 
 /* Convert "HumanTime" to "TmTime". */
 void convert_human_to_tm(struct human_time *HumanTime, struct tm *TmTime);
@@ -1389,294 +905,11 @@ void convert_human_to_tm(struct human_time *HumanTime, struct tm *TmTime);
 /* Convert "TmTime" to "HumanTime". */
 void convert_tm_to_human(struct tm *TmTime, struct human_time *HumanTime);
 
-/* Convert "TmTime" to "Unix Time". */
-UINT64 convert_tm_to_unix(struct tm *TmTime);
-
-/* Convert "Unix Time" (Epoch) to "tm Time". Both Unix Time and TmTime are relative to UCT.  */
-void convert_unix_to_tm(time_t UnixTime, struct tm *TmTime, UINT8 FlagLocalTime);
-
-/* Queue a command to process while in main thread context. */
-UINT8 command_queue(UINT8 Command, UINT16 Parameter);
-
-/* Unqueue a command while in main thread context. */
-UINT8 command_unqueue(UINT8 *Command, UINT16 *Parameter);
-
-/* Thread to run on the second Pico's core. */
-void core1_main(void);
-
-/* Queue a command for the other core. */
-UINT8 core_queue(UINT8 CoreNumber, UINT8 Command);
-
-/* Unqueue a command received from the other core. */
-UINT8 core_unqueue(UINT8 CoreNumber);
-
-/* Generate a date stamp for debug info. */
-void date_stamp(UCHAR *String);
-
-/* Display data sent in argument through serial port. */
-void display_data(UCHAR *Data, UINT32 Size);
-
 /* Display current PWM values for specified PWM. */
 void display_pwm(struct pwm *Pwm, UCHAR *TitleString);
 
-/* Evaluate if it is time to blink data on the display (while in setup mode). */
-void evaluate_blinking_time(void);
-
-/* Evaluate if it is time to scroll characters ("one dot left") on clock display. */
-void evaluate_scroll_time(void);
-
-/* Fill the virtual framebuffer with the given ASCII character, beginning at the specified column position (using 5 X 7 character bitmap). */
-UINT16 fill_display_buffer_5X7(UINT8 Column, UINT8 AsciiCharacter);
-
-/* Fill the virtual framebuffer with the given ASCII character, beginning at the specified column position (using 4 X 7 character bitmap). */
-void fill_display_buffer_4X7(UINT8 Column, UINT8 AsciiCharacter);
-
-/* Compare crc16 between flash saved configuration and current active configuration. */
-void flash_check_config(void);
-
-/* Display flash content through external monitor. */
-void flash_display(UINT32 Offset, UINT32 Length);
-
-/* Display Green Clock configuration from flash memory. */
-UINT8 flash_display_config(void);
-
-/* Erase data in Pico flash memory. */
-void flash_erase(UINT32 FlashMemoryOffset);
-
-/* Read Green Clock configuration from flash memory. */
-UINT8 flash_read_config(void);
-
-/* Save current Green Clock configuration to flash memory. */
-UINT8 flash_save_config(void);
-
-/* Write data to Pico flash memory. */
-UINT flash_write(UINT32 FlashMemoryOffset, UINT8 NewData[], UINT16 NewDataSize);
-
-/* Format string to display temperature on clock display. */
-void format_temp(UCHAR *TempString, UCHAR *PreString, float TempCelsius, float Humidity, float Pressure);
-
-/* Get temperature from DS3231. */
-float get_ambient_temperature(UINT8 TemperatureUnit);
-
-/* Build the string containing the date to scroll on the clock display. */
-void get_date_string(UCHAR *String);
-
-/* Determine the day-of-year of date given in argument. */
-UINT16 get_day_of_year(UINT16 YearNumber, UINT8 MonthNumber, UINT8 DayNumber);
-
-/* Determine the day-of-year for DST start day and DST end day. */
-void get_dst_days(void);
-
-/* Determine if the microcontroller is a Pico or a Pico W. */
-UINT8 get_microcontroller_type(void);
-
-/* Return the number of days in a specific month (while checking if it is a leap year or not for February). */
-UINT8 get_month_days(UINT16 CurrentYear, UINT8 MonthNumber);
-
 /* Read DS3231 real-time clock IC and return current time in "human_time" format. */
 void get_current_time(struct human_time *HumanTime);
-
-/* Retrieve Pico's Unique ID from flash IC. */
-void get_pico_unique_id(void);
-
-/* Return the day-of-week, given the day-of-month, month and year. */
-UINT8 get_day_of_week(UINT16 year_cnt, UINT8 month_cnt, UINT8 date_cnt);
-
-/* Initialize all required GPIO ports of the Raspberry Pi Pico. */
-int init_gpio(void);
-
-/* Read a string from stdin. */
-void input_string(UCHAR *String);
-
-/* Interrupt handler for signal received from IR sensor. */
-gpio_irq_callback_t isr_signal_trap(UINT8 gpio, UINT32 Events);
-
-/* Test clock LED matrix, column-by-column, and also all display indicators. */
-void matrix_test(UINT8 TestNumber);
-
-/* Make pixel animation for the specified number of seconds. */
-void pixel_twinkling(UINT16 Seconds);
-
-/* Play a specific jingle. */
-void play_jingle(UINT16 JingleNumber);
-
-/* Handle the command that has been put in command queue. */
-void process_command_queue(void);
-
-/* Handle the tag that has been put in the scroll queue. */
-void process_scroll_queue(void);
-
-/* Initialize GPIOs to be used as PWM source for clock display brightness and passive buzzer. */
-void pwm_initialize(void);
-
-/* Turn On or Off the PWM signal specified in argument. */
-void pwm_on_off(UINT8 PwmNumber, UINT8 FlagSwitch);
-
-/* Set the duty cycle for the PWM used for clock display brightness. */
-void pwm_set_duty_cycle(UINT8 DutyCycle);
-
-/* Set the frequency for the PWM used for passive buzzer. */
-void pwm_set_frequency(UINT16 Frequency);
-
-/* Reverse the bit order of the byte given in argument. */
-UINT8 reverse_bits(UINT8 InputByte);
-
-/* Scroll the virtual framebuffer one dot to the left. */
-void scroll_one_dot(void);
-
-/* Queue the given tag in the scroll queue. */
-UINT8 scroll_queue(UINT8 Tag);
-
-/* Put a specific value in the queue so that we can check for a specific event even inside an ISR.
-   MUST BE USED ONLY FOR DEBUG PURPOSES SINCE IT INTERFERES WITH (overwrites) CALENDAR EVENTS. */
-UINT8 scroll_queue_value(UINT8 Tag, UCHAR *String);
-
-/* Scroll the specified string on the display. */
-void scroll_string(UINT8 StartColumn, UCHAR *String);
-
-/* Unqueue next tag from the scroll queue. */
-UINT8 scroll_unqueue(void);
-
-/* Send data to the matrix controller IC. */
-void send_data(UINT8 data);
-
-/* Request Wi-Fi SSID and password from user and save them to Pico's flash. */
-void set_and_save_credentials(void);
-
-/* Exit current setup mode step. */
-void set_mode_out(void);
-
-/* Exit setup mode because of inactivity (time-out). */
-void set_mode_timeout(void);
-
-/* Turn On or Off the specified pixel. */
-void set_pixel(UINT8 Row, UINT8 Column, UINT8 Flag);
-
-/* Display current alarm parameters. */
-void setup_alarm_frame(void);
-
-/* Enter new alarm parameters. */
-void setup_alarm_variables(UINT8 FlagButtonSelect);
-
-/* Display current clock parameters. */
-void setup_clock_frame(void);
-
-/* Enter new clock parameters. */
-void setup_clock_variables(UINT8 FlagButtonSelect);
-
-/* Display current timer parameters. */
-void setup_timer_frame(void);
-
-/* Enter new timer parameters. */
-void setup_timer_variables(UINT8 FlagButtonSelect);
-
-/* Read the real-time clock IC and display time. */
-void show_time(void);
-
-/* Queue the given sound in the active buzzer sound queue. */
-UINT16 sound_queue_active(UINT16 MSeconds, UINT16 RepeatCount);
-
-/* Queue the given sound in the passive buzzer sound queue. */
-UINT16 sound_queue_passive(UINT16 Frequency, UINT16 MSeconds);
-
-/* Unqueue next sound from the active buzzer sound queue. */
-UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount);
-
-/* Unqueue next sound from the passive buzzer sound queue. */
-UINT8 sound_unqueue_passive(UINT16 *Frequency, UINT16 *MSeconds);
-
-/* Sound callback function (50 milliseconds period). */
-bool sound_callback_ms(struct repeating_timer *Timer50MSec);
-
-/* One millisecond period callback function. */
-bool timer_callback_ms(struct repeating_timer *TimerMSec);
-
-/* One second period callback function. */
-bool timer_callback_s(struct repeating_timer *TimerSec);
-
-/* Make a tone for the specified number of milliseconds. */
-void tone(UINT16 MilliSeconds);
-
-/* Return total number of "one" bits in the given integer. */
-uint8_t total_one_bits(UINT32 Data, UINT8 Size);
-
-/* Send a string to an external terminal emulator program through Pico's UART (or serial port). */
-void uart_send(UINT LineNumber, UCHAR *Format, ...);
-
-/* Return the string representing the uint64_t parameter in binary. */
-void uint64_to_binary_string(UINT64 Value, UINT8 StringLength, UCHAR *BinaryString);
-
-/* Set DST parameters (FlagSummerTime and Timezone) according to current DST country code and current date and time. */
-void update_dst_status();
-
-/* Update indicators at the left of the clock display. */
-void update_left_indicators(void);
-
-/* Turn ON the right DayOfWeek indicator on clock display and turn Off all others. */
-void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag);
-
-
-
-
-
-/* ------------------------------------------------------------------ *\
-                  BME280-related function prototypes
-\* ------------------------------------------------------------------ */
-#ifdef BME280_SUPPORT
-/* Read temperature, humidity and barometric pressure. */
-UINT8 bme280_get_temp(void);
-
-/* Compute calibration parameters from calibration data stored in the specific BME280 device used. */
-UINT8 bme280_compute_calib_param(void);
-
-/* Soft-reset the BME280. */
-UINT8 bme280_init(void);
-
-/* Read BME280 calibration data from the device's non volatile memory. */
-UINT8 bme280_read_calib_data(void);
-
-/* Read BME280 configuration. */
-UINT8 bme280_read_config(void);
-
-/* Read BME280 device ID. */
-UINT8 bme280_read_device_id(void);
-
-/* Read extra BME280 registers. */
-UINT8 bme280_read_all_registers();
-
-/* Read all BME280 data registers (temperature, humidity and barometric pressure). */
-UINT8 bme280_read_registers(UINT8 *Register);
-
-/* Read BME280 current status. */
-UINT8 bme280_read_status(void);
-
-/* Read BME280 unique id ("serial number" of the specific device used). */
-UINT32 bme280_read_unique_id(void);
-#endif
-
-
-
-/* ------------------------------------------------------------------ *\
-                   DHT22-related function prototypes
-\* ------------------------------------------------------------------ */
-#ifdef DHT_SUPPORT
-/* Read the temperature from external DHT22 (this is done by Pico's core 1). */
-UINT8 read_dht(float *Temperature, float *Humidity);
-#endif  // DHT_SUPPORT
-
-
-
-/* ------------------------------------------------------------------ *\
-                 IR sensor-related function prototypes
-\* ------------------------------------------------------------------ */
-#ifdef IR_SUPPORT
-/* Decode IR remote control command. */
-UINT8 decode_ir_command(UCHAR FlagDebug, UINT8 *IrCommand);
-
-/* Execute the command received from IR remote control. */
-void process_ir_command(UINT8 IrCommand);
-#endif  // IR_SUPPORT
-
 
 
 /* --------------------------------------------------------------------- *\
@@ -1723,7 +956,6 @@ int main(void)
   UINT8  IrCommand;        // command received from remote control.
   UINT8  Loop1UInt8;
   UINT8  SundayCounter;    // used to find daylight saving time current status.
-  UINT8  TargetDayOfWeek;
 
   int8_t UtcTime;          // used for DST algorithm.
 
@@ -1938,7 +1170,7 @@ int main(void)
   CurrentSecond      = HumanTime.Second;
   CurrentDayOfMonth  = HumanTime.DayOfMonth;
   CurrentMonth       = HumanTime.Month;
-  CurrentYearLowPart = HumanTime.Year - 2000;
+  CurrentYearLowPart = (HumanTime.Year % 100);
   CurrentYear        = HumanTime.Year;
   CurrentDayOfWeek   = HumanTime.DayOfWeek;
   get_current_time(&HumanTime);
@@ -1950,7 +1182,7 @@ int main(void)
 
   /* ----------------------------------------------------------------------------------------------------- *\
     WARNINGS: Settings below are for debugging purposes only. Be aware that turning On a debug option may
-              have a significant impact on normal clock behavior, namely on timings !!!
+              have a significant impact on normal clock behaviour, namely on timings !!!
               (Important timings could be out-of-sync and even bring the code to a crash in some situation).
               Use them with care and when you face a problem, investigate first if the debug option is not
               in cause.
@@ -1964,7 +1196,7 @@ int main(void)
   \* ----------------------------------------------------------------------------------------------------- */
   #ifdef RELEASE_VERSION
   DebugBitMask = DEBUG_NONE;
-  #else  // RELEASE_VERSION
+  #else  // DEVELOPER_VERSION
   /* NOTE: If DEBUG_FLASH is turned On, it allows logging information about flash memory operations.
            However, logging a flash update during a callback procedure takes a relatively long time and will generate a crash.
            So, it is possible to keep all logging information and use the debug before launching the callback, or it is required to trim down
@@ -1978,17 +1210,17 @@ int main(void)
   // DebugBitMask += DEBUG_CORE;
   // DebugBitMask += DEBUG_CRC16;
   // DebugBitMask += DEBUG_DHT;
-  DebugBitMask += DEBUG_DST;
+  // DebugBitMask += DEBUG_DST;
   // DebugBitMask += DEBUG_EVENT;
   // DebugBitMask += DEBUG_FLASH;
   // DebugBitMask += DEBUG_IDLE_MONITOR;
   // DebugBitMask += DEBUG_INDICATORS;
   // DebugBitMask += DEBUG_IR_COMMAND;
-  DebugBitMask += DEBUG_NTP;
+  // DebugBitMask += DEBUG_NTP;
   // DebugBitMask += DEBUG_PICO_W;
   // DebugBitMask += DEBUG_PWM;
-  DebugBitMask += DEBUG_REMINDER;
-  DebugBitMask += DEBUG_RTC;
+  // DebugBitMask += DEBUG_REMINDER;
+  // DebugBitMask += DEBUG_RTC;
   // DebugBitMask += DEBUG_SOUND_QUEUE;
   // DebugBitMask += DEBUG_SCROLL;
   // DebugBitMask += DEBUG_TEMP;
@@ -1996,7 +1228,7 @@ int main(void)
   // DebugBitMask += DEBUG_TIMER;
   // DebugBitMask += DEBUG_TIMING;
   // DebugBitMask += DEBUG_WATCHDOG;
-  #endif  // RELEASE_VERSION
+  #endif  // DEVELOPER_VERSION
 
   /* If user requested any section to be debugged through Pico's UART (or USB), send a power-up time stamp to log screen. */
   if (DebugBitMask)
@@ -2291,6 +1523,8 @@ int main(void)
     FlashConfig.FlagScrollEnable   = FLAG_ON;
     FlashConfig.FlagSummerTime     = FLAG_OFF;
     FlashConfig.TimeDisplayMode    = H24;
+    FlashConfig.DimmerMinLightLevel= 225;
+    FlashConfig.ShortSetKey        = FLAG_ON;
     for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
       FlashConfig.Alarm[Loop1UInt8].FlagStatus = FLAG_OFF;
     sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
@@ -2329,12 +1563,19 @@ int main(void)
 
   /* ---------------------------------------------------------------- *\
                         Initialize NTP connection.
+    Also initialises the WiFi interface, connects and gets an IP address.
   \* ---------------------------------------------------------------- */
   #ifdef PICO_W
   ReturnCode = ntp_init();
-
   if (DebugBitMask & DEBUG_NTP)
     uart_send(__LINE__, "main() - ntp_init() return code: %d\r", ReturnCode);
+  // Initialise web server daemon
+  httpd_init();
+  // Initialise web ssi functions
+  ssi_init();
+  // Initialise web server cgi
+  cgi_init();
+
   #endif // PICO_W
 
 
@@ -2426,8 +1667,14 @@ int main(void)
   /* ---------------------------------------------------------------- *\
         Clock "Setup order" in most languages is Day-Month(-Year),
                   as opposed to English Month-Day(-Year).
+              Also include European English in this
   \* ---------------------------------------------------------------- */
   if ((FlashConfig.Language == FRENCH) || (FlashConfig.Language == SPANISH) || (FlashConfig.Language == CZECH))
+  {
+    SETUP_DAY_OF_MONTH = 0x03;
+    SETUP_MONTH        = 0x04;
+  }
+  if (FlashConfig.Language == ENGLISH && FlashConfig.DSTCountry == DST_EUROPE)
   {
     SETUP_DAY_OF_MONTH = 0x03;
     SETUP_MONTH        = 0x04;
@@ -2477,7 +1724,7 @@ int main(void)
   CurrentSecond      = HumanTime.Second;
   CurrentDayOfMonth  = HumanTime.DayOfMonth;
   CurrentMonth       = HumanTime.Month;
-  CurrentYearLowPart = HumanTime.Year - 2000;
+  CurrentYearLowPart = (HumanTime.Year % 100);
   CurrentYear        = HumanTime.Year;
   CurrentDayOfWeek   = HumanTime.DayOfWeek;
 
@@ -2623,7 +1870,7 @@ int main(void)
   \* ---------------------------------------------------------------- */
   update_left_indicators();
   update_top_indicators(ALL, FLAG_OFF);              // turn them all Off first.
-  update_top_indicators(CurrentDayOfWeek, FLAG_ON);  // then turn On today's indocator.
+  update_top_indicators(CurrentDayOfWeek, FLAG_ON);  // then turn On today's indicator.
 
 
 
@@ -3359,6 +2606,24 @@ int main(void)
       FlagUpdateTime = FLAG_OFF;
     }
 
+    /* Check to see if a web page update asks for a flash stored value to be changed */
+    if ((FlagWebRequestFlashCheck == FLAG_ON) && ((CurrentSecond % 5) == 0))
+    {
+      // Check to see if the flash memory needs updating and update if needed
+      flash_check_config();
+      // Clear the flag
+      FlagWebRequestFlashCheck = FLAG_OFF;
+    }
+
+    /* Check to see if a web page asks for a date/time synchronisation with the NTP server */
+    if ((FlagWebRequestNTPSync == FLAG_ON) && ((CurrentSecond % 5) == 4))
+    {
+      /* Request a NTP re-sync if clock setup has been changed (Time, Date, or Timezone may have been changed). */
+      NTPData.FlagNTPResync = FLAG_ON;
+      // Clear the flag
+      FlagWebRequestNTPSync = FLAG_OFF;
+    }
+
 
     if (CurrentClockMode == MODE_SHOW_TIME) show_time;
 
@@ -3647,8 +2912,9 @@ float adc_read_voltage(void)
 {
   UINT16 AdcValue;
 
+  bool led_status;
   float Volts;
-
+  float Voltswl;
 
   /*** Strangely, voltage reading doesn't seem to work on the Pico W as it does on the Pico... ***/
   /*** I'll have to investigate this later... ***/
@@ -3662,13 +2928,22 @@ float adc_read_voltage(void)
   adc_select_input(3);
 
   /* For Pico W, it is important that GPIO 25 be high to read the power supply voltage. */
-  if (PicoType == TYPE_PICO_W) gpio_put(PICO_LED, 1);
+  if (PicoType == TYPE_PICO_W) {
+    led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
+    // This must be a Pico W for web access to be called
+    // For Pico W, it is important that GPIO 25 be high to read the power supply voltage.
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+  }
 
   /* Read ADC converter raw value. */
   AdcValue = adc_read();
 
   /* Convert raw value to voltage value. */
   Volts = AdcValue * (3.3 / (1 << 12));
+  if (PicoType == TYPE_PICO_W) {
+    // Set LED back
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
+  }
 
   if (DebugBitMask & DEBUG_PICO_W)
   {
@@ -3677,18 +2952,22 @@ float adc_read_voltage(void)
   }
 
   /* Reset output to low level. */
-  if (PicoType == TYPE_PICO_W) gpio_put(PICO_LED, 0);
+  if (PicoType == TYPE_PICO_W) {
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
-  /* Read ADC converter raw value. */
-  AdcValue = adc_read();
+    /* Read ADC converter raw value. */
+    AdcValue = adc_read();
+    // Set LED back
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
 
-  /* Convert raw value to voltage value. */
-  Volts = AdcValue * (3.3 / (1 << 12));
+    /* Convert raw value to voltage value. */
+    Voltswl = AdcValue * (3.3 / (1 << 12));
 
-  if (DebugBitMask & DEBUG_PICO_W)
-  {
-    uart_send(__LINE__, "Reading when level low: %u\r", AdcValue);
-    uart_send(__LINE__, "Converted to volts: %2.2f\r", Volts);
+    if (DebugBitMask & DEBUG_PICO_W)
+    {
+      uart_send(__LINE__, "Reading when level low: %u\r", AdcValue);
+      uart_send(__LINE__, "Converted to volts: %2.2f\r", Voltswl);
+    }
   }
 
   return Volts;
@@ -3715,8 +2994,9 @@ void adjust_clock_brightness(void)
   UINT Loop1UInt;
   static UINT NextCell = 0;  // point to next slot of circular buffer to be read.
 
+  UINT16 current_adc_light;
   UINT16 AverageLevel;
-  UINT16 DutyCycle;
+  UINT16 Cycles;
 
   static UINT16 AmbientLightMSecCounter;
   static UINT16 LightLevel[MAX_LIGHT_SLOTS] = {550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550, 550};  // assume average ambient light level on entry.
@@ -3732,7 +3012,8 @@ void adjust_clock_brightness(void)
   {
     /* Cumulate 5000 readings of the ambient light value (5 seconds of readings every msec.). */
     ++AmbientLightMSecCounter;
-    CumulativeLightLevel += adc_read_light();
+    current_adc_light = adc_read_light();
+    CumulativeLightLevel += current_adc_light;
 
 
     /* Check if 5000 milliseconds (5 seconds) have elapsed. */
@@ -3759,20 +3040,32 @@ void adjust_clock_brightness(void)
       /* Update current clock display brightness, based on average ambient light level for the last 2 minutes (hysteresis).
          Ambient light level goes from around 200 (very dark) to 1500 (very bright). */
       AverageLevel = AverageLightLevel;
-      if (AverageLightLevel < 225) AverageLevel = 225;
-      if (AverageLightLevel > 525) AverageLevel = 525;
-      DutyCycle = (UINT16)((AverageLevel - 225) / 3.0);
-      pwm_set_duty_cycle(DutyCycle);
 
+      if (AverageLightLevel < FlashConfig.DimmerMinLightLevel)
+        AverageLevel = FlashConfig.DimmerMinLightLevel;
+      if (AverageLightLevel > (FlashConfig.DimmerMinLightLevel + BRIGHTNESS_LIGHTLEVELRANGE))
+        AverageLevel = (FlashConfig.DimmerMinLightLevel + BRIGHTNESS_LIGHTLEVELRANGE);
+      Cycles = (UINT16)((AverageLevel - FlashConfig.DimmerMinLightLevel) / (BRIGHTNESS_LIGHTLEVELRANGE / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
+      pwm_set_cycles(Cycles);
+
+      Dim_AverageLightLevel = AverageLightLevel;
+      Dim_DutyCycle = (1000 - Pwm[PWM_BRIGHTNESS].Level);
+      if (AverageLightLevel < Dim_Min_avgadc_value)
+        Dim_Min_avgadc_value = AverageLightLevel;
+      if (AverageLightLevel > Dim_Max_avgadc_value)
+        Dim_Max_avgadc_value = AverageLightLevel;
 
       if (DebugBitMask & DEBUG_BRIGHTNESS)
       {
-        uart_send(__LINE__, "Instant level: %4u   Av1: %4u   Av2: %4u   (Av2 - 200): %3u\r", adc_read_light(), AverageLightLevel, AverageLevel, (AverageLevel - 225));
-        uart_send(__LINE__, "((Av2 - 225) / 3.0): %3.2f   (UINT16)((Av2 - 225) / 3.0): %3u   Duty cycle: %3u\r\r", ((AverageLevel - 225) / 3.0), (UINT16)((AverageLevel - 225) / 3.0), DutyCycle);
+        uart_send(__LINE__, "Instant level: %4u   Av1: %4u   Av2: %4u   (Av2 - 230): %3u\r", adc_read_light(), AverageLightLevel, AverageLevel, (AverageLevel - 230));
+        uart_send(__LINE__, "((Av2 - 230) / 500.0): %3.2f   (UINT16)((Av2 - 230) / 500.0): %3u   PWM cycles: %3u\r\r", ((AverageLevel - 230) / 500.0), (UINT16)((AverageLevel - 230) / 500.0), Cycles);
       }
     }
   }
-
+  else
+  {
+    Dim_DutyCycle = (1000 - Pwm[PWM_BRIGHTNESS].Level);
+  }
   return;
 }
 
@@ -5150,11 +4443,11 @@ void display_pwm(struct pwm *Pwm, UCHAR *TitleString)
   }
 
   if (Pwm->Gpio == OE)
-    Pwm->DutyCycle = (UINT8)(100 - (((float)Pwm->Level / Pwm->Wrap) * 100.0));
+    Pwm->Cycles = (UINT8)(100 - (((float)Pwm->Level / Pwm->Wrap) * 100.0));
   else
-    Pwm->DutyCycle = (UINT8)(((float)Pwm->Level / Pwm->Wrap) * 100.0);
+    Pwm->Cycles = (UINT8)(((float)Pwm->Level / Pwm->Wrap) * 100.0);
 
-  uart_send(__LINE__, "Pwm->DutyCycle:    %u\r", Pwm->DutyCycle);
+  uart_send(__LINE__, "Pwm->Cycles:    %u\r", Pwm->Cycles);
   uart_send(__LINE__, "CurrentClockMode:  %u\r\r\r\r", CurrentClockMode);
 }
 
@@ -5667,8 +4960,9 @@ UINT8 flash_display_config(void)
   uart_send(__LINE__, "[%X] FlagAutoBrightness:       0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagAutoBrightness, FlashConfig.FlagAutoBrightness);
   uart_send(__LINE__, "[%X] FlagKeyclick:             0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagKeyclick, FlashConfig.FlagKeyclick);
   uart_send(__LINE__, "[%X] FlagScrollEnable:         0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagScrollEnable, FlashConfig.FlagScrollEnable);
-
-
+  uart_send(__LINE__, "[%X] FlagSummerTime:           0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.FlagSummerTime, FlashConfig.FlagSummerTime);
+  uart_send(__LINE__, "[%X] DimmerMinLightLevel:       %3u\r", &FlashConfig.DimmerMinLightLevel, FlashConfig.DimmerMinLightLevel);
+  uart_send(__LINE__, "[%X] ShortSetKey:              0x%2.2X     (00 = Off   01 = On)\r", &FlashConfig.ShortSetKey, FlashConfig.ShortSetKey);
   /* Display Reserved1 data. */
   uart_send(__LINE__, "[%X] Reserved1 - size: 0x%2.2X (%3u):\r  ", &FlashConfig.Reserved1[Loop1UInt16], sizeof(FlashConfig.Reserved1), sizeof(FlashConfig.Reserved1));
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved1); ++Loop1UInt16)
@@ -5723,6 +5017,8 @@ UINT8 flash_display_config(void)
   }
 
 
+  uart_send(__LINE__, "Note: Host, SSID and Password begin at 5th character position, superimposed on top of two different footprints.\r");
+  uart_send(__LINE__, "      There is also an end-of-string character at the end of each string that we don't see on the screen.\r");
   /* In case hostname is not initialized, display it character by character. */
   sprintf(String, "HOST:     [");
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Hostname); ++Loop1UInt16)
@@ -5730,9 +5026,8 @@ UINT8 flash_display_config(void)
   strcat(String, "]\r");
   uart_send(__LINE__, String);
 
+
   /* In case SSID is not initialized, display it character by character. */
-  uart_send(__LINE__, "Note: SSID and Password begin at 5th character position, superimposed on top of two different footprints.\r");
-  uart_send(__LINE__, "      There is also an end-of-string character at the end of each string that we don't see on the screen.\r");
   sprintf(String, "SSID:     [");
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.SSID); ++Loop1UInt16)
     sprintf(&String[strlen(String)], "%c", FlashConfig.SSID[Loop1UInt16]);
@@ -5930,8 +5225,10 @@ UINT8 flash_read_config(void)
   FlashConfig.FlagAutoBrightness = FLAG_ON;               // flag indicating we are in "Auto Brightness" mode.
   FlashConfig.FlagKeyclick       = FLAG_ON;               // flag for keyclick ("button-press" tone)
   FlashConfig.FlagScrollEnable   = SCROLL_DEFAULT;        // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
+  FlashConfig.DimmerMinLightLevel= 225;                   // lowest average light level for dimmest display level
+  FlashConfig.ShortSetKey        = FLAG_ON;               // flag to say if the set key short press should set the time or the alarm
 
-  /* Make provosion for future parameters. */
+  /* Make provision for future parameters. */
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved1); ++Loop1UInt16)
   {
     FlashConfig.Reserved1[Loop1UInt16] = 0xFF;
@@ -6081,7 +5378,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
 {
   UCHAR String[256];
 
-  UINT8 CurrentDutyCycle;
+  UINT16 CurrentCycles;
   UINT8 *FlashBaseAddress;
   UINT8 OriginalClockMode;
 
@@ -6137,8 +5434,8 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
     return 1;
   }
 
-  /* A wear leveling algorithm has not been implemented since the flash usage for configuration parameters doesn't require it.
-     However, flash write should not be use for intensive data logging without adding a wear leveling algorithm. */
+  /* A wear levelling algorithm has not been implemented since the flash usage for configuration parameters doesn't require it.
+     However, flash write should not be use for intensive data logging without adding a wear levelling algorithm. */
   FlashBaseAddress = (UINT8 *)(XIP_BASE);
 
   if (DebugBitMask & DEBUG_FLASH)
@@ -6165,8 +5462,8 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
 
 
   /* Blank display so that we don't see frozen display while interrupts are disabled. */
-  CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
-  pwm_set_duty_cycle(0);
+  CurrentCycles = Pwm[PWM_BRIGHTNESS].Cycles;
+  pwm_set_cycles(0);
 
   /* Erase flash before reprogramming. */
   flash_erase(SectorOffset);
@@ -6181,7 +5478,7 @@ UINT flash_write(UINT32 NewDataOffset, UINT8 NewData[], UINT16 NewDataSize)
   restore_interrupts(InterruptMask);
 
   /* Restore display when done. */
-  pwm_set_duty_cycle(CurrentDutyCycle);
+  pwm_set_cycles(CurrentCycles);
 
   if (DebugBitMask & DEBUG_FLASH)
     uart_send(__LINE__, "Exiting flash_write()\r\r\r");
@@ -6303,8 +5600,7 @@ float get_ambient_temperature(UINT8 TemperatureUnit)
                    Read DS3231 real-time clock IC
            and return current time in "human_time" format.
 \* ------------------------------------------------------------------ */
-void get_current_time(struct human_time *HumanTime)
-{
+void get_current_time(struct human_time *HumanTime) {
   TIME_RTC RealTimeCLock;
 
   RealTimeCLock = Read_RTC();
@@ -6358,8 +5654,7 @@ void get_current_time(struct human_time *HumanTime)
                 Build the string containing the date
                   to be scrolled on clock display.
 \* ------------------------------------------------------------------ */
-void get_date_string(UCHAR *String)
-{
+void get_date_string(UCHAR *String) {
   UCHAR Suffix[3];
 
   UINT8 DumDayOfMonth;
@@ -8998,7 +8293,7 @@ void process_ir_command(UINT8 IrCommand)
               {
                 sprintf(String, "zobrazeni");
                 String[9] = (UINT8)131;  // i-acute
-                sprintf(String, "Automaticke nastaveni jasu je zapnuto. Jas: %u   hystereze: %u   %s: %u%c.", adc_read_light(), AverageLightLevel, String, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+                sprintf(String, "Automaticke nastaveni jasu je zapnuto. Jas: %u   hystereze: %u   %s: %u%c.", adc_read_light(), AverageLightLevel, String, Pwm[PWM_BRIGHTNESS].Cycles, '%');
                 String[10] = (UINT8)138;  // e-acute
                 String[20] = (UINT8)131;  // i-acute
               }
@@ -9013,7 +8308,7 @@ void process_ir_command(UINT8 IrCommand)
             case (FRENCH):
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
-                sprintf(String, "Intensite automatique est a On   Luminosite: %u   Hysteresis: %u   Affichage: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+                sprintf(String, "Intensite automatique est a On   Luminosite: %u   Hysteresis: %u   Affichage: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
                 String[8]  = (UINT8)31;  // e accent aigu.
                 String[41] = (UINT8)31;  // e accent aigu.
               }
@@ -9027,7 +8322,7 @@ void process_ir_command(UINT8 IrCommand)
             case (SPANISH):
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
-                sprintf(String, "Intensidad automatica esta activada   Luminosidad: %u   Hysteresis: %u   Monitor: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+                sprintf(String, "Intensidad automatica esta activada   Luminosidad: %u   Hysteresis: %u   Monitor: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
                 String[16] = (UINT8)129; // a-acute
                 String[25] = (UINT8)129; // a-acute
               }
@@ -9044,7 +8339,7 @@ void process_ir_command(UINT8 IrCommand)
             default:
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
-                sprintf(String, "Auto brightness is On   Light level: %u   Hysteresis: %u   Display: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+                sprintf(String, "Auto brightness is On   Light level: %u   Hysteresis: %u   Display: %u%c", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
               }
               else
               {
@@ -9480,22 +8775,22 @@ void process_scroll_queue(void)
           switch (FlashConfig.Language)
           {
             case (CZECH):
-              sprintf(String, "Jas: %u   hystereze: %u   displej: %u%c.    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+              sprintf(String, "Jas: %u   hystereze: %u   displej: %u%c.    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
             break;
 
             case (FRENCH):
-              sprintf(String, "Luminosite: %u   Hysteresis: %u   Affichage: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+              sprintf(String, "Luminosite: %u   Hysteresis: %u   Affichage: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
               String[9] = (UINT8)31; // e accent aigu.
             break;
 
             case (SPANISH):
-              sprintf(String, "Luminosidad: %u   Hysteresis: %u   Monitor: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+              sprintf(String, "Luminosidad: %u   Hysteresis: %u   Monitor: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
             break;
 
             case (ENGLISH):
             case (GERMAN):
             default:
-              sprintf(String, "Ambient light: %u   Hysteresis: %u   Display: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].DutyCycle, '%');
+              sprintf(String, "Ambient light: %u   Hysteresis: %u   Display: %u%c    ", adc_read_light(), AverageLightLevel, Pwm[PWM_BRIGHTNESS].Cycles, '%');
             break;
           }
           scroll_string(24, String);
@@ -10508,10 +9803,15 @@ void pwm_initialize(void)
     {
       case (PWM_BRIGHTNESS):
         /* Set current values in PWM structure. */
-        Pwm[Loop1UInt8].Frequency = 10000;
+        // Set the base frequency for the PWM duration. The minimal duty cycle of 0 gives an OE driven for 1 period, so the smaller the number the less time OE is active
+        // THe lower the frequency the less time the display is active and the lower the mininum light level is
+        // 10000 (10KHz) value is 0.1ms active in 10ms period (0.01 of time), 1000 (1KHz) value is 1ms in 1000ms period (0.001 of time)
+        // Anything slower than 1KHz is visible on the LED display
+        Pwm[Loop1UInt8].Frequency = BRIGHTNESS_PWM_FREQUENCY;
         Pwm[Loop1UInt8].Wrap      = (UINT16)(Pwm[Loop1UInt8].Clock / Pwm[Loop1UInt8].Frequency);
-        Pwm[Loop1UInt8].DutyCycle = 100;
-        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * ((100 - Pwm[Loop1UInt8].DutyCycle) / 100.0));  // OE is active low, so reverse the duty cycle.
+        Pwm[Loop1UInt8].Cycles    = BRIGHTNESS_LIGHTLEVELSTEP;
+        // OE is active low, so reverse the duty cycle.
+        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[Loop1UInt8].Cycles) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
 
         /* Set PWM frequency by setting a counter wrap value. */
         pwm_set_wrap(Pwm[Loop1UInt8].Slice, Pwm[Loop1UInt8].Wrap);
@@ -10528,8 +9828,8 @@ void pwm_initialize(void)
         /* Set current values in PWM structure. */
         Pwm[Loop1UInt8].Frequency = 250;
         Pwm[Loop1UInt8].Wrap      = (UINT16)(Pwm[Loop1UInt8].Clock / Pwm[Loop1UInt8].Frequency);
-        Pwm[Loop1UInt8].DutyCycle = 50;
-        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * (Pwm[Loop1UInt8].DutyCycle / 100.0));
+        Pwm[Loop1UInt8].Cycles    = 50;
+        Pwm[Loop1UInt8].Level     = (UINT16)(Pwm[Loop1UInt8].Wrap * (Pwm[Loop1UInt8].Cycles / 100.0));
 
         /* Set PWM frequency by setting a counter wrap value. */
         pwm_set_wrap(Pwm[Loop1UInt8].Slice, Pwm[Loop1UInt8].Wrap);
@@ -10581,25 +9881,28 @@ void pwm_on_off(UINT8 PwmNumber, UINT8 FlagSwitch)
 
 
 /* $PAGE */
-/* $TITLE=pwm_set_duty_cycle() */
+/* $TITLE=pwm_set_cycles() */
 /* ---------------------------------------------------------------------------- *\
      Set the duty cycle for the PWM controlling the clock display brightness.
-                   Note: Duty cycle is given as a percentage.
-             For example, a value of "50" means 50% for duty cycle
-   NOTE: Since "Output Enable" (OE) is active low, we reverse the cuty cycle
-         notation to get a more "human-natural" duty cycle notation.
+     A value of 0 matches one cycle, giving a minimum level of 1 BRIGHTNESS_LIGHTLEVELSTEP
+     Note: active cycles is given as a ratio of Cycles to BRIGHTNESS_LIGHTLEVELSTEP.
+           For example, a value of (BRIGHTNESS_LIGHTLEVELSTEP/2) -1 means 50% of active cycles
+   NOTE: Since "Output Enable" (OE) is active low, we reverse the active cycle
+        so that we still have larger numbers for brighter LED levels.
 \* ---------------------------------------------------------------------------- */
-void pwm_set_duty_cycle(UINT8 DutyCycle)
+void pwm_set_cycles(UINT16 Cycles)
 {
   UCHAR String[256];
 
 
   /* Validate value specified for duty cycle. */
-  if (DutyCycle > 100) DutyCycle = 100;
+  if (Cycles > BRIGHTNESS_LIGHTLEVELSTEP)
+    Cycles = BRIGHTNESS_LIGHTLEVELSTEP;
 
   /* Set current values in PWM structure. */
-  Pwm[PWM_BRIGHTNESS].DutyCycle = DutyCycle;
-  Pwm[PWM_BRIGHTNESS].Level     = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((100 - Pwm[PWM_BRIGHTNESS].DutyCycle) / 100.0));
+  Pwm[PWM_BRIGHTNESS].Cycles = Cycles;
+  // Pwm[PWM_BRIGHTNESS].Cycles = 0;
+  Pwm[PWM_BRIGHTNESS].Level = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[PWM_BRIGHTNESS].Cycles) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
 
 
   /* Set PWM duty cycle given the Divider, Counter and Frequency current values. */
@@ -10625,13 +9928,13 @@ void pwm_set_frequency(UINT16 Frequency)
 
   /* Indicate current PWM values. */
   Pwm[PWM_SOUND].Frequency = Frequency;
-  Pwm[PWM_SOUND].Wrap      = (UINT16)(Pwm[PWM_SOUND].Clock / Pwm[PWM_SOUND].Frequency);
+  Pwm[PWM_SOUND].Wrap = (UINT16)(Pwm[PWM_SOUND].Clock / Pwm[PWM_SOUND].Frequency);
 
   /* Set PWM frequency by setting a counter wrap value. */
   pwm_set_wrap(Pwm[PWM_SOUND].Slice, Pwm[PWM_SOUND].Wrap);
 
   /* Since we change the frequency, adjust duty cycle accordingly. */
-  Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].DutyCycle / 100.0));
+  Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].Cycles / 100.0));
 
   /* Set PWM duty cycle given the Divider, Counter and Frequency current values. */
   pwm_set_chan_level(Pwm[PWM_SOUND].Slice, Pwm[PWM_SOUND].Channel, Pwm[PWM_SOUND].Level);
@@ -11693,6 +10996,7 @@ void set_and_save_credentials(void)
 void set_mode_out(void)
 {
   UINT8 Loop1UInt8;
+  UINT8 TargetDayOfWeek;
 
 
   if (DebugBitMask & DEBUG_DST)
@@ -11707,25 +11011,28 @@ void set_mode_out(void)
   if ((FlagSetupRTC == FLAG_ON) && (FlagSetupClock[SETUP_MONTH]  == FLAG_ON))
   {
     set_month(CurrentMonth);
-    set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    TargetDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+    set_day_of_week(TargetDayOfWeek);
     update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
-    update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
+    update_top_indicators(TargetDayOfWeek, FLAG_ON);
   }
 
   if ((FlagSetupRTC == FLAG_ON) && (FlagSetupClock[SETUP_DAY_OF_MONTH] == FLAG_ON))
   {
     set_day_of_month(CurrentDayOfMonth);
-    set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    TargetDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+    set_day_of_week(TargetDayOfWeek);
     update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
-    update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
+    update_top_indicators(TargetDayOfWeek, FLAG_ON);
   }
 
   if ((FlagSetupRTC == FLAG_ON) && (FlagSetupClock[SETUP_YEAR] == FLAG_ON))
   {
     set_year(CurrentYearLowPart);
-    set_day_of_week(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth));
+    TargetDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+    set_day_of_week(TargetDayOfWeek);
     update_top_indicators(ALL, FLAG_OFF);  // first, turn Off all days' indicators.
-    update_top_indicators(get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth), FLAG_ON);
+    update_top_indicators(TargetDayOfWeek, FLAG_ON);
   }
 
   FlagBlinking[SetupStep] = 0xFF;
@@ -12042,7 +11349,7 @@ void setup_alarm_variables(UINT8 FlagButtonSelect)
     else
       FlashConfig.Alarm[AlarmNumber].FlagStatus = FLAG_ON;
 
-    /* We now have 9 alarms available... Check if at least one alarm is On and if ever the case, turn On both alarm indocators. */
+    /* We now have 9 alarms available... Check if at least one alarm is On and if ever the case, turn On both alarm indicators. */
     Dum1UInt8 = 0;
     for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
       if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_ON)
@@ -15435,9 +14742,9 @@ Test9:
         printf("Enter new duty cycle value (16 bits): ");
         input_string(String);
         if (String[0] == 0x0D) continue;
-        Pwm[PWM_SOUND].DutyCycle = atoi(String);
-        if (Pwm[PWM_SOUND].DutyCycle > 100) Pwm[PWM_SOUND].DutyCycle = 100;  // Validate value specified for duty cycle.
-        Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].DutyCycle / 100.0));
+        Pwm[PWM_SOUND].Cycles = atoi(String);
+        if (Pwm[PWM_SOUND].Cycles > 100) Pwm[PWM_SOUND].Cycles = 100;  // Validate value specified for duty cycle.
+        Pwm[PWM_SOUND].Level = (UINT16)(Pwm[PWM_SOUND].Wrap * (Pwm[PWM_SOUND].Cycles / 100.0));
         pwm_set_chan_level(Pwm[PWM_SOUND].Slice, Pwm[PWM_SOUND].Channel, Pwm[PWM_SOUND].Level);
         printf("\r\r");
       break;
@@ -16766,9 +16073,10 @@ Test18:
         printf("Enter new duty cycle value (16 bits): ");
         input_string(String);
         if (String[0] == 0x0D) continue;
-        Pwm[PWM_BRIGHTNESS].DutyCycle = atoi(String);
-        if (Pwm[PWM_BRIGHTNESS].DutyCycle > 100) Pwm[PWM_BRIGHTNESS].DutyCycle = 100;  // Validate value specified for duty cycle.
-        Pwm[PWM_BRIGHTNESS].Level = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((100 - Pwm[PWM_BRIGHTNESS].DutyCycle) / 100.0));
+        Pwm[PWM_BRIGHTNESS].Cycles = atoi(String);
+        if (Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_LIGHTLEVELSTEP)
+          Pwm[PWM_BRIGHTNESS].Cycles = BRIGHTNESS_LIGHTLEVELSTEP;  // Validate value specified for duty cycle.
+        Pwm[PWM_BRIGHTNESS].Level = (UINT16)(Pwm[PWM_BRIGHTNESS].Wrap * ((BRIGHTNESS_LIGHTLEVELSTEP - Pwm[PWM_BRIGHTNESS].Cycles) / (BRIGHTNESS_LIGHTLEVELSTEP * 1.0)));
         pwm_set_chan_level(Pwm[PWM_BRIGHTNESS].Slice, Pwm[PWM_BRIGHTNESS].Channel, Pwm[PWM_BRIGHTNESS].Level);
         printf("\r\r");
       break;
@@ -16818,7 +16126,7 @@ Test18:
 
   for (Loop1UInt16 = 100; Loop1UInt16 > 0; --Loop1UInt16)
   {
-    pwm_set_duty_cycle(Loop1UInt16);
+    pwm_set_cycles(Loop1UInt16);
 
     sprintf(String, "%4.4u", Loop1UInt16);
     fill_display_buffer_4X7(3,  String[0]);
@@ -17031,9 +16339,16 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
             break;
 
             default:
-              /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
-              FlagSetClock = FLAG_ON;
-              SetupSource = SETUP_SOURCE_CLOCK;
+              if (FlashConfig.ShortSetKey == FLAG_ON) {
+                /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
+                FlagSetClock = FLAG_ON;
+                SetupSource = SETUP_SOURCE_CLOCK;
+              }
+              else {
+                /* If we are not already in setup mode, enter alarm setup mode. */
+                FlagSetAlarm = FLAG_ON;  // enter alarm setup mode.
+                SetupSource  = SETUP_SOURCE_ALARM;
+              }
               ++SetupStep;
             break;
           }
@@ -17053,9 +16368,16 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
           }
           set_mode_out(); // housekeeping;
 
-          /* If we are not already in setup mode, enter alarm setup mode. */
-          FlagSetAlarm = FLAG_ON;  // enter alarm setup mode.
-          SetupSource  = SETUP_SOURCE_ALARM;
+          if (FlashConfig.ShortSetKey == FLAG_ON) {
+            /* If we are not already in setup mode, enter alarm setup mode. */
+            FlagSetAlarm = FLAG_ON;  // enter alarm setup mode.
+            SetupSource  = SETUP_SOURCE_ALARM;
+          }
+          else {
+            /* If not already in a setup mode, "Set" button triggers entering in clock setup mode. */
+            FlagSetClock = FLAG_ON;
+            SetupSource = SETUP_SOURCE_CLOCK;
+          }
           ++SetupStep; // process through all alarm setup steps.
         }
       }
@@ -17268,16 +16590,42 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
             default:
               /* NOTE: Clock display auto-brightness toggling has been Added to the list of clock setup parameters.
                        Leave a copy of this function here for convenience and quicker access. */
-              /* If we are not in setup mode, toggle the "auto-brightness" On / Off. */
+              /* If we are not in setup mode, toggle the "auto-brightness" On / Off and cycle through 5 levels of manual settings. */
               if (FlashConfig.FlagAutoBrightness == FLAG_ON)
               {
                 FlashConfig.FlagAutoBrightness = FLAG_OFF;
                 IndicatorAutoLightOff;
+                pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
+              }
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_LIGHTLEVELSTEP && Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_MANUALDIV1))
+              {
+                FlashConfig.FlagAutoBrightness = FLAG_OFF;
+                IndicatorAutoLightOff;
+                pwm_set_cycles(BRIGHTNESS_MANUALDIV1);
+              }
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_MANUALDIV1 && Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_MANUALDIV2))
+              {
+                FlashConfig.FlagAutoBrightness = FLAG_OFF;
+                IndicatorAutoLightOff;
+                pwm_set_cycles(BRIGHTNESS_MANUALDIV2);
+              }
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_MANUALDIV2 && Pwm[PWM_BRIGHTNESS].Cycles > BRIGHTNESS_MANUALDIV3))
+              {
+                FlashConfig.FlagAutoBrightness = FLAG_OFF;
+                IndicatorAutoLightOff;
+                pwm_set_cycles(BRIGHTNESS_MANUALDIV3);
+              }
+              else if (FlashConfig.FlagAutoBrightness == FLAG_OFF && (Pwm[PWM_BRIGHTNESS].Cycles <= BRIGHTNESS_MANUALDIV3 && Pwm[PWM_BRIGHTNESS].Cycles > 0))
+              {
+                FlashConfig.FlagAutoBrightness = FLAG_OFF;
+                IndicatorAutoLightOff;
+                pwm_set_cycles(0);
               }
               else
               {
                 FlashConfig.FlagAutoBrightness = FLAG_ON;
                 IndicatorAutoLightOn;
+                pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
               }
             break;
           }
@@ -17377,7 +16725,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   UCHAR String[128];
   UCHAR String1[64];
 
-  UINT8 CurrentDutyCycle;
+  UINT16 CurrentCycles;
   UINT8 Dum1UInt8;
   static UINT8 FlagChimeDone     = FLAG_OFF;  // indicates that hourly chime has already been triggered for current hour.
   static UINT8 FlagChimeHalfDone = FLAG_OFF;  // if "On", indicates that half-hour chime has already been triggered for current hour.
@@ -17406,11 +16754,11 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
     if (PreviousTimer != 0)
     {
-      CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
-      pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+      CurrentCycles = Pwm[PWM_BRIGHTNESS].Cycles;
+      pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
       uart_send(__LINE__, "\r\r=== CALLBACK S ===      Delay: %5llu mSec   Stack: 0x%8.8X\r\r", ((Timer1 - PreviousTimer) / 1000), &String[0]);
-      pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
+      pwm_set_cycles(CurrentCycles);  // restore display brightness.
     }
 
     PreviousTimer = Timer1;
@@ -17508,12 +16856,12 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   if (DebugBitMask & DEBUG_CHIME)
   {
-    CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
-    pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+    CurrentCycles = Pwm[PWM_BRIGHTNESS].Cycles;
+    pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
     uart_send(__LINE__, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting);
 
-    pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
+    pwm_set_cycles(CurrentCycles);  // restore display brightness.
   }
 
 
@@ -17646,11 +16994,11 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         continue;
       }
 
-      /* Current day-of-week is defined in DayMask, check if current hour is the "alarm-hour". */
-      if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHour)
+      /* Current day-of-week is defined in DayMask, check if current hour (in 24hr range) is the "alarm-hour". */
+      if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHourSetting)
       {
         if (DebugBitMask & DEBUG_ALARMS)
-          uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHour);
+          uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHourSetting);
 
         continue;
       }
@@ -17704,20 +17052,21 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
      (That is, will not sound between 9h00 and 21h00). */
   if (DebugBitMask & DEBUG_CHIME)
   {
-    CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
-    pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+    CurrentCycles = Pwm[PWM_BRIGHTNESS].Cycles;
+    pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
     uart_send(__LINE__, "H: %2u   (HS: %2u)   M: %2u   (MS: %2u)   S: %2u   FCD: 0x%2.2X\r", CurrentHour, CurrentHourSetting, CurrentMinute, CurrentMinuteSetting, CurrentSecond, FlagChimeDone);
 
     uart_send(__LINE__, "ChimeMode:  %u   On: %2u   Off: %2u   FlagSetupClock[MIN]: 0x%2.2X\r\r", FlashConfig.ChimeMode, FlashConfig.ChimeTimeOn, FlashConfig.ChimeTimeOff, FlagSetupClock[SETUP_MINUTE]);
 
-    pwm_set_duty_cycle(CurrentDutyCycle);  // restore display when done.
+    pwm_set_cycles(CurrentCycles);  // restore display when done.
   }
 
+  // Chime on/off hours are set in 24h values, so use CurrentHourSetting to compare
   if ((SilencePeriod == 0) &&
      ((FlashConfig.ChimeMode == CHIME_ON) ||                                                                                                                                                       // always On
-     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHour >= FlashConfig.ChimeTimeOn)  && (CurrentHour <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
-     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn) && ((CurrentHour >= FlashConfig.ChimeTimeOff) || (CurrentHour <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
+     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHourSetting >= FlashConfig.ChimeTimeOn)  && (CurrentHourSetting <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
+     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn) && ((CurrentHourSetting >= FlashConfig.ChimeTimeOff) || (CurrentHourSetting <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
   {
     /* Half-hour chime. */
     if ((CurrentMinute == 30) && (FlagChimeHalfDone == FLAG_OFF) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
@@ -18077,7 +17426,8 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   /* Check if it is time to turn On night light. */
   /* NOTE: Make a check every minute in case we just powered On the clock and / or we recently adjusted the time. */
-  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHour >= FlashConfig.NightLightTimeOn) || (CurrentHour < FlashConfig.NightLightTimeOff)))
+  // Night light on/off hours are set in 24h values, so use CurrentHourSetting to compare
+  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHourSetting >= FlashConfig.NightLightTimeOn) || (CurrentHourSetting < FlashConfig.NightLightTimeOff)))
   {
     if ((CurrentSecond == 0) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
     {
@@ -18087,7 +17437,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   /* Check if it is time to turn Off night light. */
   /* Make a check every minute in case we recently adjusted the time. */
-  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHour >= FlashConfig.NightLightTimeOff) && (CurrentHour < FlashConfig.NightLightTimeOn)))
+  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHourSetting >= FlashConfig.NightLightTimeOff) && (CurrentHourSetting < FlashConfig.NightLightTimeOn)))
   {
     if ((CurrentSecond == 0) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
     {
@@ -18121,12 +17471,12 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     else
       sprintf(String1, "Winter Time");
 
-    CurrentDutyCycle = Pwm[PWM_BRIGHTNESS].DutyCycle;
-    pwm_set_duty_cycle(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
+    CurrentCycles = Pwm[PWM_BRIGHTNESS].Cycles;
+    pwm_set_cycles(0);  // blank display so that we don't see frozen display while LED scanning is delayed by UART.
 
     uart_send(__LINE__, "\r\r=== CALLBACK S ===   Duration: %5.2f mSec\r\r", ((Timer2 - Timer1) / 1000.0));
 
-    pwm_set_duty_cycle(CurrentDutyCycle);  // restore display brightness.
+    pwm_set_cycles(CurrentCycles);  // restore display brightness.
   }
   ***/
 
@@ -19003,3 +18353,418 @@ void update_top_indicators(UINT8 DayOfWeek, UINT8 Flag)
 
   return;
 }
+
+/* ------------------------------------------------------------------ *\
+           Web control and status information routines.
+\* ------------------------------------------------------------------ */
+// Fetch the hostname from the flash config
+UCHAR* wfetch_hostname(void) {
+  return &FlashConfig.Hostname[4];
+}
+
+// Fetch the WiFi SSID from the flash config
+UCHAR* wfetch_wifissid(void) {
+  return &FlashConfig.SSID[4];
+}
+
+// Fetch the WiFi passphrase from the flash config
+UCHAR* wfetch_wifipass(void) {
+  return &FlashConfig.Password[4];
+}
+
+// Write the hostname to the flash config fairly soon and restart the network
+void wwrite_hostname(UCHAR * new_hostname) {
+  // Update the configured values
+  sprintf(&FlashConfig.Hostname[4], new_hostname);
+  // Perform a flash configuration update check soon
+  FlagWebRequestFlashCheck = FLAG_ON;
+  return;
+}
+
+// Write the WiFi SSID and passphrase to the flash config fairly soon and restart the network
+void wwrite_networkcfg(UCHAR * new_wifissid, UCHAR * new_wifipass) {
+  // Update the configured values
+  sprintf(&FlashConfig.Password[4], new_wifipass);
+  sprintf(&FlashConfig.SSID[4], new_wifissid);
+  // Perform a flash configuration update check soon
+  FlagWebRequestFlashCheck = FLAG_ON;
+  return;
+}
+
+// Fetch the current time from the main clock routine
+struct human_time wfetch_current_datetime(void) {
+  struct human_time current_time;
+  current_time.Hour = CurrentHourSetting;
+  current_time.Minute = CurrentMinute;
+  current_time.Second = CurrentSecond;
+  current_time.DayOfMonth = CurrentDayOfMonth;
+  current_time.Month = CurrentMonth;
+  current_time.Year = CurrentYear;
+  current_time.DayOfWeek = CurrentDayOfWeek;
+  current_time.DayOfYear = CurrentDayOfYear;
+  current_time.FlagDst = FlashConfig.FlagSummerTime;
+  return current_time;
+}
+
+// Write a new date and time to the RTC and display
+void wwrite_current_datetime(struct human_time new_time) {
+  UINT8 shortyear;
+  UINT16 longyear;
+  // Update the current time, as if the set buttons were used
+  CurrentSecond = new_time.Second;
+  CurrentMinute = new_time.Minute;
+  CurrentHourSetting = new_time.Hour;
+  CurrentDayOfMonth = new_time.DayOfMonth;
+  CurrentMonth = new_time.Month;
+  CurrentYearLowPart = (new_time.Year % 100);
+  CurrentYear = new_time.Year;
+  CurrentDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+  CurrentDayOfYear = get_day_of_year(CurrentYear, CurrentMonth, CurrentDayOfMonth);
+  // Set the RTC using the same methods as the PicoW NTP synchronisation
+  set_time(CurrentSecond, CurrentMinute, CurrentHourSetting, CurrentDayOfWeek, CurrentDayOfMonth, CurrentMonth, CurrentYearLowPart);
+  // Request time display update when all completed
+  FlagUpdateTime = FLAG_ON;
+  return;
+}
+
+// Request an NTP synchronisation
+void wrequest_NTP_Sync() {
+  FlagWebRequestNTPSync = FLAG_ON;
+  return;
+}
+
+// Return NTP access error count
+UINT32 wfetch_NTP_Errors(void){
+  return NTPData.NTPErrors;
+}
+
+// Clear down NTP access error count
+void wwrite_clear_ntp_error(){
+  NTPData.NTPErrors = 0;
+}
+
+// Fetch the current language index from the flash config
+UINT8 wfetch_current_language(void) {
+  return FlashConfig.Language;
+}
+
+// Fetch the day name text in the current language from the main routine's table
+UCHAR* wfetch_DayName(UINT8 the_language, UINT16 the_dayofweek) {
+  return DayName[the_language][the_dayofweek];
+}
+
+// Fetch the month name text in the current language from the main routine's table
+UCHAR* wfetch_MonthName(UINT8 the_language, UINT16 the_month) {
+  return MonthName[the_language][the_month];
+}
+
+// Fetch the 12HR or 24HR hour display mode from the flash config
+UINT8 wfetch_current_hour_mode(void){
+  return FlashConfig.TimeDisplayMode;
+}
+
+// Fetch the currently programmed data for an alarm from the flash config
+struct alarm wfetch_alarm(UINT8 alarm_to_fetch) {
+  struct alarm my_alarm;
+  my_alarm.FlagStatus = FlashConfig.Alarm[alarm_to_fetch].FlagStatus;
+  my_alarm.Second = FlashConfig.Alarm[alarm_to_fetch].Second;
+  my_alarm.Minute = FlashConfig.Alarm[alarm_to_fetch].Minute;
+  my_alarm.Hour = FlashConfig.Alarm[alarm_to_fetch].Hour;
+  my_alarm.Day = FlashConfig.Alarm[alarm_to_fetch].Day;
+  sprintf(my_alarm.Text, FlashConfig.Alarm[alarm_to_fetch].Text);
+  return my_alarm;
+}
+
+// write a new alarm data to the flash config and update the alarm set display indicator
+void wwrite_alarm(UINT8 alarm_to_write, struct alarm alarm_data) {
+  UINT8 Dum1UInt8;
+  UINT8 Loop1UInt8;
+  // Set values into alarm structure, text data will be pre-checked for length so we only need one update.
+  FlashConfig.Alarm[alarm_to_write] = alarm_data;
+  // Now update the display as this is only handled in the setting routine (which is bypassed)
+  /* We now have 9 alarms available... Check if at least one alarm is On and if ever the case, turn On both alarm indicators. */
+  Dum1UInt8 = 0;
+  for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
+    if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_ON)
+      Dum1UInt8 = 1;
+
+  if (Dum1UInt8)
+  {
+    IndicatorAlarm0On;
+    IndicatorAlarm1On;
+  }
+  else
+  {
+    IndicatorAlarm0Off;
+    IndicatorAlarm1Off;
+  }
+  return;
+}
+
+// Fetch a set of status data on the display dimming levels to help calibrate the minimum setting
+struct web_light_value wfetch_light_adc_level(void) {
+  struct web_light_value dimmer_light_values;
+  dimmer_light_values.adc_current_value = adc_read_light();
+  dimmer_light_values.AverageLightLevel = Dim_AverageLightLevel;
+  dimmer_light_values.MinLightLevel = FlashConfig.DimmerMinLightLevel;
+  dimmer_light_values.DutyCycle = Dim_DutyCycle;
+  dimmer_light_values.Min_adc_value = Dim_Min_avgadc_value;
+  dimmer_light_values.Max_adc_value = Dim_Max_avgadc_value;
+  return dimmer_light_values;
+}
+
+// Write a new value for the minimum display very dim level to the flash config
+void wwrite_dimminlightlevel(UINT16 new_lightlevel) {
+  FlashConfig.DimmerMinLightLevel = new_lightlevel;
+  return;
+}
+
+// Fetch the display dimming mode from the flash config
+UINT8 fetch_AutoBrightness(void) {
+  return FlashConfig.FlagAutoBrightness;
+}
+
+// Fetch the display manual dimming value from the current PWM setting
+UINT16 fetch_ManualBrightness(void) {
+  return Pwm[PWM_BRIGHTNESS].Cycles;
+}
+
+// Fetch the button press beep from the flash config
+UINT8 fetch_Keyclick(void) {
+  return FlashConfig.FlagKeyclick;
+}
+
+// Fetch the scrolling display mode from the flash config
+UINT8 fetch_ScrollEnable(void) {
+  return FlashConfig.FlagScrollEnable;
+}
+
+// Fetch the scrolling display mode from the flash config
+UINT8 fetch_ShortSeyKey(void){
+  return FlashConfig.ShortSetKey;
+}
+
+// Fetch the DST active flag from the flash config
+UINT8 fetch_SummerTime(void) {
+  return FlashConfig.FlagSummerTime;
+}
+
+// Fetch the DST configuration from the flash config
+UCHAR fetch_DSTCountry(void) {
+  return FlashConfig.DSTCountry;
+}
+
+// Fetch the UTC offset timezone from the flash config
+int8_t fetch_Timezone(void) {
+  return FlashConfig.Timezone;
+}
+
+// Fetch the 12/24HR display mode from the flash config
+UINT8 fetch_ClockHourMode(void) {
+  return FlashConfig.TimeDisplayMode;
+}
+
+UINT8 fetch_ChimeMode(void) {
+  return FlashConfig.ChimeMode;
+}
+UINT8 fetch_ChimeStart(void) {
+  return FlashConfig.ChimeTimeOn;
+}
+UINT8 fetch_ChimeStop(void) {
+  return FlashConfig.ChimeTimeOff;
+}
+UINT8 fetch_NightLightMode(void) {
+  return FlashConfig.NightLightMode;
+}
+UINT8 fetch_NightLightStart(void) {
+  return FlashConfig.NightLightTimeOn;
+}
+UINT8 fetch_NightLightStop(void) {
+  return FlashConfig.NightLightTimeOff;
+}
+
+
+// Write a new value for display dimming mode to the flash config, set as enabled/disabled or one of 4 manual levels - bright (1), mid (2), low (3) or dimmest (4)
+void wwriteAutoBrightness(UINT8 new_AutoBrightness, UINT8 new_ManualLevel) {
+  /* Set the "auto-brightness" On / Off and cycle through 5 levels of manual settings. */
+  if (new_AutoBrightness == FLAG_ON)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_ON;
+    IndicatorAutoLightOn;
+    pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 1)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 2)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(BRIGHTNESS_MANUALDIV1);
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 3)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(BRIGHTNESS_MANUALDIV2);
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 4)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(BRIGHTNESS_MANUALDIV3);
+  }
+  else if (new_AutoBrightness == FLAG_OFF && new_ManualLevel == 5)
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_OFF;
+    IndicatorAutoLightOff;
+    pwm_set_cycles(0);
+  }
+  else
+  {
+    FlashConfig.FlagAutoBrightness = FLAG_ON;
+    IndicatorAutoLightOn;
+    pwm_set_cycles(BRIGHTNESS_LIGHTLEVELSTEP);
+  }
+  return;
+}
+
+// Write a new value for button press beep enable to the flash config
+void wwriteKeyclick(UINT8 new_Keyclick) {
+  if ((new_Keyclick == FLAG_OFF) || (new_Keyclick == FLAG_ON)) {
+    FlashConfig.FlagKeyclick = new_Keyclick;
+  }
+  return;
+}
+
+// Write a new value for scrolling display enable to the flash config
+void wwriteScrollEnable(UINT8 new_ScrollEnable) {
+  if ((new_ScrollEnable == FLAG_OFF) || (new_ScrollEnable == FLAG_ON)) {
+    FlashConfig.FlagScrollEnable = new_ScrollEnable;
+    /* Setup the "Scroll" set indicator */
+    if (new_ScrollEnable == FLAG_ON) {
+      IndicatorScrollOn;
+    }
+    else {
+      IndicatorScrollOff;
+    }
+  }
+  return;
+}
+
+// Write a new value for teh short set key operation to the flash config
+void wwriteShortSeyKey(UINT8 new_SetKeyMode){
+  if ((new_SetKeyMode == FLAG_OFF) || (new_SetKeyMode == FLAG_ON)) {
+    FlashConfig.ShortSetKey = new_SetKeyMode;
+  }
+  return;
+}
+
+// Write a new value for DST active flag to the flash config
+void wwriteSummerTime(UINT8 new_SummerTime) {
+  if (new_SummerTime == FLAG_OFF || new_SummerTime == FLAG_ON) {
+    FlashConfig.FlagSummerTime = new_SummerTime;
+  }
+  return;
+}
+
+// Write a new value for the DST configuration to the flash config
+void mwrite_DSTCountry(UCHAR new_DST_Country) {
+  FlashConfig.DSTCountry = new_DST_Country;
+  return;
+}
+
+// Write a new value for UTC offset timezone to the flash config
+void wwriteTimezone(int8_t new_Timezone) {
+  FlashConfig.Timezone = new_Timezone;
+  return;
+}
+
+// Write a new value for language to the flash config if in the correct range
+void mwritelanguage(UINT8 new_language) {
+  if (new_language > LANGUAGE_LO_LIMIT && new_language < LANGUAGE_HI_LIMIT) {
+    FlashConfig.Language = new_language;
+  }
+  return;
+}
+
+void wwrite_ClockHourMode(UINT8 new_hourmode){
+  if ((new_hourmode == H12) || (new_hourmode == H24)) {
+    FlashConfig.TimeDisplayMode = new_hourmode;
+    // Request time display update when all completed
+    FlagUpdateTime = FLAG_ON;
+  }
+  return;
+}
+
+void wwrite_ChimeMode(UINT8 new_ChimeMode) {
+  if (new_ChimeMode == CHIME_OFF) {
+    FlashConfig.ChimeMode = CHIME_OFF;
+    IndicatorHourlyChimeOff;
+  }
+  else if (new_ChimeMode == CHIME_ON) {
+    FlashConfig.ChimeMode = CHIME_ON;
+    IndicatorHourlyChimeOn;
+  }
+  else if (new_ChimeMode == CHIME_DAY) {
+    FlashConfig.ChimeMode = CHIME_DAY;
+    IndicatorHourlyChimeDay;
+  }
+  return;
+}
+
+void wwrite_ChimeStart(UINT8 new_ChimeStart) {
+  FlashConfig.ChimeTimeOn = new_ChimeStart;
+  return;
+}
+
+void wwrite_ChimeStop(UINT8 new_ChimeStop) {
+  FlashConfig.ChimeTimeOff = new_ChimeStop;
+  return;
+}
+
+void wwrite_NightLightMode(UINT8 new_NightLightMode) {
+  if (new_NightLightMode == NIGHT_LIGHT_OFF) {
+    FlashConfig.NightLightMode = NIGHT_LIGHT_OFF;
+    IndicatorButtonLightsOff;
+  }
+  else if (new_NightLightMode == NIGHT_LIGHT_ON){
+    FlashConfig.NightLightMode = NIGHT_LIGHT_ON;
+    IndicatorButtonLightsOn;
+  }
+  else if (new_NightLightMode == NIGHT_LIGHT_AUTO) {
+    FlashConfig.NightLightMode = NIGHT_LIGHT_AUTO;
+    UINT16 LightLevel = adc_read_light();
+    if (LightLevel < 295) {
+      IndicatorButtonLightsOn;
+    }
+    if (LightLevel > 400) {
+      IndicatorButtonLightsOff;
+    }
+  }
+  else if (new_NightLightMode == NIGHT_LIGHT_NIGHT) {
+    FlashConfig.NightLightMode = NIGHT_LIGHT_NIGHT;
+    if ((CurrentHourSetting >= FlashConfig.NightLightTimeOn) || (CurrentHourSetting < FlashConfig.NightLightTimeOff)) {
+      IndicatorButtonLightsOn;
+    }
+    if ((CurrentHourSetting >= FlashConfig.NightLightTimeOff) && (CurrentHourSetting < FlashConfig.NightLightTimeOn)) {
+      IndicatorButtonLightsOff;
+    }
+  }
+  return;
+}
+
+void wwrite_NightLightStart(UINT8 new_NightLightStart) {
+  FlashConfig.NightLightTimeOn = new_NightLightStart;
+  return;
+}
+
+void wwrite_NightLightStop(UINT8 new_NightLightStop) {
+  FlashConfig.NightLightTimeOff = new_NightLightStop;
+  return;
+}
+
+
