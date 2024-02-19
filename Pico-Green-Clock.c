@@ -4,7 +4,7 @@
    astlouys@gmail.com
    Revision 01-JUN-2023
    Compiler: arm-none-eabi-gcc 7.3.1
-   Version 9.02
+   Version 10.00
 
    Raspberry Pi Pico firmware to drive the Waveshare Pico-Green-Clock.
    From an original software version 1.00 by Waveshare
@@ -287,15 +287,16 @@
                      "CalendarEventsGeneric.cpp".
 \* ================================================================== */
 /* Firmware version. */
-#define FIRMWARE_VERSION "9.02"  ///
+#define FIRMWARE_VERSION "10.00"  ///
 
 /* Select the language for data display. */
 #define DEFAULT_LANGUAGE ENGLISH // choices for now are FRENCH, ENGLISH, GERMAN, and SPANISH.
 
 /* While in development mode, we may want to disable NTP update, for example while testing Summer Time handling algorithm. */
 // #define NTP_ENABLE  /// WARNING: This #define is not supported for now. Use "#define PICO_W" below instead to enable NTP for now.
-#define NETWORK_NAME     "MyNetworkName"  /// for those with a development environment, you can enter your SSID and password below, run the Firmware until the
-#define NETWORK_PASSWORD "MyPassword"     /// first date scrolling (credentials will be saved to flash), then erase the credentials and put comment on both lines.
+#define PICO_HOSTNAME    "PicoW"          /// for those with a development environment, you can enter your hostname, SSID
+#define NETWORK_NAME     "MyNetworkName"  /// and password below, run the Firmware until the first date scrolling (credentials
+#define NETWORK_PASSWORD "MyPassword"     /// will be saved to flash), then erase the credentials and put comment on both lines.
 
 /* If a Pico W is used, librairies for Wi-Fi and NTP synchronization will be merged in the executable. If PICO_W is not defined, NTP is automatically disabled. */
 #define PICO_W  ///
@@ -1051,6 +1052,7 @@ struct flash_config
   int8_t Timezone;            // (in hours) value to add to UTC time (Universal Time Coordinate) to get the local time.
   UINT8  Reserved1[48];       // reserved for future use.
   struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask.
+  UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5 of the variable string, for the same reason as SSID above.
   UCHAR  Reserved2[48];       // reserved for future use.
@@ -2274,23 +2276,50 @@ int main(void)
 
 
   /* -------------------- UPDATE VERSION 9.0x TO VERSION 10.00 -------------------- */
-  // if (strncmp(FlashConfig.Version, "9.", 2) == 0)
-  // {
+  if (strncmp(FlashConfig.Version, "9.", 2) == 0)
+  {
     /* Convert flash configuration from Version 9.0x to Version 10.00. */
-    // sprintf(FlashConfig.Version, "10.00");   // convert to Version 10.00.
-    /* No other change required from 9.00 to 10.00. */
-  // }
+    if (DebugBitMask & DEBUG_FLASH)
+    {
+      uart_send(__LINE__, "Display Flash configuration before conversion from Version 9.00 to Version 10.00.\r");
+      flash_display_config();
+    }
+
+    sprintf(FlashConfig.Version, "10.00");   // convert to Version 10.00.
+    FlashConfig.FlagAutoBrightness = FLAG_ON;
+    FlashConfig.FlagKeyclick       = FLAG_ON;
+    FlashConfig.FlagScrollEnable   = FLAG_ON;
+    FlashConfig.FlagSummerTime     = FLAG_OFF;
+    FlashConfig.TimeDisplayMode    = H24;
+    for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
+      FlashConfig.Alarm[Loop1UInt8].FlagStatus = FLAG_OFF;
+    sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
+    sprintf(FlashConfig.SSID,     ".;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.");                                // write specific footprint to flash memory.
+    sprintf(FlashConfig.Password, ".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");  // write specific footprint to flash memory.
+    sprintf(&FlashConfig.Hostname[4], PICO_HOSTNAME);
+    sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
+    sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
+
+    if (DebugBitMask & DEBUG_FLASH)
+    {
+      uart_send(__LINE__, "Display Flash configuration after conversion from Version 9.00 to Version 10.0x\r");
+      flash_display_config();
+    }
+  }
 
 
-  /*** One-time FlashConfig writes may be inserted below... ***/
-  // NOTE: If you already ran Firmware Version 9.0x, network SSID and password will not be updated just by replacing both
-  //       #define NETWORK_NAME and #define NETWORK_PASSWORD at the beginning of the source code, instead, to set network SSID
-  //       and password in the code instead of setting them up with the clock, uncomment the four lines below and replace
-  //       MyNetworkName and MyNetworkPassword with the proper strings while keeping the surrounding "double-quotes".
+  // /*** One-time FlashConfig writes may be inserted below... ***/
+  // // NOTE: If you already ran Firmware Version 10.0x, network hostname, SSID and password will not be updated just by replacing the
+  // //       #define HOSTNAME, #define NETWORK_NAME and #define NETWORK_PASSWORD at the beginning of the source code, instead, to set hostname,
+  // //       network SSID and password in the code instead of setting them up with the clock, uncomment the six lines below and replace
+  // //       MyNetworkName and MyNetworkPassword with the proper strings while keeping the surrounding "double-quotes".
+  // sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
   // sprintf(FlashConfig.SSID,         ".;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.");
   // sprintf(FlashConfig.Password,     ".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");
-  // sprintf(&FlashConfig.SSID[4],     "MyNetworkName");
-  // sprintf(&FlashConfig.Password[4], "MyNetworkPassword");
+  // sprintf(&FlashConfig.Hostname[4], PICO_HOSTNAME);
+  // sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
+  // sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
+
   #ifdef DEVELOPER_VERSION
   #include "Credentials.cpp"
   #endif
@@ -5694,6 +5723,13 @@ UINT8 flash_display_config(void)
   }
 
 
+  /* In case hostname is not initialized, display it character by character. */
+  sprintf(String, "HOST:     [");
+  for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Hostname); ++Loop1UInt16)
+    sprintf(&String[strlen(String)], "%c", FlashConfig.Hostname[Loop1UInt16]);
+  strcat(String, "]\r");
+  uart_send(__LINE__, String);
+
   /* In case SSID is not initialized, display it character by character. */
   uart_send(__LINE__, "Note: SSID and Password begin at 5th character position, superimposed on top of two different footprints.\r");
   uart_send(__LINE__, "      There is also an end-of-string character at the end of each string that we don't see on the screen.\r");
@@ -5966,8 +6002,10 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[8].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
   sprintf(FlashConfig.Alarm[8].Text, "Alarm 9"); // string to be scrolled when alarm 9 is triggered (ALARM TEXT).
 
+  sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
   sprintf(FlashConfig.SSID,     ".;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.");                                // write specific footprint to flash memory.
   sprintf(FlashConfig.Password, ".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");  // write specific footprint to flash memory.
+  sprintf(&FlashConfig.Hostname[4], "PicoW");
   sprintf(&FlashConfig.SSID[4],     "MyNetworkName");
   sprintf(&FlashConfig.Password[4], "MyPassword");
 
@@ -9565,7 +9603,7 @@ void process_scroll_queue(void)
 
         case (TAG_WIFI_CREDENTIALS):
           /* Scroll Wi-Fi credentials saved in flash memory. */
-          sprintf(String, "SSID: [%s]   Pwd: [%s]", FlashConfig.SSID, FlashConfig.Password);
+          sprintf(String, "HOST: [%s]   SSID: [%s]   Pwd: [%s]", FlashConfig.Hostname, FlashConfig.SSID, FlashConfig.Password);
           scroll_string(24, String);
         break;
 
@@ -11383,19 +11421,20 @@ void send_data(UINT8 Byte)
 /* $PAGE */
 /* $TITLE=set_and_save_credentials() */
 /* ------------------------------------------------------------------ *\
-               Request Wi-Fi SSID and password from user
+               Request Wi-Fi hostname, SSID and password from user
                     and save them to Pico's flash.
 \* ------------------------------------------------------------------ */
 void set_and_save_credentials(void)
 {
+  UCHAR NewHostname[33];
   UCHAR NewSsid[33];
   UCHAR NewPassword[65];
   UCHAR String[256];
 
-  UINT8 CharacterNumber;    // character being entered for SSID or password.
+  UINT8 CharacterNumber;    // character being entered for Hostname, SSID or password.
   UINT8 Column;
-  UINT8 CurrentStepNumber;  // current procedure step (SSID, Password).
-  UINT8 FlagNextStep;       // flag indicating it's time to continue with next step (SSID, Password).
+  UINT8 CurrentStepNumber;  // current procedure step (Hostname, SSID, Password).
+  UINT8 FlagNextStep;       // flag indicating it's time to continue with next step (Hostname, SSID, Password).
   UINT8 Loop1Number;        // to evaluate the time the "Up" and "Down" buttons have been pressed.
   UINT8 Loop2Number;        // to evaluate the time the "Set" button has been pressed.
   UINT8 OriginalClockMode;  // keep track of clock mode before entering this function.
@@ -11420,7 +11459,7 @@ void set_and_save_credentials(void)
 
 
   /* Scroll current credentials on entry. */
-  sprintf(String, "SSID: [%s]   Pwd: [%s]", FlashConfig.SSID, FlashConfig.Password);
+  sprintf(String, "Host: [%s]   SSID: [%s]   Pwd: [%s]", FlashConfig.Hostname, FlashConfig.SSID, FlashConfig.Password);
   scroll_string(24, String);
 
   /* Wait until scrolling is done. */
@@ -11433,8 +11472,8 @@ void set_and_save_credentials(void)
   CurrentClockMode = MODE_TEST;
 
 
-  /* Enter SSID and Password. */
-  for (CurrentStepNumber = 0; CurrentStepNumber < 2; ++CurrentStepNumber)
+  /* Enter Hostname, SSID and Password. */
+  for (CurrentStepNumber = 0; CurrentStepNumber < 3; ++CurrentStepNumber)
   {
     CharacterNumber = 0;
     FlagNextStep    = FLAG_OFF;  // will be turned On when it's time to iterate next "for" loop.
@@ -11443,10 +11482,14 @@ void set_and_save_credentials(void)
     switch (CurrentStepNumber)
     {
       case (0):
-        scroll_string(24, "Enter SSID:");
+        scroll_string(24, "Enter Host:");
       break;
 
       case (1):
+        scroll_string(24, "Enter SSID:");
+      break;
+
+      case (2):
         scroll_string(24, "Enter Password:");
       break;
     }
@@ -11507,9 +11550,10 @@ void set_and_save_credentials(void)
           if (DebugBitMask & DEBUG_NTP)
             uart_send(__LINE__, "<Set> button press shorter than 3 seconds.\r");
 
-          /* "Set" (top) button press is less than 5 seconds, add target character to current string (SSID or password). */
-          if (CurrentStepNumber == 0) NewSsid[CharacterNumber] = TargetCharacter;
-          if (CurrentStepNumber == 1) NewPassword[CharacterNumber] = TargetCharacter;
+          /* "Set" (top) button press is less than 5 seconds, add target character to current string (Hostname, SSID or password). */
+          if (CurrentStepNumber == 0) NewHostname[CharacterNumber] = TargetCharacter;
+          if (CurrentStepNumber == 1) NewSsid[CharacterNumber] = TargetCharacter;
+          if (CurrentStepNumber == 2) NewPassword[CharacterNumber] = TargetCharacter;
           fill_display_buffer_5X7(2, TargetCharacter);   // last character entered.
 
           /* Refresh open frame and target character. */
@@ -11522,8 +11566,21 @@ void set_and_save_credentials(void)
           if (DebugBitMask & DEBUG_NTP)
             uart_send(__LINE__, "<Set> button press longer than 3 seconds.\r");
 
-          /* "Set" (top) button pressed for more than 3 seconds, assign current string to SSID to be flashed. */
+          /* "Set" (top) button pressed for more than 3 seconds, assign current string to Hostname, SSID or Password to be flashed. */
           if (CurrentStepNumber == 0)
+          {
+            NewHostname[CharacterNumber] = 0;  // add end-of-string.
+
+            /* Assign Hostname only if it is a non-null string. */
+            if (NewHostname[0] != 0)
+            {
+              sprintf(&FlashConfig.Hostname[4], NewHostname);
+              clear_framebuffer(0);
+              sprintf(String, "HOST saved: %s      ", NewHostname);
+              scroll_string(24, String);
+            }
+          }
+          if (CurrentStepNumber == 1)
           {
             NewSsid[CharacterNumber] = 0;  // add end-of-string.
 
@@ -11537,7 +11594,7 @@ void set_and_save_credentials(void)
             }
           }
 
-          if (CurrentStepNumber == 1)
+          if (CurrentStepNumber == 2)
           {
             NewPassword[CharacterNumber] = 0;  // add end-of-string.
 
