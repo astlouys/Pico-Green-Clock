@@ -13,8 +13,6 @@ const char * cgi_disphourmode_handler(int iIndex, int iNumParams, char *pcParam[
 const char * cgi_shortsetkey_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setchimemode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setnightlightmode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
-
-const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setdisplaylevel_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setdisplaymode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);

@@ -7,10 +7,10 @@
 
 // SSI tags - tag length limited to 8 bytes by default
 const char * ssi_tags[] = {
-"host", "wifissid", "wifipass", "volt", "temp", "led", "date", "light", "dimlevel", "datetime", "ntpstat", "dstzone",
-"dstactve", "autodim", "mdimfull", "mdimhigh", "mdimmid", "mdimlow", "mdimdark", "timezone", "shsktime", "shskalrm",
-"langengl", "langfrch", "langgerm", "langczec", "langspan", "keyclick", "discroll", "hr12mode", "hr24mode", "chmenoff",
-"chmenday", "chmenon", "chmstart", "chimstop", "nliteoff", "nlitauto", "nltnight", "ntliteon", "nltstart", "nlgtstop",
+"host", "wifissid", "wifipass", "date", "light", "dimlevel", "datetime", "ntpstat", "dstzone", "dstactve",
+"autodim",  "mdimfull", "mdimhigh", "mdimmid",  "mdimlow",  "mdimdark", "timezone", "shsktime", "shskalrm", "langengl",
+"langfrch", "langgerm", "langczec", "langspan", "keyclick", "discroll", "hr12mode", "hr24mode", "chmenoff", "chmenday",
+"chmenon", "chmstart", "chimstop", "nliteoff", "nlitauto", "nltnight", "ntliteon", "nltstart", "nlgtstop",
 "alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
 "alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
 "alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
@@ -23,7 +23,7 @@ const char * ssi_tags[] = {
 };
 
 // Set the tag offset for the alarm table entries.
-#define ALARMBASE0 42
+#define ALARMBASE0 39
 #define ALARMBASE1 (ALARMBASE0 + 10)
 #define ALARMBASE2 (ALARMBASE1 + 10)
 #define ALARMBASE3 (ALARMBASE2 + 10)
@@ -54,39 +54,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", my_wifipassphrase);
     }
     break;
-  case 3: // volt
-    {
-      adc_select_input(3);
-      bool led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
-      // This must be a Pico W for web access to be called
-      // For Pico W, it is important that GPIO 25 be high to read the power supply voltage.
-      cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-      const float voltage = adc_read() * 3.3f / (1 << 12);
-      // Set LED back
-      cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_status);
-      printed = snprintf(pcInsert, iInsertLen, "%f", voltage);
-    }
-    break;
-  case 4: // temp
-    {
-      adc_select_input(4);
-      const float voltage = adc_read() * 3.3f / (1 << 12);
-      const float tempC = 27.0f - (voltage - 0.706f) / 0.001721f;
-      printed = snprintf(pcInsert, iInsertLen, "%f", tempC);
-    }
-    break;
-  case 5: // led
-    {
-      bool led_status = cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN);
-      if(led_status == true){
-        printed = snprintf(pcInsert, iInsertLen, "ON");
-      }
-      else{
-        printed = snprintf(pcInsert, iInsertLen, "OFF");
-      }
-    }
-    break;
-  case 6: // date
+  case 3: // date
     {
       UINT8 my_language = wfetch_current_language();
       // Fetch current date and time, year is in 4 digit format and hour in 24hr range
@@ -137,20 +105,20 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "Current date is : %s %d %s %04d     Current time is : %d:%02d:%02d %s", my_weekdayname, my_dayofmonth, my_monthname, my_year, my_hour, my_minute, my_second, time_suffix);
     }
     break;
-  case 7: // light
+  case 4: // light
     {
       struct web_light_value dimmer_light_values = wfetch_light_adc_level();
       printed = snprintf(pcInsert, iInsertLen, "PWM Duty Cycle: %4.1f,  Instant light level: %4u,   Average light level: %4u,   Max average light level: %4u,   Min average light level: %4u", (dimmer_light_values.DutyCycle/10.0), dimmer_light_values.adc_current_value, dimmer_light_values.AverageLightLevel, dimmer_light_values.Max_adc_value, dimmer_light_values.Min_adc_value);
       // printed = snprintf(pcInsert, iInsertLen, "%d %d", 1, 2);
     }
     break;
-  case 8: // dimlevel
+  case 5: // dimlevel
     {
       struct web_light_value dimmer_light_values = wfetch_light_adc_level();
       printed = snprintf(pcInsert, iInsertLen, "%d", dimmer_light_values.MinLightLevel);
     }
     break;
-  case 9: // datetime,   newtime=2024-02-16T09:20
+  case 6: // datetime,   newtime=2024-02-16T09:20
     {
       // Fetch current date and time, year is in 4 digit format and hour in 24hr range
       struct human_time now_time = wfetch_current_datetime();
@@ -163,13 +131,13 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%04d-%02d-%02dT%02d:%02d", my_year, my_month, my_date, my_hour, my_minute);
     }
     break;
-  case 10: // ntpstat
+  case 7: // ntpstat
     {
       UINT32 NTP_Errors = wfetch_NTP_Errors();
       printed = snprintf(pcInsert, iInsertLen, "NTP Error Count : %d", NTP_Errors);
     }
     break;
-  case 11: // dstzone
+  case 8: // dstzone
     {
       UCHAR * DST_Contry_Text;
       UINT8 DSTCOUNTRY = (UINT8)(fetch_DSTCountry());
@@ -234,18 +202,18 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", DST_Contry_Text);
     }
     break;
-  case 12: // dstactve
+  case 9: // dstactve
     {
       // send back the enable flag as a populated or empty text option string
       printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_SummerTime() == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 13: // autodim
+  case 10: // autodim
     {
       printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_AutoBrightness() == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 14: // mdimfull
+  case 11: // mdimfull
     {
       UINT8 Automode = fetch_AutoBrightness();
       UINT8 Manualhigh = FLAG_OFF;
@@ -257,7 +225,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualhigh == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 15: // mdimhigh
+  case 12: // mdimhigh
     {
       UINT8 Automode = fetch_AutoBrightness();
       UINT8 Manualhigh = FLAG_OFF;
@@ -269,7 +237,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualhigh == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 16: // mdimmid
+  case 13: // mdimmid
     {
       UINT8 Automode = fetch_AutoBrightness();
       UINT8 Manualmid = FLAG_OFF;
@@ -281,7 +249,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualmid == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 17: // mdimlow
+  case 14: // mdimlow
     {
       UINT8 Automode = fetch_AutoBrightness();
       UINT8 Manuallow = FLAG_OFF;
@@ -293,7 +261,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manuallow == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 18: // mdimdark
+  case 15: // mdimdark
     {
       UINT8 Automode = fetch_AutoBrightness();
       UINT8 Manualdark = FLAG_OFF;
@@ -305,13 +273,13 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (Manualdark == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 19: // timezone
+  case 16: // timezone
     {
       printed = snprintf(pcInsert, iInsertLen, "%d", fetch_Timezone());
     }
     break;
 
-  case 20: // shsktime
+  case 17: // shsktime
     {
       UINT8 my_setkeymode = fetch_ShortSeyKey();
       UINT8 my_setkeyflag = FLAG_OFF;
@@ -322,7 +290,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_setkeyflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 21: // shskalrm
+  case 18: // shskalrm
     {
       UINT8 my_setkeymode = fetch_ShortSeyKey();
       UINT8 my_setkeyflag = FLAG_OFF;
@@ -333,7 +301,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_setkeyflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 22: // langengl
+  case 19: // langengl
     {
       UINT8 my_language = wfetch_current_language();
       UINT8 LangFlag = FLAG_OFF;
@@ -343,7 +311,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 23: // langfrch
+  case 20: // langfrch
     {
       UINT8 my_language = wfetch_current_language();
       UINT8 LangFlag = FLAG_OFF;
@@ -353,7 +321,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 24: // langgerm
+  case 21: // langgerm
     {
       UINT8 my_language = wfetch_current_language();
       UINT8 LangFlag = FLAG_OFF;
@@ -363,7 +331,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 25: // langczec
+  case 22: // langczec
     {
       UINT8 my_language = wfetch_current_language();
       UINT8 LangFlag = FLAG_OFF;
@@ -373,7 +341,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 26: // langspan
+  case 23: // langspan
     {
       UINT8 my_language = wfetch_current_language();
       UINT8 LangFlag = FLAG_OFF;
@@ -383,17 +351,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (LangFlag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 27: // keyclick
+  case 24: // keyclick
     {
       printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_Keyclick() == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 28: // discroll
+  case 25: // discroll
     {
       printed = snprintf(pcInsert, iInsertLen, "%s", (fetch_ScrollEnable() == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 29:// hr12mode
+  case 26:// hr12mode
     {
       UINT8 my_hr12mode = fetch_ClockHourMode();
       UINT8 my_hr12flag = FLAG_OFF;
@@ -403,7 +371,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_hr12flag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 30:// hr24mode
+  case 27:// hr24mode
     {
       UINT8 my_hr24mode = fetch_ClockHourMode();
       UINT8 my_hr24flag = FLAG_OFF;
@@ -413,7 +381,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_hr24flag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 31:// chmenoff
+  case 28:// chmenoff
     {
       UINT8 my_chimemode = fetch_ChimeMode();
       UINT8 my_chimeflag = FLAG_OFF;
@@ -423,7 +391,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_chimeflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 32:// chmenday
+  case 29:// chmenday
     {
       UINT8 my_chimemode = fetch_ChimeMode();
       UINT8 my_chimeflag = FLAG_OFF;
@@ -433,7 +401,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_chimeflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 33:// chmenon
+  case 30:// chmenon
     {
       UINT8 my_chimemode = fetch_ChimeMode();
       UINT8 my_chimeflag = FLAG_OFF;
@@ -443,20 +411,20 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_chimeflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 34:// chmstart
+  case 31:// chmstart
     {
 
       printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_ChimeStart());
     }
     break;
-  case 35:// chimstop
+  case 32:// chimstop
     {
 
       printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_ChimeStop());
     }
 
     break;
-  case 36:// nliteoff
+  case 33:// nliteoff
     {
       UINT8 my_nightlightmode = fetch_NightLightMode();
       UINT8 my_nightlightflag = FLAG_OFF;
@@ -466,7 +434,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 37:// nlitauto
+  case 34:// nlitauto
     {
       UINT8 my_nightlightmode = fetch_NightLightMode();
       UINT8 my_nightlightflag = FLAG_OFF;
@@ -476,7 +444,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 38:// nltnight
+  case 35:// nltnight
     {
       UINT8 my_nightlightmode = fetch_NightLightMode();
       UINT8 my_nightlightflag = FLAG_OFF;
@@ -486,7 +454,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 39:// ntliteon
+  case 36:// ntliteon
     {
       UINT8 my_nightlightmode = fetch_NightLightMode();
       UINT8 my_nightlightflag = FLAG_OFF;
@@ -496,13 +464,13 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%s", (my_nightlightflag == FLAG_ON) ? "checked" : "");
     }
     break;
-  case 40:// nltstart
+  case 37:// nltstart
     {
 
       printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_NightLightStart());
     }
     break;
-  case 41:// nlgtstop
+  case 38:// nlgtstop
     {
 
       printed = snprintf(pcInsert, iInsertLen, "%02d", fetch_NightLightStop());

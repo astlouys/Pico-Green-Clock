@@ -359,21 +359,6 @@ const char * cgi_setnightlightmode_handler(int iIndex, int iNumParams, char *pcP
   return "/index.shtml";
 }
 
-// CGI handler which is run when a request for /led.cgi is detected
-const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
-  // Check if an request for LED has been made (/led.cgi?led=x)
-  // Check first parameter only as don't care about others
-  if (strcmp(pcParam[0] , "led") == 0) {
-      // Look at the argument to check if LED is to be turned on (x=1) or off (x=0)
-      if(strcmp(pcValue[0], "0") == 0)
-          cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-      else if(strcmp(pcValue[0], "1") == 0)
-          cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-  }
-  // Send the index page back to the user
-  return "/index.shtml";
-}
-
 // CGI handler which is run when a request for /htalarm0.cgi is detected
 const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
   UINT8 Loop1UInt8;
@@ -554,9 +539,6 @@ static const tCGI cgi_handlers[] = {
         "/setnightlightmode.cgi", cgi_setnightlightmode_handler
     },
     {
-        "/led.cgi", cgi_led_handler
-    },
-    {
         "/htalarm.cgi", cgi_htalarm_handler
     },
     {
@@ -569,8 +551,8 @@ static const tCGI cgi_handlers[] = {
 };
 
 void cgi_init(void) {
-    // We have seventeen handlers
-    http_set_cgi_handlers(cgi_handlers, 17);
+    // We have sixteen handlers
+    http_set_cgi_handlers(cgi_handlers, 16);
 }
 
 // Routine to process the returned text box values to return
