@@ -223,6 +223,9 @@
                      - Add a web control to set a local level for the minimum light level for maximum dimming. This can vary between clocks. Value stored in flash.
                      - Add a web control to swap the operaton of the set key from short press to set clock to short press to set the alarms.
                      - Fix triggering of afternoon alarms when in 12hr display mode.
+                     - Release on GitHub
+
+   25-FEB-2024 10.01 - Correct the flash_config structure in the Pico-W NTP Client code.
 
 \* ================================================================== */
 
@@ -293,7 +296,7 @@
                      "CalendarEventsGeneric.cpp".
 \* ================================================================== */
 /* Firmware version. */
-#define FIRMWARE_VERSION "10.00"  ///
+#define FIRMWARE_VERSION "10.01"  ///
 
 /* Select the language for data display. */
 #define DEFAULT_LANGUAGE ENGLISH // choices for now are FRENCH, ENGLISH, GERMAN, and SPANISH.
