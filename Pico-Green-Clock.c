@@ -378,13 +378,6 @@
 \* ----------------------------------------------------------------------------------------------------------------------- */
 #ifdef RELEASE_VERSION
 #warning Built as RELEASE_VERSION
-
-/* Specify the filename of calendar events to merge with this version of firmware. */
-#define CALENDAR_FILENAME "CalendarEventsGeneric.cpp"
-
-/* Specify the filename of reminders to merge with this version of firmware. */
-#define REMINDER_FILENAME "RemindersGeneric.cpp"
-
 #endif  // RELEASE_VERSION
 /* ----------------------------------------------------------------------------------------------------------------------- *\
                                            End of setup specific to RELEASE version.
@@ -400,19 +393,6 @@
 #define DEVELOPER_VERSION
 #warning Built as DEVELOPER_VERSION
 
-// Load custom calendar and reminder files for each developer.
-/* Specify the filename of calendar events to merge with this version of firmware. */
-#ifdef DEVELOPER_IS_ANDRE
-#define CALENDAR_FILENAME "CalendarEventsAndre.cpp"
-
-/* Specify the filename of calendar events to merge with this version of firmware. */
-#define REMINDER_FILENAME "RemindersAndre.cpp"
-#else
-#define CALENDAR_FILENAME "CalendarEventsGeneric.cpp"
-
-/* Specify the filename of calendar events to merge with this version of firmware. */
-#define REMINDER_FILENAME "RemindersGeneric.cpp"
-#endif
 /* Conditional compile to allow a quicker power-up sequence by-passing some device tests. */
 #define QUICK_START  ///
 #ifdef QUICK_START
@@ -589,10 +569,22 @@ UINT8 SETUP_AUTO_BRIGHT =          0x13;
 \* ------------------------------------------------------------------ */
 
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
-#include CALENDAR_FILENAME
+#if defined __has_include && __has_include ("CalendarEventsAndre.cpp")
+#include "CalendarEventsAndre.cpp"
+#elif defined __has_include && __has_include ("CalendarEventsChris.cpp")
+#include "CalendarEventsChris.cpp"
+#else
+#include "CalendarEventsGeneric.cpp"
+#endif
 
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
-#include REMINDER_FILENAME
+#if defined __has_include && __has_include ("RemindersAndre.cpp")
+#include "CalendarEventsAndre.cpp"
+#elif defined __has_include && __has_include ("RemindersChris.cpp")
+#include "CalendarEventsChris.cpp"
+#else
+#include "RemindersGeneric.cpp"
+#endif
 
 // Define data structures for optional hardware.
 #ifdef BME280_SUPPORT
@@ -1568,11 +1560,13 @@ int main(void)
   // sprintf(&FlashConfig.Hostname[4], PICO_HOSTNAME);
   // sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
   // sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
-
+  // Can be included by adding the above within a temporary WiFiCredentials.cpp file that isn't within the git repository
   #ifdef DEVELOPER_VERSION
-  #include "Credentials.cpp"
+  #if defined __has_include && __has_include ("WiFiCredentials.cpp")
   #endif
-  /***/
+  #include "WiFiCredentials.cpp"
+  #endif  // DEVELOPER_VERSION
+
 
 
 
@@ -2323,10 +2317,9 @@ int main(void)
     // play_jingle(JINGLE_ENCOUNTER);
     // play_jingle(JINGLE_FETE);
     // play_jingle(JINGLE_RACING);
-    play_jingle(JINGLE_CHRISTMAS);
+    // play_jingle(JINGLE_CHRISTMAS);
   #endif  // DEBUG_JINGLE
   #endif  // PASSIVE_PIEZO_SUPPORT
-
 
 
 
