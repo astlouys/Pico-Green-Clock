@@ -329,6 +329,58 @@ typedef unsigned char UCHAR;
 #define LA_DIESE_c  1865
 #define SI_c        1976
 
+/* Music tone definitions for 4 octaves */
+// Makes converting scores to tunes easier, middle C is C_4
+#define C_3          131
+#define C_SHARP_3    139
+#define D_3          147
+#define D_SHARP_3    156
+#define E_3          165
+#define F_3          175
+#define F_SHARP_3    185
+#define G_3          196
+#define G_SHARP_3    208
+#define A_3          220
+#define A_SHARP_3    233
+#define B_3          247
+#define C_4          262
+#define C_SHARP_4    277
+#define D_4          294
+#define D_SHARP_4    311
+#define E_4          330
+#define F_4          349
+#define F_SHARP_4    370
+#define G_4          392
+#define G_SHARP_4    415
+#define A_4          440
+#define A_SHARP_4    466
+#define B_4          494
+#define C_5          523
+#define C_SHARP_5    554
+#define D_5          587
+#define D_SHARP_5    622
+#define E_5          659
+#define F_5          698
+#define F_SHARP_5    740
+#define G_5          784
+#define G_SHARP_5    831
+#define A_5          880
+#define A_SHARP_5    932
+#define B_5          988
+#define C_6         1047
+#define C_SHARP_6   1109
+#define D_6         1175
+#define D_SHARP_6   1245
+#define E_6         1319
+#define F_6         1397
+#define F_SHARP_6   1480
+#define G_6         1568
+#define G_SHARP_6   1661
+#define A_6         1760
+#define A_SHARP_6   1865
+#define B_6         1976
+
+
 
 /* Jingle definitions. */
 #define JINGLE_LO_LIMIT  0x00
@@ -338,7 +390,8 @@ typedef unsigned char UCHAR;
 #define JINGLE_RACING    0x04
 #define JINGLE_CHRISTMAS 0x05
 #define JINGLE_SUNHASHAT 0x06
-#define JINGLE_HI_LIMIT  0x07
+#define JINGLE_CANONIND  0x07
+#define JINGLE_HI_LIMIT  0x08
 #else
 /* Jingle definitions. Placeholder only if not using a passive piezo. */
 #define JINGLE_LO_LIMIT  0x00
@@ -348,6 +401,7 @@ typedef unsigned char UCHAR;
 #define JINGLE_RACING    0x00
 #define JINGLE_CHRISTMAS 0x00
 #define JINGLE_SUNHASHAT 0x00
+#define JINGLE_CANONIND  0x00
 #define JINGLE_HI_LIMIT  0x00
 #endif
 
