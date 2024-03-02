@@ -579,9 +579,9 @@ UINT8 SETUP_AUTO_BRIGHT =          0x13;
 
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
 #if defined __has_include && __has_include ("RemindersAndre.cpp")
-#include "CalendarEventsAndre.cpp"
+#include "RemindersAndre.cpp"
 #elif defined __has_include && __has_include ("RemindersChris.cpp")
-#include "CalendarEventsChris.cpp"
+#include "RemindersChris.cpp"
 #else
 #include "RemindersGeneric.cpp"
 #endif
