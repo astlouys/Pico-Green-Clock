@@ -1205,6 +1205,7 @@ int main(void)
   \* ----------------------------------------------------------------------------------------------------- */
   #ifdef RELEASE_VERSION
   DebugBitMask = DEBUG_NONE;
+  DebugBitMask += DEBUG_JINGLE;
   #else  // DEVELOPER_VERSION
   /* NOTE: If DEBUG_FLASH is turned On, it allows logging information about flash memory operations.
            However, logging a flash update during a callback procedure takes a relatively long time and will generate a crash.
@@ -1237,6 +1238,7 @@ int main(void)
   // DebugBitMask += DEBUG_TIMER;
   // DebugBitMask += DEBUG_TIMING;
   // DebugBitMask += DEBUG_WATCHDOG;
+  // DebugBitMask += DEBUG_JINGLE;
   #endif  // DEVELOPER_VERSION
 
   /* If user requested any section to be debugged through Pico's UART (or USB), send a power-up time stamp to log screen. */
@@ -1365,6 +1367,10 @@ int main(void)
 
           case DEBUG_TIMING:
             uart_send(__LINE__, "-> Timing\r");
+          break;
+
+          case DEBUG_JINGLE:
+            uart_send(__LINE__, "-> Jingle\r");
           break;
 
           default:
@@ -2310,7 +2316,15 @@ int main(void)
   scroll_queue(TAG_PICO_TYPE);
   scroll_queue(TAG_PICO_UNIQUE_ID);
 
-
+  #ifdef PASSIVE_PIEZO_SUPPORT
+  #ifdef DEBUG_JINGLE
+    // play_jingle(JINGLE_BIRTHDAY);
+    // play_jingle(JINGLE_ENCOUNTER);
+    // play_jingle(JINGLE_FETE);
+    // play_jingle(JINGLE_RACING);
+    play_jingle(JINGLE_CHRISTMAS);
+  #endif  // DEBUG_JINGLE
+  #endif  // PASSIVE_PIEZO_SUPPORT
 
   /* ---------------------------------------------------------------- *\
               Scroll daylight saving time status on power up.
@@ -6943,6 +6957,43 @@ void play_jingle(UINT16 JingleNumber)
     sound_queue_passive(SOL_b, 200);
     sound_queue_passive(SOL_b, 200);
     sound_queue_passive(DO_c, 1400);
+
+    return;
+  }
+
+  if (JingleNumber == JINGLE_CHRISTMAS)
+  {
+    /* We wish you a Merry Christmas */
+    sound_queue_passive(RE_b,       400);
+    sound_queue_passive(SOL_b,      400);
+    sound_queue_passive(SOL_b,      200);
+    sound_queue_passive(LA_b,       200);
+    sound_queue_passive(SOL_b,      200);
+    sound_queue_passive(FA_DIESE_b, 200);
+    sound_queue_passive(MI_b,       400);
+    sound_queue_passive(MI_b,       450);
+    sound_queue_passive(MI_b,       400);
+    sound_queue_passive(LA_b,       400);
+    sound_queue_passive(LA_b,       200);
+    sound_queue_passive(SI_b,       200);
+    sound_queue_passive(LA_b,       200);
+    sound_queue_passive(SOL_b,      200);
+    sound_queue_passive(FA_DIESE_b, 400);
+    sound_queue_passive(RE_b,       450);
+    sound_queue_passive(RE_b,       400);
+    sound_queue_passive(SI_b,       400);
+    sound_queue_passive(SI_b,       200);
+    sound_queue_passive(DO_c,       200);
+    sound_queue_passive(SI_b,       200);
+    sound_queue_passive(LA_b,       200);
+    sound_queue_passive(SOL_b,      400);
+    sound_queue_passive(MI_b,       450);
+    sound_queue_passive(RE_b,       200);
+    sound_queue_passive(RE_b,       200);
+    sound_queue_passive(MI_b,       400);
+    sound_queue_passive(LA_b,       400);
+    sound_queue_passive(FA_DIESE_b, 400);
+    sound_queue_passive(SOL_b,      800);
 
     return;
   }
