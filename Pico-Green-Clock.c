@@ -2316,6 +2316,7 @@ int main(void)
   scroll_queue(TAG_PICO_TYPE);
   scroll_queue(TAG_PICO_UNIQUE_ID);
 
+  // Debug - play out a jingle to see how it sounds
   #ifdef PASSIVE_PIEZO_SUPPORT
   #ifdef DEBUG_JINGLE
     // play_jingle(JINGLE_BIRTHDAY);
@@ -2325,6 +2326,9 @@ int main(void)
     play_jingle(JINGLE_CHRISTMAS);
   #endif  // DEBUG_JINGLE
   #endif  // PASSIVE_PIEZO_SUPPORT
+
+
+
 
   /* ---------------------------------------------------------------- *\
               Scroll daylight saving time status on power up.
