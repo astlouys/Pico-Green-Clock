@@ -571,8 +571,8 @@ UINT8 SETUP_AUTO_BRIGHT =          0x13;
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
 #if defined __has_include && __has_include ("CalendarEventsAndre.cpp")
 #include "CalendarEventsAndre.cpp"
-#elif defined __has_include && __has_include ("CalendarEventsChris.cpp")
-#include "CalendarEventsChris.cpp"
+#elif defined __has_include && __has_include ("CalendarEventsCustom.cpp")
+#include "CalendarEventsCustom.cpp"
 #else
 #include "CalendarEventsGeneric.cpp"
 #endif
@@ -580,8 +580,8 @@ UINT8 SETUP_AUTO_BRIGHT =          0x13;
 /* Events to scroll on clock display at specific dates. Must be setup by user. Some examples are already defined. */
 #if defined __has_include && __has_include ("RemindersAndre.cpp")
 #include "RemindersAndre.cpp"
-#elif defined __has_include && __has_include ("RemindersChris.cpp")
-#include "RemindersChris.cpp"
+#elif defined __has_include && __has_include ("RemindersCustom.cpp")
+#include "RemindersCustom.cpp"
 #else
 #include "RemindersGeneric.cpp"
 #endif
@@ -17429,22 +17429,27 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
            ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHourSetting  >= FlashConfig.ChimeTimeOn)  && (CurrentHourSetting <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
            ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn)  && ((CurrentHourSetting >= FlashConfig.ChimeTimeOff) || (CurrentHourSetting <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
         {
+          #ifdef PASSIVE_PIEZO_SUPPORT
+          /* Calendar Event sounds with passive buzzer if one has been installed by user, and if a jingle is defined with this Calendar Event. */
+          if (CalendarEvent[Loop1UInt8].Jingle != 0)
+          {
+            /* If there is a jingle defined, play it. */
+            play_jingle(CalendarEvent[Loop1UInt8].Jingle);
+          }
+          else {
+            /* Calendar Event sounds with active buzzer. */
+            for (Loop2UInt8 = 0; Loop2UInt8 < TONE_EVENT_REPEAT2; ++Loop2UInt8)
+            {
+              sound_queue_active(TONE_EVENT_DURATION, TONE_EVENT_REPEAT1);
+              sound_queue_active(100, SILENT);
+            }
+          }
+          #else
           /* Calendar Event sounds with active buzzer. */
           for (Loop2UInt8 = 0; Loop2UInt8 < TONE_EVENT_REPEAT2; ++Loop2UInt8)
           {
             sound_queue_active(TONE_EVENT_DURATION, TONE_EVENT_REPEAT1);
             sound_queue_active(100, SILENT);
-          }
-
-          #ifdef PASSIVE_PIEZO_SUPPORT
-          /* Calendar Event sounds with passive buzzer if one has been installed by user, and if a jingle is defined with this Calendar Event. */
-          if (CalendarEvent[Loop1UInt8].Jingle != 0)
-          {
-            sound_queue_passive(SILENT, WAIT_4_ACTIVE);  // jingle should begin only after active buzzer has completed.
-
-            /* If there is a jingle defined, play it. */
-            /// command_queue(COMMAND_PLAY_JINGLE, CalendarEvent[Loop1UInt8].Jingle);
-            play_jingle(CalendarEvent[Loop1UInt8].Jingle);
           }
           #endif  // PASSIVE_PIEZO_SUPPORT
         }
