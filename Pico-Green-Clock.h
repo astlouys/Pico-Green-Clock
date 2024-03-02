@@ -337,7 +337,8 @@ typedef unsigned char UCHAR;
 #define JINGLE_FETE      0x03
 #define JINGLE_RACING    0x04
 #define JINGLE_CHRISTMAS 0x05
-#define JINGLE_HI_LIMIT  0x06
+#define JINGLE_SUNHASHAT 0x06
+#define JINGLE_HI_LIMIT  0x07
 #else
 /* Jingle definitions. Placeholder only if not using a passive piezo. */
 #define JINGLE_LO_LIMIT  0x00
@@ -346,6 +347,7 @@ typedef unsigned char UCHAR;
 #define JINGLE_FETE      0x00
 #define JINGLE_RACING    0x00
 #define JINGLE_CHRISTMAS 0x00
+#define JINGLE_SUNHASHAT 0x00
 #define JINGLE_HI_LIMIT  0x00
 #endif
 

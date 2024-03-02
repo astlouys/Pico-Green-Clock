@@ -1197,7 +1197,6 @@ int main(void)
   \* ----------------------------------------------------------------------------------------------------- */
   #ifdef RELEASE_VERSION
   DebugBitMask = DEBUG_NONE;
-  DebugBitMask += DEBUG_JINGLE;
   #else  // DEVELOPER_VERSION
   /* NOTE: If DEBUG_FLASH is turned On, it allows logging information about flash memory operations.
            However, logging a flash update during a callback procedure takes a relatively long time and will generate a crash.
@@ -1566,7 +1565,6 @@ int main(void)
   #endif
   #include "WiFiCredentials.cpp"
   #endif  // DEVELOPER_VERSION
-
 
 
 
@@ -2318,6 +2316,7 @@ int main(void)
     // play_jingle(JINGLE_FETE);
     // play_jingle(JINGLE_RACING);
     // play_jingle(JINGLE_CHRISTMAS);
+    // play_jingle(JINGLE_SUNHASHAT);
   #endif  // DEBUG_JINGLE
   #endif  // PASSIVE_PIEZO_SUPPORT
 
@@ -2933,7 +2932,6 @@ float adc_read_voltage(void)
   UINT16 AdcValue;
 
   float Volts;
-
 
   /*** Strangely, voltage reading doesn't seem to work on the Pico W as it does on the Pico... ***/
   /*** I'll have to investigate this later... ***/
@@ -6994,6 +6992,41 @@ void play_jingle(UINT16 JingleNumber)
 
     return;
   }
+
+  if (JingleNumber == JINGLE_SUNHASHAT)
+  {
+    /* The Sun Has Got His Hat On */
+    sound_queue_passive(SOL_a,      300);
+    sound_queue_passive(DO_a,       300);
+    sound_queue_passive(MI_a,       300);
+    sound_queue_passive(SOL_a,      300);
+    sound_queue_passive(DO_b,       300);
+    sound_queue_passive(LA_a,       300);
+    sound_queue_passive(SOL_a,      300);
+    sound_queue_passive(SILENT,     600);
+    sound_queue_passive(DO_a,       300);
+    sound_queue_passive(MI_a,       300);
+    sound_queue_passive(SOL_a,      300);
+    sound_queue_passive(MI_b,       300);
+    sound_queue_passive(RE_b,       900);
+    sound_queue_passive(DO_b,       300);
+    sound_queue_passive(SI_a,       300);
+    sound_queue_passive(DO_b,       300);
+    sound_queue_passive(LA_a,       300);
+    sound_queue_passive(SI_a,       300);
+    sound_queue_passive(SOL_a,      300);
+    sound_queue_passive(LA_a,       300);
+    sound_queue_passive(FA_a,       300);
+    sound_queue_passive(SOL_a,      300);
+    sound_queue_passive(MI_a,       300);
+    sound_queue_passive(FA_a,       300);
+    sound_queue_passive(RE_a,       300);
+    sound_queue_passive(SOL_a,      300);
+    sound_queue_passive(DO_a,       900);
+
+    return;
+  }
+
   #endif // PASSIVE_PIEZO_SUPPORT
 }
 
