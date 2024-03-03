@@ -1835,14 +1835,15 @@ int main(void)
   \* ---------------------------------------------------------------- */
   #ifdef PASSIVE_PIEZO_SUPPORT
   sound_queue_passive(SILENT, WAIT_4_ACTIVE);  // wait for active sound queue to complete.
-  sound_queue_passive(523,   150);
-  sound_queue_passive(659,   150);
-  sound_queue_passive(784,   150);
-  sound_queue_passive(1047,  200);
-  sound_queue_passive(784,   150);
-  sound_queue_passive(659,   150);
-  sound_queue_passive(523,   700);
+  // sound_queue_passive(523,   150);
+  // sound_queue_passive(659,   150);
+  // sound_queue_passive(784,   150);
+  // sound_queue_passive(1047,  200);
+  // sound_queue_passive(784,   150);
+  // sound_queue_passive(659,   150);
+  // sound_queue_passive(523,   700);
   sound_queue_passive(SILENT, 50);
+  play_jingle(JINGLE_CANOND);
   #endif  // PASSIVE_PIEZO_SUPPORT
 
 
@@ -2317,6 +2318,7 @@ int main(void)
     // play_jingle(JINGLE_RACING);
     // play_jingle(JINGLE_CHRISTMAS);
     // play_jingle(JINGLE_SUNHASHAT);
+    play_jingle(JINGLE_CANOND);
   #endif  // DEBUG_JINGLE
   #endif  // PASSIVE_PIEZO_SUPPORT
 
@@ -7025,6 +7027,139 @@ void play_jingle(UINT16 JingleNumber)
     sound_queue_passive(DO_a,       900);
 
     return;
+  }
+
+  if (JingleNumber == JINGLE_CANOND)
+  {
+    /* Pachelbel Canon a D
+    4/4 = 300, C5~ F5#        */
+    // #34
+    sound_queue_passive(A_5,        150);
+    sound_queue_passive(F_SHARP_5,   75);
+    sound_queue_passive(G_5,         75);
+    sound_queue_passive(A_5,        150);
+    sound_queue_passive(F_SHARP_5,   75);
+    sound_queue_passive(G_5,         75);
+    sound_queue_passive(A_5,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(F_SHARP_5,   75);
+    sound_queue_passive(G_5,         75);
+
+    // #35
+    sound_queue_passive(F_SHARP_5,  150);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(F_SHARP_5,  150);
+    sound_queue_passive(F_SHARP_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(A_4,         75);
+
+    // #36
+    sound_queue_passive(G_4,        150);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(G_4,        150);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(E_4,         75);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(E_4,         75);
+    sound_queue_passive(D_4,         75);
+    sound_queue_passive(E_4,         75);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(B_4,         75);
+
+    // #37
+    sound_queue_passive(G_4,        150);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(B_4,        150);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(F_SHARP_5,   75);
+    sound_queue_passive(G_5,         75);
+    sound_queue_passive(A_5,         75);
+
+    // #38
+    sound_queue_passive(F_SHARP_5,  150);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(F_SHARP_5,  150);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(F_SHARP_5,   75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+
+    // #39
+    sound_queue_passive(D_5,        150);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,        150);
+    sound_queue_passive(D_4,         75);
+    sound_queue_passive(E_4,         75);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(E_4,         75);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+
+    // #40
+    sound_queue_passive(B_4,        150);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(B_4,        150);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(F_4,         75);
+    sound_queue_passive(G_4,         75);
+    sound_queue_passive(A_4,         75);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+
+    // #41
+    sound_queue_passive(B_4,        150);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,        150);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(E_5,         75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(C_SHARP_5,   75);
+    sound_queue_passive(D_5,         75);
+    sound_queue_passive(B_4,         75);
+    sound_queue_passive(C_SHARP_5,   75);
   }
 
   #endif // PASSIVE_PIEZO_SUPPORT
