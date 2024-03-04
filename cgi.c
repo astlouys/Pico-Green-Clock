@@ -370,6 +370,7 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
   my_alarm.Minute = 0;
   my_alarm.Hour = 12;
   my_alarm.Day = 0;
+  my_alarm.Jingle = 0;
   my_alarm.Text[0] = '\0';
   // Fetch the alarm number from the first returned value - fixed start of alx, note '0' is a char and "0" is a null terminated string array
   alarmnumber = (pcParam[0][2] - '0');
@@ -430,6 +431,10 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
       }
       unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
       strcpy(my_alarm.Text, unesctext);
+    }
+    // Select drop down for a jingle tune id=value
+    if (strcmp(pcParam[Loop1UInt8], "al0tone") == 0) {
+      my_alarm.Jingle = atoi(pcValue[Loop1UInt8]);
     }
   }
   // If no day is set, then clear the alarn enable too

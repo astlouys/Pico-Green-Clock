@@ -427,6 +427,8 @@ struct alarm
   UINT8 Minute;
   UINT8 Hour;
   UINT8 Day;
+  UINT8 Jingle;
+  UINT8 Reserved[2];
   UCHAR Text[40];
 };
 
@@ -558,7 +560,8 @@ struct sound_passive
    Those variables will be restored after a reboot and / or power failure. */
 /* IMPORTANT: Version must always be the first element of the structure and
               CRC16   must always be the  last element of the structure.
-              Size is 675 bytes long */
+              Size is 702 bytes long,
+              but space allocated is 4096 bytes (FLASH_CONFIG_OFFSET) */
 struct flash_config
 {
   UCHAR  Version[6];          // firmware version number (format: "06.00" - including end-of-string).
@@ -581,7 +584,7 @@ struct flash_config
   UINT16 DimmerMinLightLevel; // Value of the average light level to be used for the minimum display dim level, range 0 to 1500
   UINT8  ShortSetKey;         // flag indicating the set is a short key press and alarm is long or vice versa.
   UINT8  Reserved1[45];       // reserved for future use.
-  struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask.
+  struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask, size is 48 bytes, total 432
   UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5 of the variable string, for the same reason as SSID above.

@@ -1548,6 +1548,107 @@ int main(void)
   }
 
 
+  /* -------------------- UPDATE VERSION 10.00 TO VERSION 10.01 -------------------- */
+  if (strcmp(FlashConfig.Version, "10.00") == 0)
+  {
+    /* Convert flash configuration from Version 10.0 to Version 10.01. */
+    if (DebugBitMask & DEBUG_FLASH)
+    {
+      uart_send(__LINE__, "Display Flash configuration before conversion from Version 10.00 to Version 10.01.\r");
+      flash_display_config();
+    }
+    sprintf(FlashConfig.Version, "10.01");   // convert to Version 10.01.
+    // Reset the alarm settings
+    /* Default configuration for 9 alarms. Text may be changed for another 40-characters max string. */
+
+    FlashConfig.Alarm[0].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[0].Day    = (1 << MON) + (1 << TUE) + (1 << WED) + (1 << THU) + (1 << FRI);
+    FlashConfig.Alarm[0].Hour   = 8;
+    FlashConfig.Alarm[0].Minute = 00;
+    FlashConfig.Alarm[0].Second = 29;
+    FlashConfig.Alarm[0].Jingle = 0;
+    sprintf(FlashConfig.Alarm[0].Text, "Alarm 1"); // string to be scrolled when alarm 1 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[1].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[1].Day    = (1 << SAT) + (1 << SUN);
+    FlashConfig.Alarm[1].Hour   = 14;
+    FlashConfig.Alarm[1].Minute = 37;
+    FlashConfig.Alarm[1].Second = 29;
+    FlashConfig.Alarm[1].Jingle = 0;
+    sprintf(FlashConfig.Alarm[1].Text, "Alarm 2"); // string to be scrolled when alarm 2 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[2].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[2].Day    = (1 << MON);
+    FlashConfig.Alarm[2].Hour   = 14;
+    FlashConfig.Alarm[2].Minute = 36;
+    FlashConfig.Alarm[2].Second = 29;
+    FlashConfig.Alarm[2].Jingle = 0;
+    sprintf(FlashConfig.Alarm[2].Text, "Alarm 3"); // string to be scrolled when alarm 3 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[3].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[3].Day    = (1 << TUE);
+    FlashConfig.Alarm[3].Hour   = 14;
+    FlashConfig.Alarm[3].Minute = 35;
+    FlashConfig.Alarm[3].Second = 29;
+    FlashConfig.Alarm[3].Jingle = 0;
+    sprintf(FlashConfig.Alarm[3].Text, "Alarm 4"); // string to be scrolled when alarm 4 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[4].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[4].Day    = (1 << WED);
+    FlashConfig.Alarm[4].Hour   = 14;
+    FlashConfig.Alarm[4].Minute = 34;
+    FlashConfig.Alarm[4].Second = 29;
+    FlashConfig.Alarm[4].Jingle = 0;
+    sprintf(FlashConfig.Alarm[4].Text, "Alarm 5"); // string to be scrolled when alarm 5 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[5].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[5].Day    = (1 << THU);
+    FlashConfig.Alarm[5].Hour   = 14;
+    FlashConfig.Alarm[5].Minute = 33;
+    FlashConfig.Alarm[5].Second = 29;
+    FlashConfig.Alarm[5].Jingle = 0;
+    sprintf(FlashConfig.Alarm[5].Text, "Alarm 6"); // string to be scrolled when alarm 6 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[6].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[6].Day    = (1 << FRI);
+    FlashConfig.Alarm[6].Hour   = 14;
+    FlashConfig.Alarm[6].Minute = 32;
+    FlashConfig.Alarm[6].Second = 29;
+    FlashConfig.Alarm[6].Jingle = 0;
+    sprintf(FlashConfig.Alarm[6].Text, "Alarm 7"); // string to be scrolled when alarm 7 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[7].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[7].Day    = (1 << SAT);
+    FlashConfig.Alarm[7].Hour   = 14;
+    FlashConfig.Alarm[7].Minute = 31;
+    FlashConfig.Alarm[7].Second = 29;
+    FlashConfig.Alarm[7].Jingle = 0;
+    sprintf(FlashConfig.Alarm[7].Text, "Alarm 8"); // string to be scrolled when alarm 8 is triggered (ALARM TEXT).
+
+    FlashConfig.Alarm[8].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
+    FlashConfig.Alarm[8].Day    = (1 << SUN);
+    FlashConfig.Alarm[8].Hour   = 14;
+    FlashConfig.Alarm[8].Minute = 30;
+    FlashConfig.Alarm[8].Second = 29;
+    FlashConfig.Alarm[8].Jingle = 0;
+    sprintf(FlashConfig.Alarm[8].Text, "Alarm 9"); // string to be scrolled when alarm 9 is triggered (ALARM TEXT).
+
+      // Reset the WiFi settings too
+    sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
+    sprintf(FlashConfig.SSID,     ".;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.");                                // write specific footprint to flash memory.
+    sprintf(FlashConfig.Password, ".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");  // write specific footprint to flash memory.
+    sprintf(&FlashConfig.Hostname[4], PICO_HOSTNAME);
+    sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
+    sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
+
+    /* Make provision for future parameters. */
+    for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved2); ++Loop1UInt16)
+    {
+      FlashConfig.Reserved2[Loop1UInt16] = 0xFF;
+    }
+
+  }
+
   // /*** One-time FlashConfig writes may be inserted below... ***/
   // // NOTE: If you already ran Firmware Version 10.0x, network hostname, SSID and password will not be updated just by replacing the
   // //       #define HOSTNAME, #define NETWORK_NAME and #define NETWORK_PASSWORD at the beginning of the source code, instead, to set hostname,
@@ -1560,11 +1661,9 @@ int main(void)
   // sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
   // sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
   // Can be included by adding the above within a temporary WiFiCredentials.cpp file that isn't within the git repository
-  #ifdef DEVELOPER_VERSION
   #if defined __has_include && __has_include ("WiFiCredentials.cpp")
-  #endif
   #include "WiFiCredentials.cpp"
-  #endif  // DEVELOPER_VERSION
+  #endif
 
 
 
@@ -5003,6 +5102,7 @@ UINT8 flash_display_config(void)
     uart_send(__LINE__, "[%X] Alarm[%2.2u].Hour:            %3u\r", &FlashConfig.Alarm[Loop1UInt16].Hour, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Hour);
     uart_send(__LINE__, "[%X] Alarm[%2.2u].Minute:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Minute, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Minute);
     uart_send(__LINE__, "[%X] Alarm[%2.2u].Second:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Second, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Second);
+    uart_send(__LINE__, "[%X] Alarm[%2.2u].Jingle:          %3u\r", &FlashConfig.Alarm[Loop1UInt16].Jingle, Loop1UInt16, FlashConfig.Alarm[Loop1UInt16].Jingle);
 
     uint64_to_binary_string(FlashConfig.Alarm[Loop1UInt16].Day, 8, DayMask);
     sprintf(String, "[%8.8X] Alarm[%2.2u].DayMask:    %s     (0x%2.2X) ", &FlashConfig.Alarm[Loop1UInt16].Day, Loop1UInt16, DayMask, FlashConfig.Alarm[Loop1UInt16].Day);
@@ -5246,6 +5346,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[0].Hour   = 8;
   FlashConfig.Alarm[0].Minute = 00;
   FlashConfig.Alarm[0].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[0].Jingle = 0;
   sprintf(FlashConfig.Alarm[0].Text, "Alarm 1"); // string to be scrolled when alarm 1 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[1].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5253,6 +5354,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[1].Hour   = 14;
   FlashConfig.Alarm[1].Minute = 37;
   FlashConfig.Alarm[1].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[1].Jingle = 0;
   sprintf(FlashConfig.Alarm[1].Text, "Alarm 2"); // string to be scrolled when alarm 2 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[2].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5260,6 +5362,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[2].Hour   = 14;
   FlashConfig.Alarm[2].Minute = 36;
   FlashConfig.Alarm[2].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[2].Jingle = 0;
   sprintf(FlashConfig.Alarm[2].Text, "Alarm 3"); // string to be scrolled when alarm 3 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[3].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5267,6 +5370,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[3].Hour   = 14;
   FlashConfig.Alarm[3].Minute = 35;
   FlashConfig.Alarm[3].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[3].Jingle = 0;
   sprintf(FlashConfig.Alarm[3].Text, "Alarm 4"); // string to be scrolled when alarm 4 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[4].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5274,6 +5378,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[4].Hour   = 14;
   FlashConfig.Alarm[4].Minute = 34;
   FlashConfig.Alarm[4].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[4].Jingle = 0;
   sprintf(FlashConfig.Alarm[4].Text, "Alarm 5"); // string to be scrolled when alarm 5 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[5].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5281,6 +5386,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[5].Hour   = 14;
   FlashConfig.Alarm[5].Minute = 33;
   FlashConfig.Alarm[5].Second = 29;
+  FlashConfig.Alarm[5].Jingle = 0;
   sprintf(FlashConfig.Alarm[5].Text, "Alarm 6"); // string to be scrolled when alarm 6 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[6].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5288,6 +5394,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[6].Hour   = 14;
   FlashConfig.Alarm[6].Minute = 32;
   FlashConfig.Alarm[6].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[6].Jingle = 0;
   sprintf(FlashConfig.Alarm[6].Text, "Alarm 7"); // string to be scrolled when alarm 7 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[7].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5295,6 +5402,7 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[7].Hour   = 14;
   FlashConfig.Alarm[7].Minute = 31;
   FlashConfig.Alarm[7].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[7].Jingle = 0;
   sprintf(FlashConfig.Alarm[7].Text, "Alarm 8"); // string to be scrolled when alarm 8 is triggered (ALARM TEXT).
 
   FlashConfig.Alarm[8].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -5302,14 +5410,15 @@ UINT8 flash_read_config(void)
   FlashConfig.Alarm[8].Hour   = 14;
   FlashConfig.Alarm[8].Minute = 30;
   FlashConfig.Alarm[8].Second = 29;              // not used for now... 29 is hardcoded in source code to offload the clock during busy periods.
+  FlashConfig.Alarm[8].Jingle = 0;
   sprintf(FlashConfig.Alarm[8].Text, "Alarm 9"); // string to be scrolled when alarm 9 is triggered (ALARM TEXT).
 
   sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
   sprintf(FlashConfig.SSID,     ".;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.;.");                                // write specific footprint to flash memory.
   sprintf(FlashConfig.Password, ".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");  // write specific footprint to flash memory.
-  sprintf(&FlashConfig.Hostname[4], "PicoW");
-  sprintf(&FlashConfig.SSID[4],     "MyNetworkName");
-  sprintf(&FlashConfig.Password[4], "MyPassword");
+  sprintf(&FlashConfig.Hostname[4], PICO_HOSTNAME);
+  sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
+  sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
 
   /* Make provision for future parameters. */
   for (Loop1UInt16 = 0; Loop1UInt16 < sizeof(FlashConfig.Reserved2); ++Loop1UInt16)
@@ -9591,6 +9700,7 @@ void process_scroll_queue(void)
               uart_send(__LINE__, "[%X] Alarm[%2.2u].Hour:            %3u\r", &FlashConfig.Alarm[Loop1UInt8].Hour, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour);
               uart_send(__LINE__, "[%X] Alarm[%2.2u].Minute:          %3u\r", &FlashConfig.Alarm[Loop1UInt8].Minute, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Minute);
               uart_send(__LINE__, "[%X] Alarm[%2.2u].Second:          %3u\r", &FlashConfig.Alarm[Loop1UInt8].Second, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Second);
+              uart_send(__LINE__, "[%X] Alarm[%2.2u].Jingle:          %3u\r", &FlashConfig.Alarm[Loop1UInt8].Jingle, Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Jingle);
 
               /* Identify all day-of-week targets for each alarm. */
               DayMask[0] = 0x00;  // initialize string as null.
@@ -16544,14 +16654,14 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
        When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Up" key is simply used for alarms and count-down timer shutoff. */
     if (MiddleKeyPressTime)
     {
-      /* If "Set" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
+      /* If "Up" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
       if (AlarmReachedBitMask || FlagTimerCountDownEnd)
       {
         if (AlarmReachedBitMask)
           AlarmReachedBitMask = 0;
 
 
-        /* If "Set" key has been pressed while count-down timer alarm is ringing, reset count-down timer alarm so that it stops ringing. */
+        /* If "Up" key has been pressed while count-down timer alarm is ringing, reset count-down timer alarm so that it stops ringing. */
         if (FlagTimerCountDownEnd == FLAG_ON)
         {
           FlagTimerCountDownEnd = FLAG_OFF;
@@ -16673,14 +16783,14 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
        When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Down" key is simply used for alarms and count-down timer shutoff. */
     if (BottomKeyPressTime)
     {
-      /* If "Set" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
+      /* If "Dowwn" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
       if (AlarmReachedBitMask || FlagTimerCountDownEnd)
       {
         if (AlarmReachedBitMask)
           AlarmReachedBitMask = 0;
 
 
-        /* If "Set" key has been pressed while count-down timer alarm is ringing, reset count-down timer alarm so that it stops ringing. */
+        /* If "Down" key has been pressed while count-down timer alarm is ringing, reset count-down timer alarm so that it stops ringing. */
         if (FlagTimerCountDownEnd == FLAG_ON)
         {
           FlagTimerCountDownEnd = FLAG_OFF;
@@ -18615,6 +18725,7 @@ struct alarm wfetch_alarm(UINT8 alarm_to_fetch) {
   my_alarm.Minute = FlashConfig.Alarm[alarm_to_fetch].Minute;
   my_alarm.Hour = FlashConfig.Alarm[alarm_to_fetch].Hour;
   my_alarm.Day = FlashConfig.Alarm[alarm_to_fetch].Day;
+  my_alarm.Jingle = FlashConfig.Alarm[alarm_to_fetch].Jingle;
   sprintf(my_alarm.Text, FlashConfig.Alarm[alarm_to_fetch].Text);
   return my_alarm;
 }

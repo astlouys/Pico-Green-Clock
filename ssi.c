@@ -11,27 +11,27 @@ const char * ssi_tags[] = {
 "autodim",  "mdimfull", "mdimhigh", "mdimmid",  "mdimlow",  "mdimdark", "timezone", "shsktime", "shskalrm", "langengl",
 "langfrch", "langgerm", "langczec", "langspan", "keyclick", "discroll", "hr12mode", "hr24mode", "chmenoff", "chmenday",
 "chmenon", "chmstart", "chimstop", "nliteoff", "nlitauto", "nltnight", "ntliteon", "nltstart", "nlgtstop",
-"alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text",
-"alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text",
-"alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text",
-"alm3enab", "alm3time", "alm3mond", "alm3tues", "alm3weds", "alm3thur", "alm3frid", "alm3satu", "alm3sund", "alm3text",
-"alm4enab", "alm4time", "alm4mond", "alm4tues", "alm4weds", "alm4thur", "alm4frid", "alm4satu", "alm4sund", "alm4text",
-"alm5enab", "alm5time", "alm5mond", "alm5tues", "alm5weds", "alm5thur", "alm5frid", "alm5satu", "alm5sund", "alm5text",
-"alm6enab", "alm6time", "alm6mond", "alm6tues", "alm6weds", "alm6thur", "alm6frid", "alm6satu", "alm6sund", "alm6text",
-"alm7enab", "alm7time", "alm7mond", "alm7tues", "alm7weds", "alm7thur", "alm7frid", "alm7satu", "alm7sund", "alm7text",
-"alm8enab", "alm8time", "alm8mond", "alm8tues", "alm8weds", "alm8thur", "alm8frid", "alm8satu", "alm8sund", "alm8text"
+"alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text","alm0tone",
+"alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text","alm1tone",
+"alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text","alm2tone",
+"alm3enab", "alm3time", "alm3mond", "alm3tues", "alm3weds", "alm3thur", "alm3frid", "alm3satu", "alm3sund", "alm3text","alm3tone",
+"alm4enab", "alm4time", "alm4mond", "alm4tues", "alm4weds", "alm4thur", "alm4frid", "alm4satu", "alm4sund", "alm4text","alm4tone",
+"alm5enab", "alm5time", "alm5mond", "alm5tues", "alm5weds", "alm5thur", "alm5frid", "alm5satu", "alm5sund", "alm5text","alm5tone",
+"alm6enab", "alm6time", "alm6mond", "alm6tues", "alm6weds", "alm6thur", "alm6frid", "alm6satu", "alm6sund", "alm6text","alm6tone",
+"alm7enab", "alm7time", "alm7mond", "alm7tues", "alm7weds", "alm7thur", "alm7frid", "alm7satu", "alm7sund", "alm7text","alm7tone",
+"alm8enab", "alm8time", "alm8mond", "alm8tues", "alm8weds", "alm8thur", "alm8frid", "alm8satu", "alm8sund", "alm8text","alm8tone"
 };
 
 // Set the tag offset for the alarm table entries.
 #define ALARMBASE0 39
-#define ALARMBASE1 (ALARMBASE0 + 10)
-#define ALARMBASE2 (ALARMBASE1 + 10)
-#define ALARMBASE3 (ALARMBASE2 + 10)
-#define ALARMBASE4 (ALARMBASE3 + 10)
-#define ALARMBASE5 (ALARMBASE4 + 10)
-#define ALARMBASE6 (ALARMBASE5 + 10)
-#define ALARMBASE7 (ALARMBASE6 + 10)
-#define ALARMBASE8 (ALARMBASE7 + 10)
+#define ALARMBASE1 (ALARMBASE0 + 11)
+#define ALARMBASE2 (ALARMBASE1 + 11)
+#define ALARMBASE3 (ALARMBASE2 + 11)
+#define ALARMBASE4 (ALARMBASE3 + 11)
+#define ALARMBASE5 (ALARMBASE4 + 11)
+#define ALARMBASE6 (ALARMBASE5 + 11)
+#define ALARMBASE7 (ALARMBASE6 + 11)
+#define ALARMBASE8 (ALARMBASE7 + 11)
 
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
@@ -139,67 +139,8 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
     break;
   case 8: // dstzone
     {
-      UCHAR * DST_Contry_Text;
       UINT8 DSTCOUNTRY = (UINT8)(fetch_DSTCountry());
-      switch(DSTCOUNTRY){
-        case DST_NONE: {
-          DST_Contry_Text = "None";
-        }
-        break;
-        case DST_AUSTRALIA: {
-          DST_Contry_Text = "Australia";
-        }
-        break;
-        case DST_AUSTRALIA_HOWE: {
-          DST_Contry_Text = "Australia - Howe";
-        }
-        break;
-        case DST_CHILE: {
-          DST_Contry_Text = "Chile";
-        }
-        break;
-        case DST_CUBA: {
-          DST_Contry_Text = "Cuba";
-        }
-        break;
-        case DST_EUROPE: {
-          DST_Contry_Text = "Europe";
-        }
-        break;
-        case DST_ISRAEL: {
-          DST_Contry_Text = "Israel";
-        }
-        break;
-        case DST_LEBANON: {
-          DST_Contry_Text = "Lebanon";
-        }
-        break;
-        case DST_MOLDOVA: {
-          DST_Contry_Text = "Moldova";
-        }
-        break;
-        case DST_NEW_ZEALAND: {
-          DST_Contry_Text = "New-Zealand";
-        }
-        break;
-        case DST_NORTH_AMERICA: {
-          DST_Contry_Text = "North America";
-        }
-        break;
-        case DST_PALESTINE: {
-          DST_Contry_Text = "Palestine";
-        }
-        break;
-        case DST_PARAGUAY: {
-          DST_Contry_Text = "Paraguay";
-        }
-        break;
-        default: {
-          DST_Contry_Text = "None";
-        }
-        break;
-      }
-      printed = snprintf(pcInsert, iInsertLen, "%s", DST_Contry_Text);
+      printed = snprintf(pcInsert, iInsertLen, "%d", DSTCOUNTRY);
     }
     break;
   case 9: // dstactve
@@ -588,6 +529,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
+  case (ALARMBASE0 + 10): //alm0tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 1st alarm 0
+      my_alarm = wfetch_alarm(0);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
+    }
+    break;
   case (ALARMBASE1 + 0): // alm1enab
     {
       struct alarm my_alarm;
@@ -697,6 +649,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(1);
       // Return the text
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
+    }
+    break;
+  case (ALARMBASE1 + 10): //alm1tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 2nd alarm 0
+      my_alarm = wfetch_alarm(1);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
   case (ALARMBASE2 + 0): // alm2enab
@@ -810,6 +773,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
+  case (ALARMBASE2 + 10): //alm2tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 3rd alarm 0
+      my_alarm = wfetch_alarm(2);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
+    }
+    break;
   case (ALARMBASE3 + 0): // alm3enab
     {
       struct alarm my_alarm;
@@ -921,7 +895,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-
+  case (ALARMBASE3 + 10): //alm3tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 4th alarm 0
+      my_alarm = wfetch_alarm(3);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
+    }
+    break;
   case (ALARMBASE4 + 0): // alm4enab
     {
       struct alarm my_alarm;
@@ -1031,6 +1015,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(4);
       // Return the text
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
+    }
+    break;
+  case (ALARMBASE4 + 10): //alm4tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 5th alarm 0
+      my_alarm = wfetch_alarm(4);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
   case (ALARMBASE5 + 0): // alm5enab
@@ -1144,6 +1139,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
+  case (ALARMBASE5 + 10): //alm5tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 6th alarm 0
+      my_alarm = wfetch_alarm(5);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
+    }
+    break;
   case (ALARMBASE6 + 0): // alm6enab
     {
       struct alarm my_alarm;
@@ -1253,6 +1259,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(6);
       // Return the text
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
+    }
+    break;
+  case (ALARMBASE6 + 10): //alm6tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 7th alarm 0
+      my_alarm = wfetch_alarm(6);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
   case (ALARMBASE7 + 0): // alm7enab
@@ -1366,6 +1383,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
+  case (ALARMBASE7 + 10): //alm7tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 8th alarm 0
+      my_alarm = wfetch_alarm(7);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
+    }
+    break;
   case (ALARMBASE8 + 0): // alm8enab
     {
       struct alarm my_alarm;
@@ -1475,6 +1503,17 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       my_alarm = wfetch_alarm(8);
       // Return the text
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
+    }
+    break;
+  case (ALARMBASE8 + 10): //alm7tone
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // Get the flash information for 9th alarm 0
+      my_alarm = wfetch_alarm(8);
+      // Return the jingle index
+      Alarm_Jingle = my_alarm.Jingle;
+      printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
 
