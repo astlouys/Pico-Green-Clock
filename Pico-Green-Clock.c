@@ -1560,11 +1560,9 @@ int main(void)
   // sprintf(&FlashConfig.SSID[4],     NETWORK_NAME);
   // sprintf(&FlashConfig.Password[4], NETWORK_PASSWORD);
   // Can be included by adding the above within a temporary WiFiCredentials.cpp file that isn't within the git repository
-  #ifdef DEVELOPER_VERSION
   #if defined __has_include && __has_include ("WiFiCredentials.cpp")
-  #endif
   #include "WiFiCredentials.cpp"
-  #endif  // DEVELOPER_VERSION
+  #endif
 
 
 
