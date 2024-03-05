@@ -126,7 +126,7 @@
             <label for="al0satu">Sat</label><input type="checkbox" <!--#alm0satu--> id="al0satu" name="al0satu" value="alamsatu" >
             <label for="al0sund">Sun</label><input type="checkbox" <!--#alm0sund--> id="al0sund" name="al0sund" value="alamsund" >
             <label for="al0text">Text: </label><input type="text" id="al0text" name="al0text" size='20' maxlength='40' value="<!--#alm0text-->">
-            <label for="al0actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm0actv--> id="al0actv" name="al0actv" value="alamactv" >
+            <label for="al0actv">Use Active Buzzer</label><input type="checkbox" <!--#alm0actv--> id="al0actv" name="al0actv" value="alamactv" >
             <label for="al0tone"> Alarm Sound: </label><select id="al0tone" name="al0tone" >
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -160,7 +160,7 @@
             <label for="al1satu">Sat</label><input type="checkbox" <!--#alm1satu--> id="al1satu" name="al1satu" value="alamsatu" >
             <label for="al1sund">Sun</label><input type="checkbox" <!--#alm1sund--> id="al1sund" name="al1sund" value="alamsund" >
             <label for="al1text">Text: </label><input type="text" id="al1text" name="al1text" size='20' maxlength='40' value="<!--#alm1text-->">
-            <label for="al1actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm1actv--> id="al1actv" name="al1actv" value="alamactv" >
+            <label for="al1actv">Use Active Buzzer</label><input type="checkbox" <!--#alm1actv--> id="al1actv" name="al1actv" value="alamactv" >
             <label for="al1tone"> Alarm Sound: </label><select id="al1tone" name="al1tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -194,7 +194,7 @@
             <label for="al2satu">Sat</label><input type="checkbox" <!--#alm2satu--> id="al2satu" name="al2satu" value="alamsatu">
             <label for="al2sund">Sun</label><input type="checkbox" <!--#alm2sund--> id="al2sund" name="al2sund" value="alamsund">
             <label for="al2text">Text: </label><input type="text" id="al2text" name="al2text" size='20' maxlength='40' value="<!--#alm2text-->">
-            <label for="al2actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm2actv--> id="al2actv" name="al2actv" value="alamactv" >
+            <label for="al2actv">Use Active Buzzer</label><input type="checkbox" <!--#alm2actv--> id="al2actv" name="al2actv" value="alamactv" >
             <label for="al2tone"> Alarm Sound: </label><select id="al2tone" name="al2tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -228,7 +228,7 @@
             <label for="al3satu">Sat</label><input type="checkbox" <!--#alm3satu--> id="al3satu" name="al3satu" value="alamsatu">
             <label for="al3sund">Sun</label><input type="checkbox" <!--#alm3sund--> id="al3sund" name="al3sund" value="alamsund">
             <label for="al3text">Text: </label><input type="text" id="al3text" name="al3text" size='20' maxlength='40' value="<!--#alm3text-->">
-            <label for="al3actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm3actv--> id="al3actv" name="al3actv" value="alamactv" >
+            <label for="al3actv">Use Active Buzzer</label><input type="checkbox" <!--#alm3actv--> id="al3actv" name="al3actv" value="alamactv" >
             <label for="al3tone"> Alarm Sound: </label><select id="al3tone" name="al3tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -262,7 +262,7 @@
             <label for="al4satu">Sat</label><input type="checkbox" <!--#alm4satu--> id="al4satu" name="al4satu" value="alamsatu">
             <label for="al4sund">Sun</label><input type="checkbox" <!--#alm4sund--> id="al4sund" name="al4sund" value="alamsund">
             <label for="al4text">Text: </label><input type="text" id="al4text" name="al4text" size='20' maxlength='40' value="<!--#alm4text-->">
-            <label for="al4actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm4actv--> id="al4actv" name="al4actv" value="alamactv" >
+            <label for="al4actv">Use Active Buzzer</label><input type="checkbox" <!--#alm4actv--> id="al4actv" name="al4actv" value="alamactv" >
             <label for="al4tone"> Alarm Sound: </label><select id="al4tone" name="al4tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -296,7 +296,7 @@
             <label for="al5satu">Sat</label><input type="checkbox" <!--#alm5satu--> id="al5satu" name="al5satu" value="alamsatu">
             <label for="al5sund">Sun</label><input type="checkbox" <!--#alm5sund--> id="al5sund" name="al5sund" value="alamsund">
             <label for="al5text">Text: </label><input type="text" id="al5text" name="al5text" size='20' maxlength='40' value="<!--#alm5text-->">
-            <label for="al5actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm5actv--> id="al5actv" name="al5actv" value="alamactv" >
+            <label for="al5actv">Use Active Buzzer</label><input type="checkbox" <!--#alm5actv--> id="al5actv" name="al5actv" value="alamactv" >
             <label for="al5tone"> Alarm Sound: </label><select id="al5tone" name="al5tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -330,7 +330,7 @@
             <label for="al6satu">Sat</label><input type="checkbox" <!--#alm6satu--> id="al6satu" name="al6satu" value="alamsatu">
             <label for="al6sund">Sun</label><input type="checkbox" <!--#alm6sund--> id="al6sund" name="al6sund" value="alamsund">
             <label for="al6text">Text: </label><input type="text" id="al6text" name="al6text" size='20' maxlength='40' value="<!--#alm6text-->">
-            <label for="al6actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm6actv--> id="al6actv" name="al6actv" value="alamactv" >
+            <label for="al6actv">Use Active Buzzer</label><input type="checkbox" <!--#alm6actv--> id="al6actv" name="al6actv" value="alamactv" >
             <label for="al6tone"> Alarm Sound: </label><select id="al6tone" name="al6tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -364,7 +364,7 @@
             <label for="al7satu">Sat</label><input type="checkbox" <!--#alm7satu--> id="al7satu" name="al7satu" value="alamsatu">
             <label for="al7sund">Sun</label><input type="checkbox" <!--#alm7sund--> id="al7sund" name="al7sund" value="alamsund">
             <label for="al7text">Text: </label><input type="text" id="al7text" name="al7text" size='20' maxlength='40' value="<!--#alm7text-->">
-            <label for="al7actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm7actv--> id="al7actv" name="al7actv" value="alamactv" >
+            <label for="al7actv">Use Active Buzzer</label><input type="checkbox" <!--#alm7actv--> id="al7actv" name="al7actv" value="alamactv" >
             <label for="al7tone"> Alarm Sound: </label><select id="al7tone" name="al7tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
@@ -398,7 +398,7 @@
             <label for="al8satu">Sat</label><input type="checkbox" <!--#alm8satu--> id="al8satu" name="al8satu" value="alamsatu">
             <label for="al8sund">Sun</label><input type="checkbox" <!--#alm8sund--> id="al8sund" name="al8sund" value="alamsund">
             <label for="al8text">Text: </label><input type="text" id="al8text" name="al8text" size='20' maxlength='40' value="<!--#alm8text-->">
-            <label for="al8actv">Use Active Buzzer: </label><input type="checkbox" <!--#alm8actv--> id="al8actv" name="al8actv" value="alamactv" >
+            <label for="al8actv">Use Active Buzzer</label><input type="checkbox" <!--#alm8actv--> id="al8actv" name="al8actv" value="alamactv" >
             <label for="al8tone"> Alarm Sound: </label><select id="al8tone" name="al8tone">
               <option value="0">No Tune</option>
               <option value="1">1 Beep</option>
