@@ -432,9 +432,13 @@ const char * cgi_htalarm_handler(int iIndex, int iNumParams, char *pcParam[], ch
       unescstring(pcValue[Loop1UInt8], esclength, unesctext, unesclength);
       strcpy(my_alarm.Text, unesctext);
     }
+    // Check box form element returns id=value
+    if (strcmp(pcParam[Loop1UInt8], "al0actv") == 0) {
+        my_alarm.Jingle = my_alarm.Jingle | 0x80;
+    }
     // Select drop down for a jingle tune id=value
     if (strcmp(pcParam[Loop1UInt8], "al0tone") == 0) {
-      my_alarm.Jingle = atoi(pcValue[Loop1UInt8]);
+      my_alarm.Jingle = my_alarm.Jingle | (atoi(pcValue[Loop1UInt8]) & 0x7F);
     }
   }
   // If no day is set, then clear the alarn enable too

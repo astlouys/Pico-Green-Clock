@@ -11,27 +11,27 @@ const char * ssi_tags[] = {
 "autodim",  "mdimfull", "mdimhigh", "mdimmid",  "mdimlow",  "mdimdark", "timezone", "shsktime", "shskalrm", "langengl",
 "langfrch", "langgerm", "langczec", "langspan", "keyclick", "discroll", "hr12mode", "hr24mode", "chmenoff", "chmenday",
 "chmenon", "chmstart", "chimstop", "nliteoff", "nlitauto", "nltnight", "ntliteon", "nltstart", "nlgtstop",
-"alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text","alm0tone",
-"alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text","alm1tone",
-"alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text","alm2tone",
-"alm3enab", "alm3time", "alm3mond", "alm3tues", "alm3weds", "alm3thur", "alm3frid", "alm3satu", "alm3sund", "alm3text","alm3tone",
-"alm4enab", "alm4time", "alm4mond", "alm4tues", "alm4weds", "alm4thur", "alm4frid", "alm4satu", "alm4sund", "alm4text","alm4tone",
-"alm5enab", "alm5time", "alm5mond", "alm5tues", "alm5weds", "alm5thur", "alm5frid", "alm5satu", "alm5sund", "alm5text","alm5tone",
-"alm6enab", "alm6time", "alm6mond", "alm6tues", "alm6weds", "alm6thur", "alm6frid", "alm6satu", "alm6sund", "alm6text","alm6tone",
-"alm7enab", "alm7time", "alm7mond", "alm7tues", "alm7weds", "alm7thur", "alm7frid", "alm7satu", "alm7sund", "alm7text","alm7tone",
-"alm8enab", "alm8time", "alm8mond", "alm8tues", "alm8weds", "alm8thur", "alm8frid", "alm8satu", "alm8sund", "alm8text","alm8tone"
+"alm0enab", "alm0time", "alm0mond", "alm0tues", "alm0weds", "alm0thur", "alm0frid", "alm0satu", "alm0sund", "alm0text","alm0actv","alm0tone",
+"alm1enab", "alm1time", "alm1mond", "alm1tues", "alm1weds", "alm1thur", "alm1frid", "alm1satu", "alm1sund", "alm1text","alm1actv","alm1tone",
+"alm2enab", "alm2time", "alm2mond", "alm2tues", "alm2weds", "alm2thur", "alm2frid", "alm2satu", "alm2sund", "alm2text","alm2actv","alm2tone",
+"alm3enab", "alm3time", "alm3mond", "alm3tues", "alm3weds", "alm3thur", "alm3frid", "alm3satu", "alm3sund", "alm3text","alm3actv","alm3tone",
+"alm4enab", "alm4time", "alm4mond", "alm4tues", "alm4weds", "alm4thur", "alm4frid", "alm4satu", "alm4sund", "alm4text","alm4actv","alm4tone",
+"alm5enab", "alm5time", "alm5mond", "alm5tues", "alm5weds", "alm5thur", "alm5frid", "alm5satu", "alm5sund", "alm5text","alm5actv","alm5tone",
+"alm6enab", "alm6time", "alm6mond", "alm6tues", "alm6weds", "alm6thur", "alm6frid", "alm6satu", "alm6sund", "alm6text","alm6actv","alm6tone",
+"alm7enab", "alm7time", "alm7mond", "alm7tues", "alm7weds", "alm7thur", "alm7frid", "alm7satu", "alm7sund", "alm7text","alm7actv","alm7tone",
+"alm8enab", "alm8time", "alm8mond", "alm8tues", "alm8weds", "alm8thur", "alm8frid", "alm8satu", "alm8sund", "alm8text","alm8actv","alm8tone"
 };
 
 // Set the tag offset for the alarm table entries.
 #define ALARMBASE0 39
-#define ALARMBASE1 (ALARMBASE0 + 11)
-#define ALARMBASE2 (ALARMBASE1 + 11)
-#define ALARMBASE3 (ALARMBASE2 + 11)
-#define ALARMBASE4 (ALARMBASE3 + 11)
-#define ALARMBASE5 (ALARMBASE4 + 11)
-#define ALARMBASE6 (ALARMBASE5 + 11)
-#define ALARMBASE7 (ALARMBASE6 + 11)
-#define ALARMBASE8 (ALARMBASE7 + 11)
+#define ALARMBASE1 (ALARMBASE0 + 12)
+#define ALARMBASE2 (ALARMBASE1 + 12)
+#define ALARMBASE3 (ALARMBASE2 + 12)
+#define ALARMBASE4 (ALARMBASE3 + 12)
+#define ALARMBASE5 (ALARMBASE4 + 12)
+#define ALARMBASE6 (ALARMBASE5 + 12)
+#define ALARMBASE7 (ALARMBASE6 + 12)
+#define ALARMBASE8 (ALARMBASE7 + 12)
 
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
@@ -529,14 +529,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE0 + 10): //alm0tone
+  case (ALARMBASE0 + 10): // alm0actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 1st alarm 0
+      my_alarm = wfetch_alarm(0);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE0 + 11): //alm0tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 1st alarm 0
       my_alarm = wfetch_alarm(0);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -651,14 +662,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE1 + 10): //alm1tone
+  case (ALARMBASE1 + 10): // alm1actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 2nd alarm 0
+      my_alarm = wfetch_alarm(1);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE1 + 11): //alm1tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 2nd alarm 0
       my_alarm = wfetch_alarm(1);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -773,14 +795,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE2 + 10): //alm2tone
+  case (ALARMBASE2 + 10): // alm2actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 3rd alarm 0
+      my_alarm = wfetch_alarm(2);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE2 + 11): //alm2tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 3rd alarm 0
       my_alarm = wfetch_alarm(2);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -895,14 +928,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE3 + 10): //alm3tone
+  case (ALARMBASE3 + 10): // alm3actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 4th alarm 0
+      my_alarm = wfetch_alarm(3);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE3 + 11): //alm3tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 4th alarm 0
       my_alarm = wfetch_alarm(3);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -1017,14 +1061,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE4 + 10): //alm4tone
+  case (ALARMBASE4 + 10): // alm4actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 5th alarm 0
+      my_alarm = wfetch_alarm(4);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE4 + 11): //alm4tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 5th alarm 0
       my_alarm = wfetch_alarm(4);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -1139,14 +1194,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE5 + 10): //alm5tone
+  case (ALARMBASE5 + 10): // alm5actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 6th alarm 0
+      my_alarm = wfetch_alarm(5);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE5 + 11): //alm5tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 6th alarm 0
       my_alarm = wfetch_alarm(5);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -1261,14 +1327,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE6 + 10): //alm6tone
+  case (ALARMBASE6 + 10): // alm6actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 7th alarm 0
+      my_alarm = wfetch_alarm(6);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE6 + 11): //alm6tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 7th alarm 0
       my_alarm = wfetch_alarm(6);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -1383,14 +1460,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE7 + 10): //alm7tone
+  case (ALARMBASE7 + 10): // alm7actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 8th alarm 0
+      my_alarm = wfetch_alarm(7);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE7 + 11): //alm7tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 8th alarm 0
       my_alarm = wfetch_alarm(7);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;
@@ -1505,14 +1593,25 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, my_alarm.Text);
     }
     break;
-  case (ALARMBASE8 + 10): //alm7tone
+  case (ALARMBASE8 + 10): // alm7actv
+    {
+      struct alarm my_alarm;
+      UINT8 Alarm_Jingle = 0;
+      // get the flash information  for 9th alarm 0
+      my_alarm = wfetch_alarm(8);
+      // Extract the ms bit to see if the active buzzer is enabled or nor
+      Alarm_Jingle = (my_alarm.Jingle & 0x80) >> 7;
+      printed = snprintf(pcInsert, iInsertLen, "%s", Alarm_Jingle ? "checked" : "");
+    }
+    break;
+  case (ALARMBASE8 + 11): //alm7tone
     {
       struct alarm my_alarm;
       UINT8 Alarm_Jingle = 0;
       // Get the flash information for 9th alarm 0
       my_alarm = wfetch_alarm(8);
       // Return the jingle index
-      Alarm_Jingle = my_alarm.Jingle;
+      Alarm_Jingle = (my_alarm.Jingle & 0x7F);
       printed = snprintf(pcInsert, iInsertLen, "%d", Alarm_Jingle);
     }
     break;

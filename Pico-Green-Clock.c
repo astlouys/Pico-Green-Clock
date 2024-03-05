@@ -1566,7 +1566,11 @@ int main(void)
     FlashConfig.Alarm[0].Hour   = 8;
     FlashConfig.Alarm[0].Minute = 00;
     FlashConfig.Alarm[0].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[0].Jingle = 0;
+    #else
+    FlashConfig.Alarm[0].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[0].Text, "Alarm 1"); // string to be scrolled when alarm 1 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[1].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1574,7 +1578,11 @@ int main(void)
     FlashConfig.Alarm[1].Hour   = 14;
     FlashConfig.Alarm[1].Minute = 37;
     FlashConfig.Alarm[1].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[1].Jingle = 0;
+    #else
+    FlashConfig.Alarm[1].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[1].Text, "Alarm 2"); // string to be scrolled when alarm 2 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[2].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1582,7 +1590,11 @@ int main(void)
     FlashConfig.Alarm[2].Hour   = 14;
     FlashConfig.Alarm[2].Minute = 36;
     FlashConfig.Alarm[2].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[2].Jingle = 0;
+    #else
+    FlashConfig.Alarm[2].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[2].Text, "Alarm 3"); // string to be scrolled when alarm 3 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[3].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1590,7 +1602,11 @@ int main(void)
     FlashConfig.Alarm[3].Hour   = 14;
     FlashConfig.Alarm[3].Minute = 35;
     FlashConfig.Alarm[3].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[3].Jingle = 0;
+    #else
+    FlashConfig.Alarm[3].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[3].Text, "Alarm 4"); // string to be scrolled when alarm 4 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[4].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1598,7 +1614,11 @@ int main(void)
     FlashConfig.Alarm[4].Hour   = 14;
     FlashConfig.Alarm[4].Minute = 34;
     FlashConfig.Alarm[4].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[4].Jingle = 0;
+    #else
+    FlashConfig.Alarm[4].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[4].Text, "Alarm 5"); // string to be scrolled when alarm 5 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[5].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1606,7 +1626,11 @@ int main(void)
     FlashConfig.Alarm[5].Hour   = 14;
     FlashConfig.Alarm[5].Minute = 33;
     FlashConfig.Alarm[5].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[5].Jingle = 0;
+    #else
+    FlashConfig.Alarm[5].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[5].Text, "Alarm 6"); // string to be scrolled when alarm 6 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[6].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1614,7 +1638,11 @@ int main(void)
     FlashConfig.Alarm[6].Hour   = 14;
     FlashConfig.Alarm[6].Minute = 32;
     FlashConfig.Alarm[6].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[6].Jingle = 0;
+    #else
+    FlashConfig.Alarm[6].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[6].Text, "Alarm 7"); // string to be scrolled when alarm 7 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[7].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1622,7 +1650,11 @@ int main(void)
     FlashConfig.Alarm[7].Hour   = 14;
     FlashConfig.Alarm[7].Minute = 31;
     FlashConfig.Alarm[7].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[7].Jingle = 0;
+    #else
+    FlashConfig.Alarm[7].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[7].Text, "Alarm 8"); // string to be scrolled when alarm 8 is triggered (ALARM TEXT).
 
     FlashConfig.Alarm[8].FlagStatus = FLAG_OFF; // all alarms set to Off in default configuration.
@@ -1630,7 +1662,11 @@ int main(void)
     FlashConfig.Alarm[8].Hour   = 14;
     FlashConfig.Alarm[8].Minute = 30;
     FlashConfig.Alarm[8].Second = 29;
+    #ifdef PASSIVE_PIEZO_SUPPORT
     FlashConfig.Alarm[8].Jingle = 0;
+    #else
+    FlashConfig.Alarm[8].Jingle = 128;
+    #endif
     sprintf(FlashConfig.Alarm[8].Text, "Alarm 9"); // string to be scrolled when alarm 9 is triggered (ALARM TEXT).
 
       // Reset the WiFi settings too
@@ -16981,7 +17017,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   static UINT8 FlagEventDone     = FLAG_OFF;  // to prevent duplication of Calendar Events.
   UINT8 Loop1UInt8;
   UINT8 Loop2UInt8;
-  UINT8 TotalBeeps;
+  UINT8 TotalBeeps = 0;
 
   static UINT16 AlarmRingTime[MAX_ALARMS];    // cumulative number of seconds alarm has been ringing.
   UINT16 BeepLength;
@@ -16993,6 +17029,10 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   UINT64 Timer1;
   UINT64 Timer2;
   static UINT64 PreviousTimer;
+
+  // Hold an alarm jingle tune value
+  UINT8 Alarm_Jingle;
+  UINT8 Active_Buzzer;
 
 
   /* Indicate that we just entered callback_s. */
@@ -17138,36 +17178,86 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       if (DebugBitMask & DEBUG_ALARMS)
         uart_send(__LINE__, "AL ON\r");
 
-
       /* Calculate the total number of beeps to decide on the length of each beep. */
       TotalBeeps = 0;
       for (Loop1UInt8 = 0; Loop1UInt8 < MAX_ALARMS; ++Loop1UInt8)
       {
+        // Load the current alarm jingle, if top bit set then use active buzzer and not passive one if configured
+        if (FlashConfig.Alarm[Loop1UInt8].Jingle > 127)
+        {
+          Alarm_Jingle = (FlashConfig.Alarm[Loop1UInt8].Jingle - 128);
+          Active_Buzzer = FLAG_ON;
+        }
+        else
+        {
+          Alarm_Jingle = FlashConfig.Alarm[Loop1UInt8].Jingle;
+          Active_Buzzer = FLAG_OFF;
+        }
         if (AlarmReachedBitMask & (1 << Loop1UInt8))
         {
-          TotalBeeps += (Loop1UInt8 + 1);
+          if (Active_Buzzer == FLAG_OFF)
+          {
+            if (Alarm_Jingle < 10 && Alarm_Jingle > TotalBeeps)
+            {
+              // Fetch the number of beeps programmed into the alarm jingle - 0 for none and 1 to 9 otherwise
+              TotalBeeps = Alarm_Jingle;
+            }
+            if (Alarm_Jingle > 9 && TotalBeeps < 10)
+            {
+              // Fetch the first active tune jingle for an active alarm
+              TotalBeeps = Alarm_Jingle;
+            }
+          }
+          else
+          {
+            if (Alarm_Jingle < 10 && Alarm_Jingle > TotalBeeps)
+            {
+              // Fetch the number of beeps programmed into the alarm jingle - 0 for none and 1 to 9 otherwise
+              TotalBeeps = Alarm_Jingle;
+            }
+            if (Alarm_Jingle > 9 && TotalBeeps < 10)
+            {
+              // for a jingle set and a passive buzzer, the set the maximum number of beeps
+              TotalBeeps = 9;
+            }
+          }
+          if (Alarm_Jingle == 0 && TotalBeeps == 0)
+          {
+            // If no tune was selected for any alarm, then set the alarm number as the number of beeps (incremented later)
+            TotalBeeps = Loop1UInt8 + 1;
+          }
         }
       }
 
-      /* Assign beep length. */
-      BeepLength = 50; // smallest value.
-      if (TotalBeeps < 11)
-        BeepLength = 100;
-      if (TotalBeeps < 8)
-        BeepLength = 250;
-      if (TotalBeeps < 6)
-        BeepLength = 300;
-      if (TotalBeeps < 5)
-        BeepLength = 350;
-      if (TotalBeeps < 4)
-        BeepLength = 400;
-      if (TotalBeeps < 2)
-        BeepLength = 500;
+      // Now see if the alarm is a jingle or beep tones
+      if (TotalBeeps > 9)
+      {
+        // pick out a jingle - 1 to 7 currently
+        Alarm_Jingle = TotalBeeps - 9;
+        if (DebugBitMask & DEBUG_ALARMS)
+          uart_send(__LINE__, "Sound alarm as jingle tune %d\r", Alarm_Jingle);
+      }
+      else {
+        Alarm_Jingle = 0;
+        /* Asign beep length. */
+        BeepLength = 50; // smallest value.
+        if (TotalBeeps < 11)
+          BeepLength = 100;
+        if (TotalBeeps < 8)
+          BeepLength = 250;
+        if (TotalBeeps < 6)
+          BeepLength = 300;
+        if (TotalBeeps < 5)
+          BeepLength = 350;
+        if (TotalBeeps < 4)
+          BeepLength = 400;
+        if (TotalBeeps < 2)
+          BeepLength = 500;
 
-      if (DebugBitMask & DEBUG_ALARMS)
-        uart_send(__LINE__, "-TotalBeeps: %u  BeepLength: %u\r", TotalBeeps, BeepLength);
+        if (DebugBitMask & DEBUG_ALARMS)
+          uart_send(__LINE__, "-TotalBeeps: %u  BeepLength: %u\r", TotalBeeps, BeepLength);
+      }
 
-      /* Trigger ringer for each alarm condition reached. */
       for (Loop1UInt8 = 0; Loop1UInt8 < MAX_ALARMS; ++Loop1UInt8)
       {
         if (AlarmReachedBitMask & (1 << Loop1UInt8))
@@ -17192,17 +17282,36 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
           }
 
 
-          #ifdef PASSIVE_PIEZO_SUPPORT
-          for (Loop2UInt8 = 0; Loop2UInt8 < (Loop1UInt8 + 1); ++Loop2UInt8)
+          if (Active_Buzzer == FLAG_OFF)
           {
-            sound_queue_passive(600 + (Loop1UInt8 * 150), BeepLength);
-            sound_queue_passive(SILENT, 50); // separate each beep in the train of beeps.
+            if (TotalBeeps > 9)
+            {
+              // We have a jinge tune to play for this 5 second period
+              play_jingle(Alarm_Jingle);
+              // exit all loops
+              Loop1UInt8 = MAX_ALARMS;
+              break;
+            }
+            else
+            {
+              #ifdef PASSIVE_PIEZO_SUPPORT
+              for (Loop2UInt8 = 0; Loop2UInt8 < TotalBeeps; ++Loop2UInt8)
+              {
+                sound_queue_passive(600 + (Loop1UInt8 * 150), BeepLength);
+                sound_queue_passive(SILENT, 50); // separate each beep in the train of beeps.
+              }
+              sound_queue_passive(SILENT, 150);  // separate the train of beeps of an alarm from each other.
+              #else
+              sound_queue_active(BeepLength, TotalBeeps);
+              sound_queue_active(500, SILENT);   // separate the train of beeps of an alarm from each other.
+              #endif
+            }
           }
-          sound_queue_passive(SILENT, 150);  // separate the train of beeps of an alarm from each other.
-          #else
-          sound_queue_active(BeepLength, Loop1UInt8 + 1);
-          sound_queue_active(500, SILENT);   // separate the train of beeps of an alarm from each other.
-          #endif
+          else
+          {
+            sound_queue_active(BeepLength, TotalBeeps);
+            sound_queue_active(500, SILENT);   // separate the train of beeps of an alarm from each other.
+          }
         }
       }
     }
@@ -18725,7 +18834,16 @@ struct alarm wfetch_alarm(UINT8 alarm_to_fetch) {
   my_alarm.Minute = FlashConfig.Alarm[alarm_to_fetch].Minute;
   my_alarm.Hour = FlashConfig.Alarm[alarm_to_fetch].Hour;
   my_alarm.Day = FlashConfig.Alarm[alarm_to_fetch].Day;
+  #ifdef PASSIVE_PIEZO_SUPPORT
   my_alarm.Jingle = FlashConfig.Alarm[alarm_to_fetch].Jingle;
+  #else
+  // For no passive buzzer support, force the top bit to be set
+  if (FlashConfig.Alarm[alarm_to_fetch].Jingle < 128) {
+    my_alarm.Jingle = FlashConfig.Alarm[alarm_to_fetch].Jingle | 0x80;
+  } else {
+    my_alarm.Jingle = FlashConfig.Alarm[alarm_to_fetch].Jingle;
+  }
+  #endif
   sprintf(my_alarm.Text, FlashConfig.Alarm[alarm_to_fetch].Text);
   return my_alarm;
 }
