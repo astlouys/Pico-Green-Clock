@@ -223,9 +223,16 @@
                      - Add a web control to set a local level for the minimum light level for maximum dimming. This can vary between clocks. Value stored in flash.
                      - Add a web control to swap the operaton of the set key from short press to set clock to short press to set the alarms.
                      - Fix triggering of afternoon alarms when in 12hr display mode.
-                     - Release on GitHub
+                     - Release on GitHub.
 
    25-FEB-2024 10.01 - Correct the flash_config structure in the Pico-W NTP Client code.
+   06-MAR-2024       - Add more bytes to the alarm structure. This may cause the 10.01 first install to wipe out all flash alarm and WiFi data.
+                     - Correct the light ADC initialisation after a 10.00 voltage fix causes more problems than it solves.
+                     - Add in a new feature to temprarily disable all alarms for a 4 hour window by pressing any two buttons together. This doesn't affect any settings.
+                     - Add in the ability for all of the alarms to drive jingles, a different set of beeps or use the onboard buzzer if the passive Piezo one is fitted.
+                       These are controlled on the web page. The default beeps mode has alarm 1 as 1, 2 as 2, 3 as 3, etc. The cascading of multiple alarms has been removed.
+                     - Add in support for local reminder, event and WiFi config files that can be pulled in when built without appearing in the git sources.
+                     - Tweak daylight savings region web control drop down so that it's now populated correctly rather than having a print out of the region and drop down to change.
 
 \* ================================================================== */
 
@@ -768,17 +775,21 @@ volatile UINT16 SoundActiveTail;         // tail of sound circular buffer for ac
 volatile UINT16 SoundPassiveHead;        // head of sound circular buffer for passive buzzer.
 volatile UINT16 SoundPassiveTail;        // tail of sound circular buffer for passive buzzer.
 
-UINT8  TimerMinutes    = 0;
-UINT8  TimerMode       = TIMER_OFF;  // timer mode (0 = Off / 1 = Count down / 2 = Count up).
-UINT8  TimerSeconds    = 0;
-UINT8  TimerShowCount  = 0;          // in case we want to refresh timer display less often than every second.
-UINT8  TimerShowSecond = 0;
-UINT8  ToneMSecCounter = 0;          // cumulate number of milliseconds for tone duration.
-UINT8  ToneRepeatCount = 0;          // number of "tones" to sound for different events.
-UINT8  ToneType;                     // determine the type of "tone" we are sounding.
-UINT16 TopKeyPressTime = 0;          // keep track of the time the Set ("Top") key is pressed.
+UINT8  Temp_Disable_Alarm         = FLAG_OFF;  // Control of a temporary alarm disable for 8 hours, flag if active or not
+UINT8  Temp_Disable_Hour          = 0;         // Countdown of 5 hours
+UINT8  Temp_Disable_Min           = 0;         // Minute value when the alarm disable was activated
+UINT8  TimerMinutes               = 0;
+UINT8  TimerMode                  = TIMER_OFF; // timer mode (0 = Off / 1 = Count down / 2 = Count up).
+UINT8  TimerSeconds               = 0;
+UINT8  TimerShowCount             = 0;         // in case we want to refresh timer display less often than every second.
+UINT8  TimerShowSecond            = 0;
+UINT8  ToneMSecCounter            = 0;         // cumulate number of milliseconds for tone duration.
+UINT8  ToneRepeatCount            = 0;         // number of "tones" to sound for different events.
+UINT8  ToneType;                               // determine the type of "tone" we are sounding.
+UINT16 TopKeyPressTime            = 0;         // keep track of the time the Set ("Top") key is pressed.
+UINT8  Two_Keys_Pressed           = FLAG_OFF;  // Flag to saythat two keys have been pressed, so don't activate the one released last
 
-UINT8 UpId = 0;
+UINT8 UpId                        = 0;
 
 TIME_RTC Time_RTC;
 
@@ -16552,6 +16563,52 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   if (CurrentClockMode == MODE_TEST) goto matrix_scan;
 
   /* ................................................................ *\
+              Manage any two keys being pressed together
+  \* ................................................................ */
+  // This disables the other funtions when not in the setup mode
+  if (SetupSource == SETUP_SOURCE_NONE && ((TopKeyPressTime > 0 && MiddleKeyPressTime > 0) || (MiddleKeyPressTime > 0 && BottomKeyPressTime > 0)  || (TopKeyPressTime > 0 && BottomKeyPressTime > 0))) {
+    Two_Keys_Pressed = FLAG_ON;
+  }
+  if (Two_Keys_Pressed == FLAG_ON && gpio_get(SET_BUTTON) != 0 && gpio_get(UP_BUTTON) != 0 && gpio_get(DOWN_BUTTON) != 0) {
+    // Clear the accumulated timers so that the other button controls aren't triggered
+    TopKeyPressTime = 0;
+    MiddleKeyPressTime = 0;
+    BottomKeyPressTime = 0;
+    // We have 2 keys pressed and released, so toggle the temporary alarm disable
+    if (Temp_Disable_Alarm == FLAG_OFF) {
+      Temp_Disable_Alarm = FLAG_ON;
+      // disable alarms for 4 hours - long but not excessively so. Use a magic number as it's unlikely to be changed
+      Temp_Disable_Hour = 4;
+      Temp_Disable_Min = CurrentMinute;
+      // Disable the alarm indicator
+      IndicatorAlarm0Off;
+      IndicatorAlarm1Off;
+    } else {
+      // Re-enable the alarms
+      Temp_Disable_Alarm = FLAG_OFF;
+      // Set the alarm indicator if any alarm is enabled
+      for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
+        if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_ON)
+          Temp_Disable_Alarm = FLAG_ON;
+
+      if (Temp_Disable_Alarm == FLAG_ON) {
+        IndicatorAlarm0On;
+        IndicatorAlarm1On;
+      } else {
+        IndicatorAlarm0Off;
+        IndicatorAlarm1Off;
+      }
+      // Clear down variables
+      Temp_Disable_Alarm = FLAG_OFF;
+      Temp_Disable_Hour = 0;
+      Temp_Disable_Min = 0;
+    }
+    // Clear the keys pressed flag
+    Two_Keys_Pressed = FLAG_OFF;
+  }
+
+
+  /* ................................................................ *\
                         Manage "Set" (top) button.
   \* ................................................................ */
   /* Check if the "Set" (top) button is pressed. */
@@ -16559,13 +16616,16 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   {
     /* The "Set" (top) button is pressed... cumulate the number of milliseconds it is pressed. */
     ++TopKeyPressTime;
+    // Saturate if held for a long while
+    if (TopKeyPressTime > 500)
+      TopKeyPressTime = 500;
   }
   else
   {
     /* If "Set" key has been pressed while one or more of the nine (9) clock alarms were ringing, reset all alarms and continue.
        If "Set" key has been pressed while the count-down timer was ringing, shut off count-down timer and continue.
        When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Set" key is simply used for alarms and count-down timer shutoff. */
-    if (TopKeyPressTime)
+    if (TopKeyPressTime > 0 && Two_Keys_Pressed == FLAG_OFF)
     {
       /* If "Set" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
       if (AlarmReachedBitMask || FlagTimerCountDownEnd)
@@ -16673,7 +16733,6 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   }
 
 
-
   /* ................................................................ *\
                        Manage "Up" (middle) button.
   \* ................................................................ */
@@ -16682,13 +16741,17 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   {
     /* The "Up" (middle) button is pressed... cumulate the time it is pressed. */
     ++MiddleKeyPressTime;
+    // Saturate if held for a long while
+    if (MiddleKeyPressTime > 500)
+      MiddleKeyPressTime = 500;
   }
   else
   {
     /* If "Up" key has been pressed while one or more of the nine (9) clock alarms were ringing, reset all alarms and continue.
        If "Up" key has been pressed while the count-down timer was ringing, shut off count-down timer and continue.
-       When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Up" key is simply used for alarms and count-down timer shutoff. */
-    if (MiddleKeyPressTime)
+       When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Up" key is simply used for alarms and count-down timer shutoff.
+       If the "Up" and "Down" keys have both been pressed, then toggle a temprary alarm disable flag and reset a counter if being disabled */
+    if (MiddleKeyPressTime > 0 && Two_Keys_Pressed == FLAG_OFF)
     {
       /* If "Up" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
       if (AlarmReachedBitMask || FlagTimerCountDownEnd)
@@ -16801,6 +16864,7 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
     MiddleKeyPressTime = 0;
   }
 
+
   /* ................................................................ *\
                      Manage "Down" (bottom) button.
   \* ................................................................ */
@@ -16809,6 +16873,9 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
   {
     /* The "Down" (bottom) button is pressed... cumulate the time it is pressed. */
     ++BottomKeyPressTime;
+    // Saturate if held for a long while
+    if (BottomKeyPressTime > 500)
+      BottomKeyPressTime = 500;
   }
   else
   {
@@ -16816,8 +16883,9 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
 
     /* If "Down" key has been pressed while one or more of the nine (9) clock alarms were ringing, reset all alarms and continue.
        If "Down" key has been pressed while the count-down timer was ringing, shut off count-down timer and continue.
-       When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Down" key is simply used for alarms and count-down timer shutoff. */
-    if (BottomKeyPressTime)
+       When one or more of the nine (9) alarms is ringing, or count-down timer is ringing "Down" key is simply used for alarms and count-down timer shutoff.
+       If the "Up" and "Down" keys have both been pressed, then do nothing here */
+    if (BottomKeyPressTime > 0 && Two_Keys_Pressed == FLAG_OFF)
     {
       /* If "Dowwn" key has been pressed while some clock alarms are ringing, reset those alarms so that they stop ringing. */
       if (AlarmReachedBitMask || FlagTimerCountDownEnd)
@@ -17332,57 +17400,85 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   /* Scan all alarms. The check is done during an off-peak second (not 00, 14, 44). */
   if (CurrentSecond == 29)
   {
-    for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
-    {
-      /* If this alarm is Off, skip it. */
-      if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_OFF)
-      {
-        if (DebugBitMask & DEBUG_ALARMS)
-          uart_send(__LINE__, "-[%2.2u]: Off\r", Loop1UInt8);
+    // Count down of hours if the alarms have been temporarily disabled
+    if (Temp_Disable_Alarm == FLAG_ON) {
+      if (CurrentMinute == Temp_Disable_Min) {
+        // Reduce the hour value by 1 if we are at a repeating minute value
+        Temp_Disable_Hour--;
+        if (Temp_Disable_Hour == 0) {
+          // Re-enable the alarms
+          Temp_Disable_Alarm = FLAG_OFF;
+          // Set the alarm indicator if any alarm is enabled
+          for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
+            if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_ON)
+              Temp_Disable_Alarm = FLAG_ON;
 
-        continue;
+          if (Temp_Disable_Alarm == FLAG_ON) {
+            IndicatorAlarm0On;
+            IndicatorAlarm1On;
+          } else {
+            IndicatorAlarm0Off;
+            IndicatorAlarm1Off;
+          }
+          // Clear down variables
+          Temp_Disable_Alarm = FLAG_OFF;
+          Temp_Disable_Min = 0;
+        }
       }
-
-      /* This alarm is On, check if current day-of-week is defined in the "day-mask". */
-      if ((FlashConfig.Alarm[Loop1UInt8].Day & (1 << CurrentDayOfWeek)) == 0)
+    }
+    if (Temp_Disable_Alarm == FLAG_OFF) {
+      for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
       {
+        /* If this alarm is Off, skip it. */
+        if (FlashConfig.Alarm[Loop1UInt8].FlagStatus == FLAG_OFF)
+        {
+          if (DebugBitMask & DEBUG_ALARMS)
+            uart_send(__LINE__, "-[%2.2u]: Off\r", Loop1UInt8);
+
+          continue;
+        }
+
+        /* This alarm is On, check if current day-of-week is defined in the "day-mask". */
+        if ((FlashConfig.Alarm[Loop1UInt8].Day & (1 << CurrentDayOfWeek)) == 0)
+        {
+          if (DebugBitMask & DEBUG_ALARMS)
+            uart_send(__LINE__, "-[%2.2u]: Wrong day    (%2.2X VS %2.2X)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Day, (1 << CurrentDayOfWeek));
+
+          continue;
+        }
+
+        /* Current day-of-week is defined in DayMask, check if current hour (in 24hr range) is the "alarm-hour". */
+        if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHourSetting)
+        {
+          if (DebugBitMask & DEBUG_ALARMS)
+            uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHourSetting);
+
+          continue;
+        }
+
+        /* Current hour is the "alarm hour", check if current minute is the "alarm-minute". */
+        if (FlashConfig.Alarm[Loop1UInt8].Minute != CurrentMinute)
+        {
+          if (DebugBitMask & DEBUG_ALARMS)
+            uart_send(__LINE__, "-[%2.2u]: Wrong minute (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Minute, CurrentMinute);
+
+          continue;
+        }
+
+        /* We reach this point if we comply with all alarm conditions. */
         if (DebugBitMask & DEBUG_ALARMS)
-          uart_send(__LINE__, "-[%2.2u]: Wrong day    (%2.2X VS %2.2X)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Day, (1 << CurrentDayOfWeek));
+          uart_send(__LINE__, "-[%2.2u]: **Reached**\r", Loop1UInt8);
 
-        continue;
-      }
+        /* Set the bit corresponding to this alarm in the alarm bit mask. */
+        AlarmReachedBitMask |= (1 << Loop1UInt8);
 
-      /* Current day-of-week is defined in DayMask, check if current hour (in 24hr range) is the "alarm-hour". */
-      if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHourSetting)
-      {
         if (DebugBitMask & DEBUG_ALARMS)
-          uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHourSetting);
+          uart_send(__LINE__, "-BitMask: 0x%4.4X\r\r", AlarmReachedBitMask);
 
-        continue;
+        /* If there is a string associated with this alarm, scroll it on clock display. */
+        if (FlashConfig.Alarm[Loop1UInt8].Text[0] != 0x00)
+          scroll_string(24, FlashConfig.Alarm[Loop1UInt8].Text);
       }
-
-      /* Current hour is the "alarm hour", check if current minute is the "alarm-minute". */
-      if (FlashConfig.Alarm[Loop1UInt8].Minute != CurrentMinute)
-      {
-        if (DebugBitMask & DEBUG_ALARMS)
-          uart_send(__LINE__, "-[%2.2u]: Wrong minute (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Minute, CurrentMinute);
-
-        continue;
-      }
-
-      /* We reach this point if we comply with all alarm conditions. */
-      if (DebugBitMask & DEBUG_ALARMS)
-        uart_send(__LINE__, "-[%2.2u]: **Reached**\r", Loop1UInt8);
-
-      /* Set the bit corresponding to this alarm in the alarm bit mask. */
-      AlarmReachedBitMask |= (1 << Loop1UInt8);
-
-      if (DebugBitMask & DEBUG_ALARMS)
-        uart_send(__LINE__, "-BitMask: 0x%4.4X\r\r", AlarmReachedBitMask);
-
-      /* If there is a string associated with this alarm, scroll it on clock display. */
-      if (FlashConfig.Alarm[Loop1UInt8].Text[0] != 0x00)
-        scroll_string(24, FlashConfig.Alarm[Loop1UInt8].Text);
     }
   }
 
