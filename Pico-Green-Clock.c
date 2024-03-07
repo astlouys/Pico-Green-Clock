@@ -233,7 +233,7 @@
                        These are controlled on the web page. The default beeps mode has alarm 1 as 1, 2 as 2, 3 as 3, etc. The cascading of multiple alarms has been removed.
                      - Add in support for local reminder, event and WiFi config files that can be pulled in when built without appearing in the git sources.
                      - Tweak daylight savings region web control drop down so that it's now populated correctly rather than having a print out of the region and drop down to change.
-                     - Add periodic print out of the Pico-W WiFi connection status and IP address to the USB and serial console. Serial baud rate is 921600.
+                     - Add periodic print out of the Pico-W WiFi connection status and IP address to the UART or USB serial console (will work with putty, etc.). Serial baud rate is 921600.
 
 \* ================================================================== */
 
