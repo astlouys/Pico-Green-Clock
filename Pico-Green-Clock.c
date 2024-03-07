@@ -201,7 +201,7 @@
 
    26-JAN-2023  9.00 - Change count-down timer alarm algorithm. Will now ring until reset by user or when reaching maximum ringing duration.
                      - Implement NTP (Network Time Protocol). Green Clock will now resync its time periodically from Internet. (Requires Pico W).
-                     - Improve clock precision independantly of real-time IC by better synchronization of callback period time.
+                     - Improve clock precision independently of real-time IC by better synchronization of callback period time.
                      - Add a function to "set-and-save" Wi-Fi credentials to flash.
 
    01-MAY-2023  9.01 - Restricted availability version to test German translation.
@@ -221,18 +221,19 @@
                      - Reduce the display minimum dim level by altering the display PWM frequency.
                      - Add a step dimmer on the lower button to switch between auto dimming and 5 levels of manual modes.
                      - Add a web control to set a local level for the minimum light level for maximum dimming. This can vary between clocks. Value stored in flash.
-                     - Add a web control to swap the operaton of the set key from short press to set clock to short press to set the alarms.
+                     - Add a web control to swap the operation of the set key from short press to set clock to short press to set the alarms.
                      - Fix triggering of afternoon alarms when in 12hr display mode.
                      - Release on GitHub.
 
-   25-FEB-2024 10.01 - Correct the flash_config structure in the Pico-W NTP Client code.
+   25-FEB-2024 10.01 - Correct the flash_config structure in the Pico-W NTP Client code. Now matches the one in the main code.
    06-MAR-2024       - Add more bytes to the alarm structure. This may cause the 10.01 first install to wipe out all flash alarm and WiFi data.
-                     - Correct the light ADC initialisation after a 10.00 voltage fix causes more problems than it solves.
-                     - Add in a new feature to temprarily disable all alarms for a 4 hour window by pressing any two buttons together. This doesn't affect any settings.
+                     - Correct the light ADC initialisation after a firmware 10.00 release voltage reading fix caused more problems than it solves.
+                     - Add in a new feature to temporarily disable all alarms for a 4 hour window by pressing any two buttons together. This doesn't affect any settings.
                      - Add in the ability for all of the alarms to drive jingles, a different set of beeps or use the onboard buzzer if the passive Piezo one is fitted.
                        These are controlled on the web page. The default beeps mode has alarm 1 as 1, 2 as 2, 3 as 3, etc. The cascading of multiple alarms has been removed.
                      - Add in support for local reminder, event and WiFi config files that can be pulled in when built without appearing in the git sources.
                      - Tweak daylight savings region web control drop down so that it's now populated correctly rather than having a print out of the region and drop down to change.
+                     - Add periodic print out of the Pico-W WiFi connection status and IP address to the USB and serial console. Serial baud rate is 921600.
 
 \* ================================================================== */
 
@@ -467,6 +468,9 @@
 #define CHIME_HOUR_COUNT FLAG_OFF        // if "FLAG_ON", hourly chime will beep a number of times equivalent to the hour value in 12-hour format.
 #define CHIME_HOUR_COUNT_BEEP_DURATION 300  // duration of "hour count" beeps (in msec) when flag above is On.
 /* NOTE: See also revision history above (or User guide) about "night time workers" support for hourly chime. */
+
+/* Temporary alarm disable window setting */
+#define ALARM_DISABLE_WINDOW   4         // Duration of 2 button press alarm disable window in hours. Minute value is sampled. Set for a long but not excessive period
 
 /* ================================================================== *\
             ===== END OF CLOCK CONFIGURATION OR OPTIONS =====
@@ -16577,8 +16581,8 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
     // We have 2 keys pressed and released, so toggle the temporary alarm disable
     if (Temp_Disable_Alarm == FLAG_OFF) {
       Temp_Disable_Alarm = FLAG_ON;
-      // disable alarms for 4 hours - long but not excessively so. Use a magic number as it's unlikely to be changed
-      Temp_Disable_Hour = 4;
+      // disable alarms for ALARM_DISABLE_WINDOW hours
+      Temp_Disable_Hour = ALARM_DISABLE_WINDOW;
       Temp_Disable_Min = CurrentMinute;
       // Disable the alarm indicator
       IndicatorAlarm0Off;
@@ -17390,6 +17394,23 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
   /* Log tag. */
   if (DebugBitMask & DEBUG_TIMING)
     uart_send(__LINE__, "-3");
+
+
+
+  #ifdef PICO_W
+  /* ................................................................ *\
+  Print out connection status and IP address every SCROLL_PERIOD_MINUTE
+  \* ................................................................ */
+  if (((CurrentMinute + 2) % SCROLL_PERIOD_MINUTE) == 0 && CurrentSecond == 18)
+  {
+    struct netif *my_netif = &cyw43_state.netif[CYW43_ITF_STA];
+    if (netif_is_link_up(my_netif)) {
+      printf("%s clock WiFi connected, IP address is %s\n",netif_get_hostname(my_netif), ip4addr_ntoa(netif_ip4_addr(my_netif)));
+    } else {
+      printf("%s clock WiFi not connected\n",netif_get_hostname(my_netif));
+    }
+  }
+  #endif // PICO_W
 
 
 
