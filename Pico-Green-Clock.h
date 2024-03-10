@@ -79,6 +79,7 @@ typedef unsigned char UCHAR;
 #define FLAG_ON                   0x01      // flag is ON.
 #define FLAG_POLL                 0x02
 #define FLAG_WAIT                 0x03      // special flag asking passive sound queue to wait for active sound queue to complete.
+#define FLAG_FULL                 0xFF      // special flag to rturn sound queue full status.
 #define FLASH_CONFIG_OFFSET       0x1FF000  // offset in the Pico's 2 MB where to save data. Starting at 2.00MB - 4096 bytes (very end of flash).
 #define H12                       FLAG_OFF  // 12-hours time format.
 #define H24                       FLAG_ON   // 24-hours time format.
@@ -805,6 +806,18 @@ void setup_timer_variables(UINT8 FlagButtonSelect);
 
 /* Read the real-time clock IC and display time. */
 void show_time(void);
+
+/* Reset (clear) the active buzzer sound queue. */
+void sound_queue_reset_active(void);
+
+/* Reset (clear) the passive buzzer sound queue. */
+void sound_queue_reset_passive(void);
+
+/* Return the status of the active buzzer sound queue. */
+UINT8 sound_queue_status_active(void);
+
+/* Return the status of the passive buzzer sound queue. */
+UINT8 sound_queue_status_passive(void);
 
 /* Queue the given sound in the active buzzer sound queue. */
 UINT16 sound_queue_active(UINT16 MSeconds, UINT16 RepeatCount);

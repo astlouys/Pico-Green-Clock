@@ -13537,6 +13537,64 @@ bool sound_callback_ms(struct repeating_timer *Timer50MSec)
 
 
 /* $PAGE */
+/* $TITLE=sound_queue_status_active() */
+/* ------------------------------------------------------------------ *\
+             Reset (clear) the active buzzer sound queue.
+\* ------------------------------------------------------------------ */
+void sound_queue_reset_active(void)
+{
+  SoundActiveHead = 0;
+  SoundActiveTail = 0;
+  return;
+}
+
+
+
+
+
+/* $PAGE */
+/* $TITLE=sound_queue_status_active() */
+/* ------------------------------------------------------------------ *\
+        Return the status of the active buzzer sound queue.
+\* ------------------------------------------------------------------ */
+UINT8 sound_queue_status_active(void)
+{
+  /* Trap circular buffer corruption. */
+  if ((SoundActiveHead > MAX_ACTIVE_SOUND_QUEUE) || (SoundActiveTail > MAX_ACTIVE_SOUND_QUEUE))
+  {
+    if (DebugBitMask & DEBUG_SOUND_QUEUE)
+      uart_send(__LINE__, "- P-Corrupted:           %5u   %5u\r", SoundActiveHead, SoundActiveTail);
+
+    SoundActiveHead = 0;
+    SoundActiveTail = 0;
+    return 0;
+  }
+
+
+  /* Check if the sound circular buffer (sound queue) is full. */
+  if (((SoundActiveTail > 0) && (SoundActiveHead == (SoundActiveTail - 1))) || ((SoundActiveTail == 0) && (SoundActiveHead == (MAX_ACTIVE_SOUND_QUEUE - 1))))
+  {
+    /* Sound queue is full, return error code. */
+    return FLAG_FULL;
+  }
+
+  if (SoundActiveHead != SoundActiveTail)
+  {
+    // Return FLAG_ON if buffer not empty
+    return FLAG_ON;
+  }
+  else
+  {
+    return FLAG_OFF;
+  }
+
+}
+
+
+
+
+
+/* $PAGE */
 /* $TITLE=sound_queue_active() */
 /* ------------------------------------------------------------------ *\
         Queue the given sound in the active buzzer sound queue.
@@ -13721,6 +13779,66 @@ UINT8 sound_unqueue_active(UINT16 *MSeconds, UINT16 *RepeatCount)
 
 
 
+#ifdef PASSIVE_PIEZO_SUPPORT
+/* $PAGE */
+/* $TITLE=sound_queue_reset_passive() */
+/* ------------------------------------------------------------------ *\
+             Reset (clear) the passive buzzer sound queue.
+\* ------------------------------------------------------------------ */
+void sound_queue_reset_passive(void)
+{
+  SoundPassiveHead = 0;
+  SoundPassiveTail = 0;
+  return;
+}
+#endif
+
+
+
+
+#ifdef PASSIVE_PIEZO_SUPPORT
+/* $PAGE */
+/* $TITLE=sound_queue_status_passive() */
+/* ------------------------------------------------------------------ *\
+        Return the status of the passive buzzer sound queue.
+\* ------------------------------------------------------------------ */
+UINT8 sound_queue_status_passive(void)
+{
+  /* Trap circular buffer corruption. */
+  if ((SoundPassiveHead > MAX_PASSIVE_SOUND_QUEUE) || (SoundPassiveTail > MAX_PASSIVE_SOUND_QUEUE))
+  {
+    if (DebugBitMask & DEBUG_SOUND_QUEUE)
+      uart_send(__LINE__, "- P-Corrupted:           %5u   %5u\r", SoundPassiveHead, SoundPassiveTail);
+
+    SoundPassiveHead = 0;
+    SoundPassiveTail = 0;
+    return 0;
+  }
+
+
+  /* Check if the sound circular buffer (sound queue) is full. */
+  if (((SoundPassiveTail > 0) && (SoundPassiveHead == (SoundPassiveTail - 1))) || ((SoundPassiveTail == 0) && (SoundPassiveHead == (MAX_PASSIVE_SOUND_QUEUE - 1))))
+  {
+    /* Sound queue is full, return error code. */
+    return FLAG_FULL;
+  }
+
+  if (SoundPassiveHead != SoundPassiveTail)
+  {
+    // Return FLAG_ON if buffer not empty
+    return FLAG_ON;
+  }
+  else
+  {
+    return FLAG_OFF;
+  }
+
+}
+#endif
+
+
+
+
 
 #ifdef PASSIVE_PIEZO_SUPPORT
 /* $PAGE */
@@ -13785,8 +13903,6 @@ UINT16 sound_queue_passive(UINT16 Frequency, UINT16 MSeconds)
 
   return 0;
 }
-
-
 
 
 
@@ -16637,7 +16753,6 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
         if (AlarmReachedBitMask)
           AlarmReachedBitMask = 0;
 
-
         /* If "Set" key has been pressed while count-down timer alarm is ringing, reset count-down timer alarm so that it stops ringing. */
         if (FlagTimerCountDownEnd == FLAG_ON)
         {
@@ -16646,6 +16761,11 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
           if (DebugBitMask & DEBUG_TIMER)
             uart_send(__LINE__, "FlagTimerCountDownEnd has been reset.\r");
         }
+        // Clear down any alarm sounds
+        sound_queue_reset_active();
+        #ifdef PASSIVE_PIEZO_SUPPORT
+        sound_queue_reset_passive();
+        #endif
       }
       else
       {
@@ -16772,6 +16892,11 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
           if (DebugBitMask & DEBUG_TIMER)
             uart_send(__LINE__, "FlagTimerCountDownEnd has been reset.\r");
         }
+        // Clear down any alarm sounds
+        sound_queue_reset_active();
+        #ifdef PASSIVE_PIEZO_SUPPORT
+        sound_queue_reset_passive();
+        #endif
       }
       else
       {
@@ -16906,6 +17031,11 @@ bool timer_callback_ms(struct repeating_timer *TimerMSec)
           if (DebugBitMask & DEBUG_TIMER)
             uart_send(__LINE__, "FlagTimerCountDownEnd has been reset.\r");
         }
+        // Clear down any alarm sounds
+        sound_queue_reset_active();
+        #ifdef PASSIVE_PIEZO_SUPPORT
+        sound_queue_reset_passive();
+        #endif
       }
       else
       {
@@ -17255,16 +17385,15 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
       for (Loop1UInt8 = 0; Loop1UInt8 < MAX_ALARMS; ++Loop1UInt8)
       {
         // Load the current alarm jingle, if top bit set then use active buzzer and not passive one if configured
-        if (FlashConfig.Alarm[Loop1UInt8].Jingle > 127)
+        if (FlashConfig.Alarm[Loop1UInt8].Jingle & 0x80)
         {
-          Alarm_Jingle = (FlashConfig.Alarm[Loop1UInt8].Jingle - 128);
           Active_Buzzer = FLAG_ON;
         }
         else
         {
-          Alarm_Jingle = FlashConfig.Alarm[Loop1UInt8].Jingle;
           Active_Buzzer = FLAG_OFF;
         }
+        Alarm_Jingle = (FlashConfig.Alarm[Loop1UInt8].Jingle & 0x7F);
         if (AlarmReachedBitMask & (1 << Loop1UInt8))
         {
           if (Active_Buzzer == FLAG_OFF)
@@ -17289,7 +17418,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
             }
             if (Alarm_Jingle > 9 && TotalBeeps < 10)
             {
-              // for a jingle set and a passive buzzer, the set the maximum number of beeps
+              // for a jingle set and a passive buzzer, then set to the maximum number of beeps
               TotalBeeps = 9;
             }
           }
@@ -17358,8 +17487,14 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
           {
             if (TotalBeeps > 9)
             {
-              // We have a jinge tune to play for this 5 second period
-              play_jingle(Alarm_Jingle);
+              #ifdef PASSIVE_PIEZO_SUPPORT
+              // Send alarm jingle only if the sound queue is empty
+              if (sound_queue_status_passive() == FLAG_OFF)
+              {
+                // We have a jinge tune to play for this 5 second period
+                play_jingle(Alarm_Jingle);
+              }
+              #endif
               // exit all loops
               Loop1UInt8 = MAX_ALARMS;
               break;
