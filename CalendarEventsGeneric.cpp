@@ -23,6 +23,7 @@ struct event CalendarEvent[MAX_EVENTS] =
   /// { 1, MAR, JINGLE_BIRTHDAY, "> > > John's Birthday !!!"},  // JINGLE_BIRTHDAY is available when "PASSIVE_PIEZO_SUPPORT" is defined.
   {14, FEB, 0, "> > > Valentine's Day."},
   {25, DEC, 0, "> > > Merry Christmas !!"},
+  // {25, DEC, JINGLE_CHRISTMAS, "> > > Merry Christmas !!"},  // JINGLE_CHRISTMAS is available when "PASSIVE_PIEZO_SUPPORT" is defined.
 };
 
 
