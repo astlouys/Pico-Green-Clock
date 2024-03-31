@@ -31,7 +31,7 @@
           </form>
           <form action="/settimezone.cgi">
             <label for="timezoneoffset">Timezone:</label><input type="number" id="timezoneoffset" name="timezoneoffset" min="-12" max="12" value="<!--#timezone-->">&nbsp;
-            hours offset&emsp;
+            hours offset from UTC&emsp;
             <input type="submit" value="Update">
           </form>
           <form action="/setdstcountry.cgi">
@@ -53,7 +53,7 @@
             </select>&nbsp;
             <input type="submit" name="SetDSTZone" value="Change DST Region">&ensp;
             <label for="dstactive">Summertime Active</label><input type="checkbox" <!--#dstactve--> id="dstactive" name="dstactive" value="active" >
-            <input type="submit" value="Update Summertime"><br>
+            <input type="submit" name="SetDSTMode" value="Update Summertime"><br>
           </form>
           <form action="/clearntperrors.cgi">
             <!--#ntpstat-->&emsp;<input type="submit" name="ClearNTPErr" value="Clear NTP Errors"><br>

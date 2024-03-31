@@ -63,6 +63,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       UINT16 my_dayofmonth = now_time.DayOfMonth;
       UCHAR* my_monthname = wfetch_MonthName(my_language, now_time.Month);
       UINT16 my_year = now_time.Year;
+      // Hour is a 24 hour value
       UINT16 my_hour = now_time.Hour;
       UINT16 my_minute = now_time.Minute;
       UINT16 my_second = now_time.Second;

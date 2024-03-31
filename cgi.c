@@ -110,6 +110,7 @@ const char * cgi_setdateandtime_handler(int iIndex, int iNumParams, char *pcPara
   new_time.DayOfMonth = my_date;
   new_time.Month = my_month;
   new_time.Year = my_year;
+  // hour is set in a 24 hour value
   new_time.Hour = my_hour;
   new_time.Minute = my_minute;
   new_time.Second = my_second;
@@ -159,6 +160,9 @@ const char * cgi_setdstcountry_handler(int iIndex, int iNumParams, char *pcParam
       if (strcmp(pcParam[Loop1UInt8], "DSTZoneSel") == 0) {
         my_DSTCountry = atoi(pcValue[Loop1UInt8]);
         DSTCountry_Request = FLAG_ON;
+      }
+      if (strcmp(pcParam[Loop1UInt8], "SetDSTMode") == 0) {
+        Summertime_Request = FLAG_ON;
       }
       if (strcmp(pcParam[Loop1UInt8], "dstactive") == 0) {
         new_SummerTime = FLAG_ON;

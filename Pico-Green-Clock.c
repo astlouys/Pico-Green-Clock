@@ -11801,6 +11801,8 @@ void setup_clock_frame(void)
   UINT8 DumYearLowPart;
   UINT8 Loop1UInt8;
 
+  // clock works in 24 hr values, but convert to 12 hr or 24 hr for display
+  UINT8 CurrentHourDisplay;
 
   /* Make sure the function has not been called by mistake. */
   if (SetupStep == SETUP_NONE)
@@ -11847,25 +11849,25 @@ void setup_clock_frame(void)
 
     if (FlashConfig.TimeDisplayMode == H12)
     {
-      CurrentHour = convert_h24_to_h12(CurrentHourSetting, &AmFlag, &PmFlag);
+      CurrentHourDisplay = convert_h24_to_h12(CurrentHourSetting, &AmFlag, &PmFlag);
       (AmFlag == FLAG_ON) ? (DisplayBuffer[4] |= (1 << 0)) : (DisplayBuffer[4] &= ~(1 << 0));
       (PmFlag == FLAG_ON) ? (DisplayBuffer[4] |= (1 << 1)) : (DisplayBuffer[4] &= ~(1 << 1));
     }
     else
     {
       /* We are in "24-hours" display mode. */
-      CurrentHour = CurrentHourSetting;
+      CurrentHourDisplay = CurrentHour;
     }
 
     /* When in 12-hour time display format, first digit is not displayed if it is zero. */
-    if ((FlashConfig.TimeDisplayMode == H12) && (CurrentHour < 10))
+    if ((FlashConfig.TimeDisplayMode == H12) && (CurrentHourDisplay < 10))
     {
       fill_display_buffer_4X7(0, ' ' & FlagBlinking[SETUP_HOUR]);
     }
     else
-      fill_display_buffer_4X7(0, (CurrentHour / 10 + '0') & FlagBlinking[SETUP_HOUR]);
+      fill_display_buffer_4X7(0, (CurrentHourDisplay / 10 + '0') & FlagBlinking[SETUP_HOUR]);
 
-    fill_display_buffer_4X7(5, (CurrentHour % 10 + '0') & FlagBlinking[SETUP_HOUR]);
+    fill_display_buffer_4X7(5, (CurrentHourDisplay % 10 + '0') & FlagBlinking[SETUP_HOUR]);
     fill_display_buffer_4X7(10, 0x3A); // slim ":"
     fill_display_buffer_4X7(12, (CurrentMinute / 10 + '0') & FlagBlinking[SETUP_MINUTE]);
     fill_display_buffer_4X7(17, (CurrentMinute % 10 + '0') & FlagBlinking[SETUP_MINUTE]);
@@ -12220,8 +12222,8 @@ void setup_clock_frame(void)
     /* Setup "Hour Display Mode" 24-hours / 12-hours toggling. */
     if (FlagSetupClock[SETUP_TIME_FORMAT] == FLAG_OFF)
     {
-      CurrentHourSetting   = bcd_to_byte(Time_RTC.hour);
-      CurrentMinuteSetting = bcd_to_byte(Time_RTC.minutes);
+      CurrentHour   = bcd_to_byte(Time_RTC.hour);
+      CurrentMinute = bcd_to_byte(Time_RTC.minutes);
     }
 
     FlagSetupClock[SETUP_TIME_FORMAT] = FLAG_ON;
@@ -12505,6 +12507,8 @@ void setup_clock_variables(UINT8 FlagButtonSelect)
   UINT8 PmFlag;
   UINT8 Dum1UInt8; // dummy variable.
   UINT8 Loop1UInt8;
+  // clock works in 24 hr values, but convert to 12 hr or 24 hr for display
+  UINT8 CurrentHourDisplay;
 
 
   /* ---------------------- Hour setting ---------------------------- */
@@ -12837,7 +12841,7 @@ void setup_clock_variables(UINT8 FlagButtonSelect)
       /* Adjust current hour and AM / PM indicators accordingly. */
       if (FlashConfig.TimeDisplayMode == H12)
       {
-        CurrentHour = convert_h24_to_h12(CurrentHourSetting, &AmFlag, &PmFlag);
+        CurrentHourDisplay = convert_h24_to_h12(CurrentHour, &AmFlag, &PmFlag);
         (AmFlag == FLAG_ON) ? (DisplayBuffer[4] |= (1 << 0)) : (DisplayBuffer[4] &= ~(1 << 0));
         (PmFlag == FLAG_ON) ? (DisplayBuffer[4] |= (1 << 1)) : (DisplayBuffer[4] &= ~(1 << 1));
       }
@@ -13253,12 +13257,14 @@ void show_time(void)
 
   UINT8 AmFlag;
   UINT8 PmFlag;
+  // clock works in 24 hr values, but convert to 12 hr or 24 hr for display
+  UINT8 CurrentHourDisplay;
 
 
   /* Read the real-time clock IC. */
   Time_RTC = Read_RTC();
 
-  CurrentHourSetting = bcd_to_byte(Time_RTC.hour);  // use CurrentHourSetting until we convert to H12 or H24 if required.
+  CurrentHour        = bcd_to_byte(Time_RTC.hour);  // use CurrentHour until we convert to H12 or H24 if required.
   CurrentMinute      = bcd_to_byte(Time_RTC.minutes);
   CurrentSecond      = bcd_to_byte(Time_RTC.seconds);
   CurrentDayOfMonth  = bcd_to_byte(Time_RTC.dayofmonth);
@@ -13271,24 +13277,24 @@ void show_time(void)
   /* Check if we are in 12-hours or 24-hours time format. */
   if (FlashConfig.TimeDisplayMode == H12)
   {
-    CurrentHour = convert_h24_to_h12(CurrentHourSetting, &AmFlag, &PmFlag);
+    CurrentHourDisplay = convert_h24_to_h12(CurrentHour, &AmFlag, &PmFlag);
     (AmFlag == FLAG_ON) ? (DisplayBuffer[4] |= (1 << 0)) : (DisplayBuffer[4] &= ~(1 << 0));
     (PmFlag == FLAG_ON) ? (DisplayBuffer[4] |= (1 << 1)) : (DisplayBuffer[4] &= ~(1 << 1));
   }
   else
   {
     /* We are in "24-hours" display mode, nothing to do since RTC keep hours in 24-hours mode. */
-    CurrentHour = CurrentHourSetting;
+    CurrentHourDisplay = CurrentHour;
   }
 
 
   /* When in 12-hour time display format, first digit is not displayed if it is zero. */
-  if ((FlashConfig.TimeDisplayMode == H12) && (CurrentHour < 10))
+  if ((FlashConfig.TimeDisplayMode == H12) && (CurrentHourDisplay < 10))
     TimeBuffer[0] = (' ');  // hours first digit.
   else
-    TimeBuffer[0] = ((CurrentHour / 10) + '0');     // hours first digit.
+    TimeBuffer[0] = ((CurrentHourDisplay / 10) + '0');     // hours first digit.
 
-  TimeBuffer[1] = ((CurrentHour % 10) + '0');       // hours second digit.
+  TimeBuffer[1] = ((CurrentHourDisplay % 10) + '0');       // hours second digit.
   TimeBuffer[2] = ((Time_RTC.minutes / 16) + '0');  // minutes first digit.
   TimeBuffer[3] = ((Time_RTC.minutes % 16) + '0');  // minutes second digit.
   CurrentSecond = ((float)Time_RTC.seconds) / 1.5;
@@ -17604,10 +17610,10 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         }
 
         /* Current day-of-week is defined in DayMask, check if current hour (in 24hr range) is the "alarm-hour". */
-        if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHourSetting)
+        if (FlashConfig.Alarm[Loop1UInt8].Hour != CurrentHour)
         {
           if (DebugBitMask & DEBUG_ALARMS)
-            uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHourSetting);
+            uart_send(__LINE__, "-[%2.2u]: Wrong hour   (%2.2u VS %2.2u)\r", Loop1UInt8, FlashConfig.Alarm[Loop1UInt8].Hour, CurrentHour);
 
           continue;
         }
@@ -17672,11 +17678,11 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
     pwm_set_cycles(CurrentCycles);  // restore display when done.
   }
 
-  // Chime on/off hours are set in 24h values, so use CurrentHourSetting to compare
+  // Chime on/off hours are set in 24h values, so use CurrentHour to compare
   if ((SilencePeriod == 0) &&
      ((FlashConfig.ChimeMode == CHIME_ON) ||                                                                                                                                                       // always On
-     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHourSetting >= FlashConfig.ChimeTimeOn)  && (CurrentHourSetting <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
-     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn) && ((CurrentHourSetting >= FlashConfig.ChimeTimeOff) || (CurrentHourSetting <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
+     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHour >= FlashConfig.ChimeTimeOn)  && (CurrentHour <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
+     ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn) && ((CurrentHour >= FlashConfig.ChimeTimeOff) || (CurrentHour <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
   {
     /* Half-hour chime. */
     if ((CurrentMinute == 30) && (FlagChimeHalfDone == FLAG_OFF) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
@@ -17993,8 +17999,8 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
         /* Sound "event tones" in compliance with clock Chime settings. */
         if ((SilencePeriod == 0) &&
            ((FlashConfig.ChimeMode == CHIME_ON) ||                                                                                                                                                                      // always On
-           ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHourSetting  >= FlashConfig.ChimeTimeOn)  && (CurrentHourSetting <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
-           ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn)  && ((CurrentHourSetting >= FlashConfig.ChimeTimeOff) || (CurrentHourSetting <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
+           ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOn  < FlashConfig.ChimeTimeOff) && (CurrentHour  >= FlashConfig.ChimeTimeOn)  && (CurrentHour <= FlashConfig.ChimeTimeOff)) ||  // "normal behavior"  for daytime workers.
+           ((FlashConfig.ChimeMode == CHIME_DAY) && (FlashConfig.ChimeTimeOff < FlashConfig.ChimeTimeOn)  && ((CurrentHour >= FlashConfig.ChimeTimeOff) || (CurrentHour <= FlashConfig.ChimeTimeOn)))))   // "special behavior" for nighttime workers.
         {
           #ifdef PASSIVE_PIEZO_SUPPORT
           /* Calendar Event sounds with passive buzzer if one has been installed by user, and if a jingle is defined with this Calendar Event. */
@@ -18041,8 +18047,8 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   /* Check if it is time to turn On night light. */
   /* NOTE: Make a check every minute in case we just powered On the clock and / or we recently adjusted the time. */
-  // Night light on/off hours are set in 24h values, so use CurrentHourSetting to compare
-  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHourSetting >= FlashConfig.NightLightTimeOn) || (CurrentHourSetting < FlashConfig.NightLightTimeOff)))
+  // Night light on/off hours are set in 24h values, so use CurrentHour to compare
+  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHour >= FlashConfig.NightLightTimeOn) || (CurrentHour < FlashConfig.NightLightTimeOff)))
   {
     if ((CurrentSecond == 0) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
     {
@@ -18052,7 +18058,7 @@ bool timer_callback_s(struct repeating_timer *TimerSec)
 
   /* Check if it is time to turn Off night light. */
   /* Make a check every minute in case we recently adjusted the time. */
-  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHourSetting >= FlashConfig.NightLightTimeOff) && (CurrentHourSetting < FlashConfig.NightLightTimeOn)))
+  if ((FlashConfig.NightLightMode == NIGHT_LIGHT_NIGHT) && ((CurrentHour >= FlashConfig.NightLightTimeOff) && (CurrentHour < FlashConfig.NightLightTimeOn)))
   {
     if ((CurrentSecond == 0) && (FlagSetupClock[SETUP_MINUTE] == FLAG_OFF))
     {
@@ -18629,7 +18635,7 @@ void update_dst_status()
 
         ++CurrentHour;
         CurrentHourSetting = CurrentHour;
-        set_hour(CurrentHourSetting);
+        set_hour(CurrentHour);
       }
       else
       {
@@ -18675,7 +18681,7 @@ void update_dst_status()
           }
 
           CurrentHourSetting = CurrentHour;
-          set_hour(CurrentHourSetting);
+          set_hour(CurrentHour);
           set_day_of_month(CurrentDayOfMonth);
           set_month(CurrentMonth);
 
@@ -18697,7 +18703,7 @@ void update_dst_status()
           }
 
           CurrentHourSetting = CurrentHour;
-          set_hour(CurrentHourSetting);
+          set_hour(CurrentHour);
           set_day_of_month(CurrentDayOfMonth);
           set_month(CurrentMonth);
 
@@ -18717,7 +18723,7 @@ void update_dst_status()
           {
             --CurrentHour;
             CurrentHourSetting = CurrentHour;
-            set_hour(CurrentHourSetting);
+            set_hour(CurrentHour);
           }
           else
           {
@@ -18732,7 +18738,7 @@ void update_dst_status()
             }
             CurrentHourSetting   = CurrentHour;
             CurrentMinuteSetting = CurrentMinute;
-            set_hour(CurrentHourSetting);
+            set_hour(CurrentHour);
             set_minute(CurrentMinuteSetting);
             if (DebugBitMask & DEBUG_DST)
               uart_send(__LINE__, "Current Time after hour change: %u:%2.2u\r", CurrentHour, CurrentMinute);
@@ -19009,7 +19015,7 @@ void wwrite_networkcfg(UCHAR * new_wifissid, UCHAR * new_wifipass) {
 // Fetch the current time from the main clock routine
 struct human_time wfetch_current_datetime(void) {
   struct human_time current_time;
-  current_time.Hour = CurrentHourSetting;
+  current_time.Hour = CurrentHour;
   current_time.Minute = CurrentMinute;
   current_time.Second = CurrentSecond;
   current_time.DayOfMonth = CurrentDayOfMonth;
@@ -19028,7 +19034,7 @@ void wwrite_current_datetime(struct human_time new_time) {
   // Update the current time, as if the set buttons were used
   CurrentSecond = new_time.Second;
   CurrentMinute = new_time.Minute;
-  CurrentHourSetting = new_time.Hour;
+  CurrentHour = new_time.Hour;
   CurrentDayOfMonth = new_time.DayOfMonth;
   CurrentMonth = new_time.Month;
   CurrentYearLowPart = (new_time.Year % 100);
@@ -19036,7 +19042,7 @@ void wwrite_current_datetime(struct human_time new_time) {
   CurrentDayOfWeek = get_day_of_week(CurrentYear, CurrentMonth, CurrentDayOfMonth);
   CurrentDayOfYear = get_day_of_year(CurrentYear, CurrentMonth, CurrentDayOfMonth);
   // Set the RTC using the same methods as the PicoW NTP synchronisation
-  set_time(CurrentSecond, CurrentMinute, CurrentHourSetting, CurrentDayOfWeek, CurrentDayOfMonth, CurrentMonth, CurrentYearLowPart);
+  set_time(CurrentSecond, CurrentMinute, CurrentHour, CurrentDayOfWeek, CurrentDayOfMonth, CurrentMonth, CurrentYearLowPart);
   // Request time display update when all completed
   FlagUpdateTime = FLAG_ON;
   return;
@@ -19180,8 +19186,14 @@ UCHAR fetch_DSTCountry(void) {
 }
 
 // Fetch the UTC offset timezone from the flash config
+// When DST summertime is active, the timezone is incremented, so decrement before returning the value
 int8_t fetch_Timezone(void) {
-  return FlashConfig.Timezone;
+  int8_t BaseTimezone;
+  BaseTimezone = FlashConfig.Timezone;
+  if (FlashConfig.FlagSummerTime == FLAG_ON) {
+    BaseTimezone = BaseTimezone - 1;
+  }
+  return BaseTimezone;
 }
 
 // Fetch the 12/24HR display mode from the flash config
@@ -19290,8 +19302,24 @@ void wwriteShortSeyKey(UINT8 new_SetKeyMode){
 
 // Write a new value for DST active flag to the flash config
 void wwriteSummerTime(UINT8 new_SummerTime) {
-  if (new_SummerTime == FLAG_OFF || new_SummerTime == FLAG_ON) {
+  int8_t BaseTimezone;
+  BaseTimezone = FlashConfig.Timezone;
+  // Now set the summertime flag to the chosen value. If it is changing, then the timezone offset also needs to be altered.
+  if (new_SummerTime == FLAG_OFF) {
+    if (FlashConfig.FlagSummerTime == FLAG_ON) {
+      // If we are changing from summer to winter, then reduce the timezone offset by 1 hour
+      BaseTimezone = BaseTimezone - 1;
+    }
     FlashConfig.FlagSummerTime = new_SummerTime;
+    FlashConfig.Timezone = BaseTimezone;
+  }
+  if (new_SummerTime == FLAG_ON) {
+    if (FlashConfig.FlagSummerTime == FLAG_OFF) {
+      // If we are changing from winter to summer, then increase the timezone offset by 1 hour
+      BaseTimezone = BaseTimezone + 1;
+    }
+    FlashConfig.FlagSummerTime = new_SummerTime;
+    FlashConfig.Timezone = BaseTimezone;
   }
   return;
 }
@@ -19303,8 +19331,14 @@ void mwrite_DSTCountry(UCHAR new_DST_Country) {
 }
 
 // Write a new value for UTC offset timezone to the flash config
+// When DST summertime is active, the timezone is incremented from the requested value
 void wwriteTimezone(int8_t new_Timezone) {
-  FlashConfig.Timezone = new_Timezone;
+  int8_t BaseTimezone;
+  BaseTimezone = new_Timezone;
+  if (FlashConfig.FlagSummerTime == FLAG_ON) {
+    BaseTimezone = BaseTimezone + 1;
+  }
+  FlashConfig.Timezone = BaseTimezone;
   return;
 }
 
@@ -19372,10 +19406,10 @@ void wwrite_NightLightMode(UINT8 new_NightLightMode) {
   }
   else if (new_NightLightMode == NIGHT_LIGHT_NIGHT) {
     FlashConfig.NightLightMode = NIGHT_LIGHT_NIGHT;
-    if ((CurrentHourSetting >= FlashConfig.NightLightTimeOn) || (CurrentHourSetting < FlashConfig.NightLightTimeOff)) {
+    if ((CurrentHour >= FlashConfig.NightLightTimeOn) || (CurrentHour < FlashConfig.NightLightTimeOff)) {
       IndicatorButtonLightsOn;
     }
-    if ((CurrentHourSetting >= FlashConfig.NightLightTimeOff) && (CurrentHourSetting < FlashConfig.NightLightTimeOn)) {
+    if ((CurrentHour >= FlashConfig.NightLightTimeOff) && (CurrentHour < FlashConfig.NightLightTimeOn)) {
       IndicatorButtonLightsOff;
     }
   }
