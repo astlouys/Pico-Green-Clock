@@ -19318,8 +19318,23 @@ void mwritelanguage(UINT8 new_language) {
 }
 
 void wwrite_ClockHourMode(UINT8 new_hourmode){
+  UINT8 CurrentHourDisplay;
   if ((new_hourmode == H12) || (new_hourmode == H24)) {
     FlashConfig.TimeDisplayMode = new_hourmode;
+    // Set the AM/PM indicators
+    if (new_hourmode == H12) {
+      if (CurrentHour < 12) {
+        IndicatorAmOn;
+        IndicatorPmOff;
+      } else {
+        IndicatorAmOff;
+        IndicatorPmOn;
+      }
+    }
+    else {
+      IndicatorAmOff;
+      IndicatorPmOff;
+    }
     // Request time display update when all completed
     FlagUpdateTime = FLAG_ON;
   }
