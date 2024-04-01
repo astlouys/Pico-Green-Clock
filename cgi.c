@@ -150,24 +150,17 @@ const char * cgi_setdstcountry_handler(int iIndex, int iNumParams, char *pcParam
   UINT8 new_SummerTime = FLAG_OFF;
   UINT8 DSTCountry_Request = FLAG_OFF;
   UINT8 Summertime_Request = FLAG_OFF;
-  // If no value is sent, then nothing in the web form is sent. This is the DST flag cleared
-  if (iNumParams == 0) {
-      new_SummerTime = FLAG_OFF;
+  for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
+    if (strcmp(pcParam[Loop1UInt8], "DSTZoneSel") == 0) {
+      my_DSTCountry = atoi(pcValue[Loop1UInt8]);
+      DSTCountry_Request = FLAG_ON;
+    }
+    if (strcmp(pcParam[Loop1UInt8], "SetDSTMode") == 0) {
       Summertime_Request = FLAG_ON;
-  }
-  else {
-    for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
-      if (strcmp(pcParam[Loop1UInt8], "DSTZoneSel") == 0) {
-        my_DSTCountry = atoi(pcValue[Loop1UInt8]);
-        DSTCountry_Request = FLAG_ON;
-      }
-      if (strcmp(pcParam[Loop1UInt8], "SetDSTMode") == 0) {
-        Summertime_Request = FLAG_ON;
-      }
-      if (strcmp(pcParam[Loop1UInt8], "dstactive") == 0) {
-        new_SummerTime = FLAG_ON;
-        Summertime_Request = FLAG_ON;
-      }
+    }
+    if (strcmp(pcParam[Loop1UInt8], "dstactive") == 0) {
+      new_SummerTime = FLAG_ON;
+      Summertime_Request = FLAG_ON;
     }
   }
   if (DSTCountry_Request == FLAG_ON) {

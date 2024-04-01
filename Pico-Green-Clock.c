@@ -18618,8 +18618,6 @@ void update_dst_status()
     if (FlashConfig.FlagSummerTime == FLAG_OFF)
     {
       /* We are in Summer Time, but flash indicates that we are still in Winter Time... We need to adjust Timezone and clock time. */
-      ++FlashConfig.Timezone;
-
       if (DebugBitMask & DEBUG_DST)
       {
         uart_send(__LINE__, "  --------------------------------------------------------===> Changing from Winter Time to Summer Time.\r");
@@ -18643,8 +18641,14 @@ void update_dst_status()
           uart_send(__LINE__, "Current minutes that will be incremented: %u\r", CurrentHour);
 
         CurrentMinute += DstParameters[FlashConfig.DSTCountry].ShiftMinutes;
+        if (CurrentMinute > 59) {
+          CurrentMinute -= 60;
+          ++CurrentHour;
+        }
+        CurrentHourSetting   = CurrentHour;
         CurrentMinuteSetting = CurrentMinute;
-        set_minute(CurrentMinuteSetting);
+        set_hour(CurrentHour);
+        set_minute(CurrentMinute);
         if (DebugBitMask & DEBUG_DST)
           uart_send(__LINE__, "Current Time after hour change: %u:%2.2u\r", CurrentHour, CurrentMinute);
       }
@@ -18659,7 +18663,7 @@ void update_dst_status()
   {
     if (FlashConfig.FlagSummerTime == FLAG_ON)
     {
-      /* We are in Winter Time, but flash indicates that we are still in Summer Time... We need to adjust Timezone and clock time. */
+      /* We are in Winter Time, but flash indicates that we are still in Summer Time... We need to adjust clock time. */
       if (DebugBitMask & DEBUG_DST)
       {
         uart_send(__LINE__, " ---------------------------------------------------------===> Changing from Summer Time to Winter Time.\r");
@@ -18684,9 +18688,6 @@ void update_dst_status()
           set_hour(CurrentHour);
           set_day_of_month(CurrentDayOfMonth);
           set_month(CurrentMonth);
-
-          /* We are in Winter Time, but flash indicates that we are in Summer Time... We need to adjust DST parameters. */
-          --FlashConfig.Timezone;
         break;
 
         case (DST_LEBANON):
@@ -18706,17 +18707,11 @@ void update_dst_status()
           set_hour(CurrentHour);
           set_day_of_month(CurrentDayOfMonth);
           set_month(CurrentMonth);
-
-          /* We are in Winter Time, but flash indicates that we are in Summer Time... We need to adjust DST parameters. */
-          --FlashConfig.Timezone;
         break;
 
         default:
           if (DebugBitMask & DEBUG_DST)
             uart_send(__LINE__, "Current Hour that will be decremented: %u:%2.2u\r", CurrentHour, CurrentMinute);
-
-          /* We are in Winter Time, but flash indicates that we are in Summer Time... We need to adjust DST parameters. */
-          --FlashConfig.Timezone;
 
           /* Check shift minutes, just in case we have to cover other than 60 minutes shifts later on. */
           if (DstParameters[FlashConfig.DSTCountry].ShiftMinutes == 60)
@@ -18731,15 +18726,15 @@ void update_dst_status()
               uart_send(__LINE__, "Current Minute that will be decremented: %u:%2.2u\r", CurrentHour, CurrentMinute);
 
             CurrentMinute -= DstParameters[FlashConfig.DSTCountry].ShiftMinutes;
-            if (CurrentMinute > 59)  // went below 0.
+            if (CurrentMinute > 59)  // went below 0, wrapped around to a large positive number
             {
-              CurrentMinute += 60;
+              CurrentMinute += 60;   // wrap back to a small positive number
               --CurrentHour;
             }
             CurrentHourSetting   = CurrentHour;
             CurrentMinuteSetting = CurrentMinute;
             set_hour(CurrentHour);
-            set_minute(CurrentMinuteSetting);
+            set_minute(CurrentMinute);
             if (DebugBitMask & DEBUG_DST)
               uart_send(__LINE__, "Current Time after hour change: %u:%2.2u\r", CurrentHour, CurrentMinute);
           }
@@ -19186,14 +19181,8 @@ UCHAR fetch_DSTCountry(void) {
 }
 
 // Fetch the UTC offset timezone from the flash config
-// When DST summertime is active, the timezone is incremented, so decrement before returning the value
 int8_t fetch_Timezone(void) {
-  int8_t BaseTimezone;
-  BaseTimezone = FlashConfig.Timezone;
-  if (FlashConfig.FlagSummerTime == FLAG_ON) {
-    BaseTimezone = BaseTimezone - 1;
-  }
-  return BaseTimezone;
+  return FlashConfig.Timezone;
 }
 
 // Fetch the 12/24HR display mode from the flash config
@@ -19302,24 +19291,8 @@ void wwriteShortSeyKey(UINT8 new_SetKeyMode){
 
 // Write a new value for DST active flag to the flash config
 void wwriteSummerTime(UINT8 new_SummerTime) {
-  int8_t BaseTimezone;
-  BaseTimezone = FlashConfig.Timezone;
-  // Now set the summertime flag to the chosen value. If it is changing, then the timezone offset also needs to be altered.
-  if (new_SummerTime == FLAG_OFF) {
-    if (FlashConfig.FlagSummerTime == FLAG_ON) {
-      // If we are changing from summer to winter, then reduce the timezone offset by 1 hour
-      BaseTimezone = BaseTimezone - 1;
-    }
+  if (new_SummerTime == FLAG_OFF || new_SummerTime == FLAG_ON) {
     FlashConfig.FlagSummerTime = new_SummerTime;
-    FlashConfig.Timezone = BaseTimezone;
-  }
-  if (new_SummerTime == FLAG_ON) {
-    if (FlashConfig.FlagSummerTime == FLAG_OFF) {
-      // If we are changing from winter to summer, then increase the timezone offset by 1 hour
-      BaseTimezone = BaseTimezone + 1;
-    }
-    FlashConfig.FlagSummerTime = new_SummerTime;
-    FlashConfig.Timezone = BaseTimezone;
   }
   return;
 }
@@ -19331,14 +19304,8 @@ void mwrite_DSTCountry(UCHAR new_DST_Country) {
 }
 
 // Write a new value for UTC offset timezone to the flash config
-// When DST summertime is active, the timezone is incremented from the requested value
 void wwriteTimezone(int8_t new_Timezone) {
-  int8_t BaseTimezone;
-  BaseTimezone = new_Timezone;
-  if (FlashConfig.FlagSummerTime == FLAG_ON) {
-    BaseTimezone = BaseTimezone + 1;
-  }
-  FlashConfig.Timezone = BaseTimezone;
+  FlashConfig.Timezone = new_Timezone;
   return;
 }
 

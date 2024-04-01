@@ -603,8 +603,12 @@ void epoch_time_to_utc_time(time_t *EpochTime)
   if (DebugBitMask & DEBUG_NTP)
     uart_send(__LINE__, "Entering epoch_time_to_utc_time(): %lu\r", *EpochTime);
 
-  /* Adjust Epoch for local timezone, so that we will convert "Epoch local time" to "Current local time". */
+  /* Adjust Epoch for local timezone, so that we will convert "Epoch local time" to "Current local time".
+     Include DST offset if we are in summer time */
   *EpochTime += (FlashConfig.Timezone * 60 * 60);  // Flash.TimeZone is given in hour.
+  if (FlashConfig.FlagSummerTime == FLAG_ON) {
+    *EpochTime += (DstParameters[FlashConfig.DSTCountry].ShiftMinutes * 60);
+  }
   UtcTime = gmtime(EpochTime);
   if (DebugBitMask & DEBUG_NTP)
   {
