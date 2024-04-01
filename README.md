@@ -102,6 +102,10 @@ You may refer to the User Guide of the most recent Firmware Version (included in
 Please take note that I'm not a Waveshare employee. This firmware is provided "as is" to help users develop their own code.
 
 ## Building from source
+Note: The file "pico_sdk_import.cmake" is not included in the repository. I suggest that you make a symbolic link in your project directory:
+"ln  -s  /home/pi/pico/pico-sdk/external/pico_sdk_import.cmake"  (assuming that you used the recommended directory names)
+This way, as soon as you update your SDK, rebuilding your project will automatically use the latest version.
+
 1. Follow the instructions for setting up the Pico build environment from https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf
 2. In the pico c root directory you want to install the Pico-Green-Clock source from github by running the following commands.
 ```
