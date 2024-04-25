@@ -1,3 +1,5 @@
+# NOTE: For those looking for a "Network Time Protocol" (NTP) clock with many features, you may want to take a look at my "Pico-RGB-Matrix" repository...
+
 # Pico Green Clock
 Firmware Version 9.03 released 09-SEP-2023
 
