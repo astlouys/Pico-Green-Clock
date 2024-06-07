@@ -25,25 +25,7 @@
 #include "picow_ntp_client.h"
 #include <string.h>
 #include <time.h>
-
-
-
-typedef unsigned int  UINT;   // processor-optimized.
-typedef uint8_t       UINT8;
-typedef uint16_t      UINT16;
-typedef uint32_t      UINT32;
-typedef uint64_t      UINT64;
-typedef unsigned char UCHAR;
-
-typedef struct NTP_T_
-{
-  ip_addr_t        ntp_server_address;
-  bool             dns_request_sent;
-  struct udp_pcb  *ntp_pcb;
-  absolute_time_t  ntp_test_time;
-  alarm_id_t       ntp_resend_alarm;
-} NTP_T;
-
+#include "Pico-Green-Clock.h"
 
 
 enum
@@ -54,131 +36,24 @@ enum
 } ERR_NTP;
 
 
-
-#define FLAG_OFF           0x00
-#define FLAG_ON            0x01
-#define FLAG_POLL          0x02
-#define NTP_SERVER        "pool.ntp.org"
-#define NTP_MSG_LEN        48
-#define NTP_PORT           123
-#define NTP_DELTA          2208988800   // number of seconds between 01-JAN-1900 and 01-JAN-1970.
-#define NTP_TEST_TIME      (60 * 1000)
-#define NTP_RESEND_TIME    (10 * 1000)
-
 NTP_T *NTPStruct;
-
 
 extern uint64_t             DebugBitMask;
 extern datetime_t           CurrentTime;
 extern unsigned char        DayName[3][8][10];
 extern UINT8                FlagNTPSuccess;
 
-extern struct alarm
-{
-  UINT8 FlagStatus;
-  UINT8 Second;
-  UINT8 Minute;
-  UINT8 Hour;
-  UINT8 Day;
-  UCHAR Text[40];
-}Alarm;
+extern struct               alarm Alarm;
+extern struct               dst_parameters DstParameters[25];
+extern struct               flash_config FlashConfig;
+extern struct               ntp_data NTPData;
 
-extern struct dst_parameters
-{
-  UINT8  StartMonth;
-  UINT8  StartDayOfWeek;
-  int8_t StartDayOfMonthLow;
-  int8_t StartDayOfMonthHigh;
-  UINT8  StartHour;
-  UINT16 StartDayOfYear;
-  UINT8  EndMonth;
-  UINT8  EndDayOfWeek;
-  int8_t EndDayOfMonthLow;
-  int8_t EndDayOfMonthHigh;
-  UINT8  EndHour;
-  UINT16 EndDayOfYear;
-  UINT8  ShiftMinutes;
-}DstParameters[25];
-
-
-extern struct flash_config
-{
-  UCHAR  Version[6];          // firmware version number (format: "06.00" - including end-of-string).
-  UINT8  CurrentYearCentile;  // assume we are in years 20xx on power-up but is adjusted when configuration is read (will your clock live long enough for a "21" ?!).
-  UINT8  Language;            // language used for data display (including date scrolling).
-  UCHAR  DaylightSavingTime;  // specifies how to handle the daylight saving time (see User Guide and / or clock options above).
-  UINT8  TemperatureUnit;     // CELSIUS or FAHRENHEIT default value (see clock options above).
-  UINT8  TimeDisplayMode;     // H24 or H12 default value (see clock options above).
-  UINT8  ChimeMode;           // chime mode (Off / On / Day).
-  UINT8  ChimeTimeOn;         // hourly chime will begin at this hour.
-  UINT8  ChimeTimeOff;        // hourly chime will stop after this hour.
-  UINT8  NightLightMode;      // night light mode (On / Off / Auto / Night).
-  UINT8  NightLightTimeOn;    // default night light time On.
-  UINT8  NightLightTimeOff;   // default night light time Off.
-  UINT8  FlagAutoBrightness;  // flag indicating we are in "Auto Brightness" mode.
-  UINT8  FlagKeyclick;        // flag for keyclick ("button-press" tone)
-  UINT8  FlagScrollEnable;    // flag indicating the clock will scroll the date and temperature at regular intervals on the display.
-  UINT8  FlagSummerTime;      // flag indicating the current status of Daylight Saving Time / Summer Time.
-  int8_t Timezone;            // (in minutes) value to add to local time to reach UTC (Universal Time Coordinate).
-  UINT8  Reserved1[48];       // reserved for future use.
-  struct alarm Alarm[9];      // alarms 1 to 9 parameters. Day is a bit mask.
-  UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5, so that a "footprint" can be confirmed prior to writing to flash.
-  UCHAR  Password[70];        // password for Wi-Fi network. Note: password begins at position 5, for the same reason as SSID above.
-  UCHAR  Reserved2[48];       // reserved for future use.
-  UINT16 Crc16;               // crc16 of previous data to validate configuration.
-} FlashConfig;
-
-
-extern struct ntp_data
-{
-  /* Time-related data. */
-  UINT8  CurrentDayOfWeek;
-  UINT8  CurrentDayOfMonth;
-  UINT8  CurrentMonth;
-  UINT16 CurrentYear; 
-  UINT8  CurrentYearLowPart;
-  UINT8  CurrentHour;
-  UINT8  CurrentMinute;
-  UINT8  CurrentSecond;
-
-  /* Generic data. */
-  time_t Epoch;
-  UINT8  FlagNTPResync;   // flag set to On if there is a specific reason to request an NTP update without delay.
-  UINT8  FlagNTPSuccess;  // flag indicating that NTP date and time request has succeeded.
-  UINT64 NTPDelta;
-  UINT32 NTPErrors;       // cumulative number of errors while trying to re-sync with NTP.
-  UINT64 NTPGetTime;
-  UINT64 NTPLastUpdate;
-  UINT32 NTPReadCycles;   // total number of re-sync cycles through NTP.
-}NTPData;
 
 
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------------------- *\
-                                                                             Function prototypes.
+                                                                      External Function prototypes.
 \* ------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-/* Initialize the cyw43 on Pico W. */
-void init_cyw43(UINT CountryCode);
-
-/* Call back with a DNS result. */
-static void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);
-
-/* NTP request failed. */
-static int64_t ntp_failed_handler(alarm_id_t id, void *user_data);
-
-/* NTP data received. */
-static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
-
-/* Make an NTP request. */
-static void ntp_request(NTP_T *NTPStruct);
-
-/* Called with results of operation. */
-static void ntp_result(NTP_T* NTPStruct, int status, time_t *result);
-
-/* Convert epoch time received from NTP to local real-time. */
-void epoch_time_to_utc_time(time_t *EpochTime);
-
-
 
 /* Return day-of-week of parameters passed as arguments. */
 extern UINT8 get_day_of_week(UINT16 Year, UINT8 Month, UINT8 DayOfMonth);
@@ -405,7 +280,7 @@ void ntp_get_time(void)
     if (DebugBitMask & DEBUG_NTP)
       uart_send(__LINE__, "Not using CYW43 arch poll.\r");
 
-    /* if cyw43_arch_poll is not used, then Wi-Fi driver and lwIP work is done via interrupt in the background. 
+    /* if cyw43_arch_poll is not used, then Wi-Fi driver and lwIP work is done via interrupt in the background.
        The sleep below is just an example of some (blocking) work you might be doing. */
     /// sleep_ms(1000);
 #endif
@@ -436,8 +311,8 @@ int ntp_init(void)
   UINT8 Loop2UInt8;
 
   int ReturnCode;
-  
-  
+
+
   ReturnCode = 0;  // assume no error on entry.
 
 
@@ -447,11 +322,20 @@ int ntp_init(void)
   /* Enable Wi-Fi Station mode. */
   cyw43_arch_enable_sta_mode();
   sleep_ms(250);
+  cyw43_arch_lwip_begin();
+  {
+    struct netif *n = &cyw43_state.netif[CYW43_ITF_STA];
+    netif_set_hostname(n, &FlashConfig.Hostname[4]);
+    netif_set_up(n);
+  }
+  cyw43_arch_lwip_end();
+  sleep_ms(250);
 
   if (DebugBitMask & DEBUG_NTP)
   {
     uart_send(__LINE__, "\r\r");
     uart_send(__LINE__, "Enabled station mode.\r");
+    uart_send(__LINE__, "Hostname: [%s].\r", &FlashConfig.Hostname[4]);
   }
 
   /*** cmake -DPICO_BOARD=pico_w -DPICO_STDIO_USB=1 -DWIFI_SSID=<NetworkName> -DWIFI_PASSWORD=<Password> .. ***/
@@ -491,7 +375,7 @@ int ntp_init(void)
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(300);
       }
-    
+
       if (DebugBitMask & DEBUG_NTP)
       {
         if (Loop1UInt8 < 10)
@@ -515,7 +399,7 @@ int ntp_init(void)
   {
     /* To overcome the inherent bug with Pico W USB CDC output after CYW43 init, use Pico's LED to visualize outcome. Steady On means error. */
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-      
+
     return ERR_NTP_CONNECT;
   }
 
@@ -553,7 +437,7 @@ int ntp_init(void)
     ReturnCode = ERR_NTP_ALLOC;
   }
 
-    
+
   /* If return code indicates an error but calloc() returned a valid pointer, free the allocated memory. */
   if (ReturnCode && NTPStruct)
   {
@@ -613,7 +497,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
       // uart_send(__LINE__, "Seconds since 1970: %lu\r", seconds_since_1970);
       // uart_send(__LINE__, "NTP_DELTA:          %lu\r", NTP_DELTA);
     }
-    
+
     ntp_result(NTPStruct, 0, &EpochTime);
   }
   else
@@ -622,7 +506,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
       uart_send(__LINE__, "Invalid ntp response\r");
     ntp_result(NTPStruct, -1, NULL);
   }
-  
+
   pbuf_free(p);
 
   return;
@@ -719,15 +603,19 @@ void epoch_time_to_utc_time(time_t *EpochTime)
   if (DebugBitMask & DEBUG_NTP)
     uart_send(__LINE__, "Entering epoch_time_to_utc_time(): %lu\r", *EpochTime);
 
-  /* Adjust Epoch for local timezone, so that we will convert "Epoch local time" to "Current local time". */
+  /* Adjust Epoch for local timezone, so that we will convert "Epoch local time" to "Current local time".
+     Include DST offset if we are in summer time */
   *EpochTime += (FlashConfig.Timezone * 60 * 60);  // Flash.TimeZone is given in hour.
+  if (FlashConfig.FlagSummerTime == FLAG_ON) {
+    *EpochTime += (DstParameters[FlashConfig.DSTCountry].ShiftMinutes * 60);
+  }
   UtcTime = gmtime(EpochTime);
   if (DebugBitMask & DEBUG_NTP)
   {
     uart_send(__LINE__, "EpochTime adjusted for local time: %lu\r", *EpochTime);
     uart_send(__LINE__, "Date: %2d/%2.2d/%4.4d   %2d:%2.2d:%2.2d\r", UtcTime->tm_mday, UtcTime->tm_mon + 1, UtcTime->tm_year + 1900, UtcTime->tm_hour, UtcTime->tm_min, UtcTime->tm_sec);
   }
-  
+
 
   NTPData.CurrentDayOfMonth = UtcTime->tm_mday;
   NTPData.CurrentMonth      = UtcTime->tm_mon + 1;	     // 0 -> 11 converted to 1 -> 12

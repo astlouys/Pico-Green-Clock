@@ -30,7 +30,7 @@
 #define DEBUG_TIMER         0x0000000000800000
 #define DEBUG_TIMING        0x0000000001000000
 #define DEBUG_WATCHDOG      0x0000000002000000
-// #define DEBUG_?????            0x0000000004000000
+#define DEBUG_JINGLE        0x0000000004000000
 // #define DEBUG_?????            0x0000000008000000
 // #define DEBUG_?????            0x0000000010000000
 // #define DEBUG_?????            0x0000000020000000
