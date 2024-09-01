@@ -64,7 +64,7 @@ pico_add_extra_outputs(Pico-Green-Clock)
 #
 #
 # Pull in our pico_stdlib which pulls in commonly used features
-target_link_libraries(Pico-Green-Clock hardware_adc hardware_flash hardware_i2c hardware_pwm hardware_sync pico_stdlib pico_unique_id pico_multicore pico_cyw43_arch_lwip_threadsafe_background pico_lwip_http pico_cyw43_arch)
+target_link_libraries(Pico-Green-Clock hardware_adc hardware_flash hardware_i2c hardware_pwm hardware_sync pico_stdlib pico_unique_id pico_multicore pico_cyw43_arch_lwip_threadsafe_background pico_lwip_http)
 #
 #
 # add url via pico_set_program_url
