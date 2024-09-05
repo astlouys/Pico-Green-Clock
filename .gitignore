@@ -1,0 +1,5 @@
+build/
+.vscode/
+.git
+htmldata.c
+pico_sdk_import.cmake
