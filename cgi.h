@@ -8,7 +8,7 @@ const char * cgi_setdstcountry_handler(int iIndex, int iNumParams, char *pcParam
 const char * cgi_clearntperrors_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setlanguage_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setkeyclick_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
-const char * cgi_setdisplayscroll_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
+const char * cgi_setseparatormode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_disphourmode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_shortsetkey_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const char * cgi_setchimemode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);

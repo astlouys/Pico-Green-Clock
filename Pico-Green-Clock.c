@@ -235,6 +235,9 @@
                      - Tweak daylight savings region web control drop down so that it's now populated correctly rather than having a print out of the region and drop down to change.
                      - Add periodic print out of the Pico-W WiFi connection status and IP address to the UART or USB serial console (will work with putty, etc.). Serial baud rate is 921600.
 
+   26-DEC-2024 10.10 - Add web control and supporting logic to alter how the hour / minute separator (:) runs. This can be the original 15 second pattern, a fixed mode, a 1 second flash
+                       or a 12 second tick "bar graph" sequence.
+
 \* ================================================================== */
 
 /* ================================================================== *\
@@ -304,7 +307,7 @@
                      "CalendarEventsGeneric.cpp".
 \* ================================================================== */
 /* Firmware version. */
-#define FIRMWARE_VERSION "10.01"  ///
+#define FIRMWARE_VERSION "10.10"  ///
 
 /* Select the language for data display. */
 #define DEFAULT_LANGUAGE ENGLISH // choices for now are FRENCH, ENGLISH, GERMAN, and SPANISH.
@@ -1546,6 +1549,8 @@ int main(void)
     FlashConfig.TimeDisplayMode    = H24;
     FlashConfig.DimmerMinLightLevel= 225;
     FlashConfig.ShortSetKey        = FLAG_ON;
+    // Separator set to pattern mode by default (255 or 0 = unknown, 1 = constant, 2 = 1s flash, 3 = 15s pattern, 4 = 12s bar graph)
+    FlashConfig.SeparatorMode      = 3;
     for (Loop1UInt8 = 0; Loop1UInt8 < 9; ++Loop1UInt8)
       FlashConfig.Alarm[Loop1UInt8].FlagStatus = FLAG_OFF;
     sprintf(FlashConfig.Hostname, ".@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.@.");                                // write specific footprint to flash memory.
@@ -1698,7 +1703,27 @@ int main(void)
       FlashConfig.Reserved2[Loop1UInt16] = 0xFF;
     }
 
+    // Separator set to pattern mode by default (255 or 0 = unknown, 1 = constant, 2 = 1s flash, 3 = 15s pattern, 4 = 12s bar graph)
+    FlashConfig.SeparatorMode      = 3;
+
   }
+
+
+  /* -------------------- UPDATE VERSION 10.01 TO VERSION 10.10 -------------------- */
+  if (strcmp(FlashConfig.Version, "10.01") == 0)
+  {
+    /* Convert flash configuration from Version 10.0 to Version 10.01. */
+    if (DebugBitMask & DEBUG_FLASH)
+    {
+      uart_send(__LINE__, "Display Flash configuration before conversion from Version 10.01 to Version 10.10.\r");
+      flash_display_config();
+    }
+    sprintf(FlashConfig.Version, "10.10");   // convert to Version 10.10.
+
+    // Separator set to pattern mode by default (255 or 0 = unknown, 1 = constant, 2 = 1s flash, 3 = 15s pattern, 4 = 12s bar graph)
+    FlashConfig.SeparatorMode      = 3;
+  }
+
 
   // /*** One-time FlashConfig writes may be inserted below... ***/
   // // NOTE: If you already ran Firmware Version 10.0x, network hostname, SSID and password will not be updated just by replacing the
@@ -4679,82 +4704,204 @@ void evaluate_blinking_time(void)
   }
 
 
-  /* While the clock is displayed, blink the top "middle dot" during the first 20 seconds, then the bottom
-     "middle dot" during 20 to 40 seconds, and finally both "middle dots" between 40 and 59 seconds. */
   if (CurrentClockMode == MODE_SHOW_TIME)
   {
+    // increment the number of milliseconds, enters as 0 to 999 on each call, then incremented to 1 to 1000
     ++DotBlinkCount;
 
-    /* 500 means "erase the target dot(s)". */
-    if (DotBlinkCount == 500)
+    /* While the clock is displayed, drive the hour / minute separator to always on for mode 1 */
+    if (FlashConfig.SeparatorMode == SEPARATOR_CONST)
     {
-      /* We change the status of blinking double-dots, allow "display seconds" to be updated
-         on display at the same time if it is active (to prevent a glitch in display update). */
+      /* We change the status of double-dots, allow "display seconds" to be updated
+        on display at the same time if it is active (to prevent a glitch in display update). */
       sem_release(&SemSync);
-
-      if (CurrentSecond < 15)
+      DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off dot.
+      DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
+      DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off dot.
+      DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+      DisplayBuffer[14] &= 0xEF; // slim ":" - turn Off dot.
+      if (DotBlinkCount > 999)
       {
-        /* From 0 to 14 seconds, blink the top "middle dot". */
-        DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off top dot.
-
-        /* Make sure the other dot (bottom dot) is on. */
-        DisplayBuffer[13] |= 0x10; // slim ":" - make sure bottom dot is turned On.
-      }
-      else if (CurrentSecond < 30)
-      {
-        /* From 15 to 29 seconds, blink the bottom "middle dot". */
-        DisplayBuffer[11] |= 0x10; // slim ":" - make sure top dot is turned On.
-
-        /* Erase bottom dot. */
-        DisplayBuffer[13] &= 0xEF; // slim ":" - erase bottom dot.
-      }
-      else if (CurrentSecond < 45)
-      {
-        /* From 30 to 44 seconds, alternate between both "middle dots". */
-        DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
-
-        /* Turn Off bottom dot. */
-        DisplayBuffer[13] &= 0xEF; // slim ":" - turn Off bottom dot.
-      }
-      else
-      {
-        /* From 45 to 59 seconds, blink both "middle dots". */
-        DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off top dot.
-        DisplayBuffer[13] &= 0xEF; // slim ":" - turn Off bottom dot.
+        DotBlinkCount = 0; // reset DotBlinkCount
       }
     }
 
-    /* 1000 means "redraw the target dot(s)". */
-    if (DotBlinkCount == 1000)
+    /* While the clock is displayed, drive the hour / minute separator to flash both dots for mode 2 */
+    if (FlashConfig.SeparatorMode == SEPARATOR_FLASH)
+    {
+      /* 500 means "erase the target dot(s)". */
+      if (DotBlinkCount == 500)
+      {
+        /* We change the status of blinking double-dots, allow "display seconds" to be updated
+          on display at the same time if it is active (to prevent a glitch in display update). */
+        sem_release(&SemSync);
+
+        /* blink both "middle dots". */
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off top dot.
+        DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[13] &= 0xEF; // slim ":" - turn Off bottom dot.
+        DisplayBuffer[14] &= 0xEF; // slim ":" - turn Off dot.
+      }
+
+      /* 1000 means "redraw the target dot(s)". */
+      if (DotBlinkCount > 999)
+      {
+        /* We change the status of blinking double-dots, allow "display seconds" to be updated
+          on display at the same time if it is active (to prevent a glitch in display update). */
+        sem_release(&SemSync);
+
+        /* From 45 to 59 seconds, blink both "middle dot". */
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
+        DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        DisplayBuffer[14] &= 0xEF; // slim ":" - turn Off dot.
+
+        DotBlinkCount = 0; // reset DotBlinkCount
+      }
+    }
+
+    /* While the clock is displayed, blink the top "middle dot" during the first 20 seconds, then the bottom
+      "middle dot" during 20 to 40 seconds, and finally both "middle dots" between 40 and 59 seconds for mode 3 (or 255 or 0 if unconfigured) */
+    if (FlashConfig.SeparatorMode == 255 || FlashConfig.SeparatorMode == 0 || FlashConfig.SeparatorMode == SEPARATOR_PATTERN)
+    {
+      /* 500 means "erase the target dot(s)". */
+      if (DotBlinkCount == 500)
+      {
+        /* We change the status of blinking double-dots, allow "display seconds" to be updated
+          on display at the same time if it is active (to prevent a glitch in display update). */
+        sem_release(&SemSync);
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[14] &= 0xEF; // slim ":" - turn Off dot.
+
+        if (CurrentSecond < 15)
+        {
+          /* From 0 to 14 seconds, blink the top "middle dot". */
+          DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off top dot.
+          /* Make sure the other dot (bottom dot) is on. */
+          DisplayBuffer[13] |= 0x10; // slim ":" - make sure bottom dot is turned On.
+        }
+        else if (CurrentSecond < 30)
+        {
+          /* From 15 to 29 seconds, blink the bottom "middle dot". */
+          DisplayBuffer[11] |= 0x10; // slim ":" - make sure top dot is turned On.
+          /* Erase bottom dot. */
+          DisplayBuffer[13] &= 0xEF; // slim ":" - erase bottom dot.
+        }
+        else if (CurrentSecond < 45)
+        {
+          /* From 30 to 44 seconds, alternate between both "middle dots". */
+          DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
+          /* Turn Off bottom dot. */
+          DisplayBuffer[13] &= 0xEF; // slim ":" - turn Off bottom dot.
+        }
+        else
+        {
+          /* From 45 to 59 seconds, blink both "middle dots". */
+          DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off top dot.
+          DisplayBuffer[13] &= 0xEF; // slim ":" - turn Off bottom dot.
+        }
+      }
+
+      /* 1000 means "redraw the target dot(s)". */
+      if (DotBlinkCount == 1000)
+      {
+        /* We change the status of blinking double-dots, allow "display seconds" to be updated
+          on display at the same time if it is active (to prevent a glitch in display update). */
+        sem_release(&SemSync);
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off dot.
+        DisplayBuffer[14] &= 0xEF; // slim ":" - turn Off dot.
+
+        if (CurrentSecond < 15)
+        {
+          /* From 0 to 14 seconds, blink the top "middle dot". */
+          DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
+          DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        }
+        else if (CurrentSecond < 30)
+        {
+          /* From 15 to 29 seconds, blink the bottom "middle dot". */
+          DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
+          DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        }
+        else if (CurrentSecond < 45)
+        {
+          /* From 30 to 44 seconds, alternate between both "middle dots". */
+          DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off top dot.
+          DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        }
+        else
+        {
+          /* From 45 to 59 seconds, blink both "middle dot". */
+          DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
+          DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        }
+
+        DotBlinkCount = 0; // reset DotBlinkCount
+      }
+    }
+
+    /* While the clock is displayed, draw a bar graph of seconds progress every 12 seconds
+      <12 is lower dot, between 12 and 23 have 2 dots, between 24 and 35 have 3 dots, between 36 and 47 have 4 dots
+      and between 48 and 59 seconds have 5 dots */
+    if (FlashConfig.SeparatorMode == SEPARATOR_BAR)
     {
       /* We change the status of blinking double-dots, allow "display seconds" to be updated
-         on display at the same time if it is active (to prevent a glitch in display update). */
+        on display at the same time if it is active (to prevent a glitch in display update). */
       sem_release(&SemSync);
 
-      if (CurrentSecond < 15)
+      if (CurrentSecond < 12)
       {
-        /* From 0 to 14 seconds, blink the top "middle dot". */
-        DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
+        /* From 0 to 11 seconds, set only the lower dot*/
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off top dot.
+        DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off upper dot.
+        DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off middle dot.
+        DisplayBuffer[13] &= 0xEF; // slim ":" - turn Off top dot.
+        DisplayBuffer[14] |= 0x10; // slim ":" - make sure bottom dot is turned On.
       }
-      else if (CurrentSecond < 30)
+      else if (CurrentSecond < 24)
       {
-        /* From 15 to 29 seconds, blink the bottom "middle dot". */
-        DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        /* From 12 to 23 seconds, set only the two lower dots*/
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off top dot.
+        DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off upper dot.
+        DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off middle dot.
+        DisplayBuffer[13] |= 0x10; // slim ":" - turn on lower dot.
+        DisplayBuffer[14] |= 0x10; // slim ":" - make sure bottom dot is turned On.
       }
-      else if (CurrentSecond < 45)
+      else if (CurrentSecond < 36)
       {
-        /* From 30 to 44 seconds, alternate between both "middle dots". */
-        DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off top dot.
-        DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        /* From 24 to 35 seconds, set only the three lower dots*/
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off top dot.
+        DisplayBuffer[11] &= 0xEF; // slim ":" - turn Off upper dot.
+        DisplayBuffer[12] |= 0x10; // slim ":" - turn On middle dot.
+        DisplayBuffer[13] |= 0x10; // slim ":" - turn On lower dot.
+        DisplayBuffer[14] |= 0x10; // slim ":" - make sure bottom dot is turned On.
+      }
+      else if (CurrentSecond < 48)
+      {
+        /* From 36 to 47 seconds, set only the four lower dots*/
+        DisplayBuffer[10] &= 0xEF; // slim ":" - turn Off top dot.
+        DisplayBuffer[11] |= 0x10; // slim ":" - turn On upper dot.
+        DisplayBuffer[12] |= 0x10; // slim ":" - turn On middle dot.
+        DisplayBuffer[13] |= 0x10; // slim ":" - turn On lower dot.
+        DisplayBuffer[14] |= 0x10; // slim ":" - make sure bottom dot is turned On.
       }
       else
       {
-        /* From 45 to 59 seconds, blink both "middle dot". */
-        DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
-        DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
+        /* From 48 to 59 seconds, set only the three lower dots*/
+        DisplayBuffer[10] |= 0x10; // slim ":" - turn On top dot.
+        DisplayBuffer[11] |= 0x10; // slim ":" - turn On upper dot.
+        DisplayBuffer[12] |= 0x10; // slim ":" - turn On middle dot.
+        DisplayBuffer[13] |= 0x10; // slim ":" - turn On lower dot.
+        DisplayBuffer[14] |= 0x10; // slim ":" - make sure bottom dot is turned On.
       }
-
-      DotBlinkCount = 0; // reset DotBlinkCount
+      if (DotBlinkCount > 999)
+      {
+        DotBlinkCount = 0; // reset DotBlinkCount
+      }
     }
   }
 
@@ -19185,6 +19332,11 @@ int8_t fetch_Timezone(void) {
   return FlashConfig.Timezone;
 }
 
+// Fetch the hour / minute separator display mode from the flash config
+UINT8 fetch_SeparatorMode(void) {
+  return FlashConfig.SeparatorMode;
+}
+
 // Fetch the 12/24HR display mode from the flash config
 UINT8 fetch_ClockHourMode(void) {
   return FlashConfig.TimeDisplayMode;
@@ -19313,6 +19465,14 @@ void wwriteTimezone(int8_t new_Timezone) {
 void mwritelanguage(UINT8 new_language) {
   if (new_language > LANGUAGE_LO_LIMIT && new_language < LANGUAGE_HI_LIMIT) {
     FlashConfig.Language = new_language;
+  }
+  return;
+}
+
+// Write a new value for the hour / minute separator display mode to the flash config if in the correct range
+void wwrite_SeparatorMode(UINT8 new_separatormode) {
+  if (new_separatormode > 0 && new_separatormode < 5) {
+    FlashConfig.SeparatorMode = new_separatormode;
   }
   return;
 }

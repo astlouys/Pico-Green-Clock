@@ -73,11 +73,17 @@
           </form>
           <form action="/setkeyclick.cgi">
             <label for="keyclick">Button Press Beep</label><input type="checkbox" <!--#keyclick--> id="keyclick" name="keyclick" value="active" >
-            <input type="submit" value="Update Keyclick"><br>
-          </form>
-          <form action="/setdisplayscroll.cgi">
+            <input type="submit" name="SetKeyClik" value="Update Keyclick">&emsp;
             <label for="dispscroll">Display Scroll</label><input type="checkbox" <!--#discroll--> id="dispscroll" name="dispscroll" value="active" >
-            <input type="submit" value="Update Display Scroll"><br>
+            <input type="submit" name="SetDispScroll" value="Update Display Scroll"><br>
+          </form>
+          <form action="/setseparatormode.cgi">
+            Hour : Minute Separator (:) Mode:
+            <input type="radio" id="secsepconst" name="secseparatormode" <!--#sepconst--> value="secsepconst"> <label for="secsepconst">Constant</label>
+            <input type="radio" id="secsepflash" name="secseparatormode" <!--#sepflash--> value="secsepflash"> <label for="secsepflash">Flash</label>
+            <input type="radio" id="secseppat" name="secseparatormode" <!--#seppattn--> value="secseppat"> <label for="secseppat">15s Pattern (default)</label>
+            <input type="radio" id="secsepbar" name="secseparatormode" <!--#sepbargh--> value="secsepbar"> <label for="secsepbar">12s Bar Graph</label>
+            <input type="submit" value="Update">
           </form>
           <form action="/disphourmode.cgi">
             Clock Hour display:

@@ -218,28 +218,57 @@ const char * cgi_setlanguage_handler(int iIndex, int iNumParams, char *pcParam[]
 const char * cgi_setkeyclick_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
   UINT8 Loop1UInt8;
   UINT8 new_keyclick = FLAG_OFF;
+  UINT8 set_keyclick = FLAG_OFF;
+  UINT8 new_dispscroll = FLAG_OFF;
+  UINT8 set_dispscroll = FLAG_OFF;
   for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
     if (strcmp(pcParam[Loop1UInt8], "keyclick") == 0) {
       new_keyclick = FLAG_ON;
     }
+    if (strcmp(pcParam[Loop1UInt8], "dispscroll") == 0) {
+      new_dispscroll = FLAG_ON;
+    }
+    if (strcmp(pcParam[Loop1UInt8], "SetKeyClik") == 0) {
+      set_keyclick = FLAG_ON;
+    }
+    if (strcmp(pcParam[Loop1UInt8], "SetDispScroll") == 0) {
+      set_dispscroll = FLAG_ON;
+    }
   }
-  // Update the keyclick setting
-  wwriteKeyclick(new_keyclick);
+  if (set_keyclick == FLAG_ON) {
+    // Update the keyclick setting
+    wwriteKeyclick(new_keyclick);
+  }
+  if (set_dispscroll == FLAG_ON) {
+    // Update the display scrolling setting
+    wwriteScrollEnable(new_dispscroll);
+  }
   // Send the index page back to the user
   return "/index.shtml";
 }
 
-// CGI handler which is run when a request for /setdisplayscroll.cgi is detected
-const char * cgi_setdisplayscroll_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
+// CGI handler which is run when a request for /setseparatormode.cgi is detected
+const char * cgi_setseparatormode_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]){
   UINT8 Loop1UInt8;
-  UINT8 new_dispscroll = FLAG_OFF;
+  UINT8 new_separatormode = 0;
   for (int Loop1UInt8 = 0; Loop1UInt8 < iNumParams; ++Loop1UInt8) {
-    if (strcmp(pcParam[Loop1UInt8], "dispscroll") == 0) {
-      new_dispscroll = FLAG_ON;
+    if (strcmp(pcParam[Loop1UInt8], "secseparatormode") == 0) {
+      if (strcmp(pcValue[Loop1UInt8], "secsepconst") == 0) {
+        new_separatormode = SEPARATOR_CONST;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "secsepflash") == 0) {
+        new_separatormode = SEPARATOR_FLASH;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "secseppat") == 0) {
+        new_separatormode = SEPARATOR_PATTERN;
+      }
+      if (strcmp(pcValue[Loop1UInt8], "secsepbar") == 0) {
+        new_separatormode = SEPARATOR_BAR;
+      }
     }
   }
-  // Update the display scrolling setting
-  wwriteScrollEnable(new_dispscroll);
+  // Update the hour / minute operating mode setting
+  wwrite_SeparatorMode(new_separatormode);
   // Send the index page back to the user
   return "/index.shtml";
 }
@@ -530,7 +559,7 @@ static const tCGI cgi_handlers[] = {
         "/setkeyclick.cgi", cgi_setkeyclick_handler
     },
     {
-        "/setdisplayscroll.cgi", cgi_setdisplayscroll_handler
+        "/setseparatormode.cgi", cgi_setseparatormode_handler
     },
     {
         "/disphourmode.cgi", cgi_disphourmode_handler

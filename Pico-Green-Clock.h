@@ -99,6 +99,10 @@ typedef unsigned char UCHAR;
 #define NIGHT_LIGHT_NIGHT         0x02      // night light On between NightLightTimeOn and NightLightTimeOff.
 #define NIGHT_LIGHT_OFF           0x00      // night light always Off.
 #define NIGHT_LIGHT_ON            0x01      // night light always On.
+#define SEPARATOR_CONST           0x01      // Hour / minute separator constantly lit.
+#define SEPARATOR_FLASH           0x02      // Hour / minute separator flashing ":".
+#define SEPARATOR_PATTERN         0x03      // Hour / minute separator 4 way pattern ":".
+#define SEPARATOR_BAR             0x04      // Hour / minute separator as a 5 step bar graph
 #define TIMER_COUNT_DOWN          0x01      // timer mode is "Count Down".
 #define TIMER_COUNT_UP            0x02      // timer mode is "Count Up".
 #define TIMER_OFF                 0x00      // timer is currently OFF.
@@ -584,7 +588,8 @@ struct flash_config
   int8_t Timezone;            // (in hours) value to add to UTC time (Universal Time Coordinate) to get the local time.
   UINT16 DimmerMinLightLevel; // Value of the average light level to be used for the minimum display dim level, range 0 to 1500
   UINT8  ShortSetKey;         // flag indicating the set is a short key press and alarm is long or vice versa.
-  UINT8  Reserved1[45];       // reserved for future use.
+  UINT8  SeparatorMode;       // flag indicating how the hour / minute separator should behave
+  UINT8  Reserved1[44];       // reserved for future use.
   struct alarm Alarm[9];      // alarms 0 to 8 parameters (numbered 1 to 9 for clock users). Day is a bit mask, size is 48 bytes, total 432
   UCHAR  Hostname[40];        // Hostname for Wi-Fi network. Note: Hostname begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
   UCHAR  SSID[40];            // SSID for Wi-Fi network. Note: SSID begins at position 5 of the variable string, so that a "footprint" can be confirmed prior to writing to flash.
@@ -966,6 +971,7 @@ UINT8 fetch_ShortSeyKey(void);
 UINT8 fetch_SummerTime(void);
 UCHAR fetch_DSTCountry(void);
 int8_t fetch_Timezone(void);
+UINT8 fetch_SeparatorMode(void);
 UINT8 fetch_ClockHourMode(void);
 UINT8 fetch_ChimeMode(void);
 UINT8 fetch_ChimeStart(void);
@@ -982,6 +988,7 @@ void wwriteSummerTime(UINT8 new_SummerTime);
 void mwrite_DSTCountry(UCHAR new_DST_Country);
 void wwriteTimezone(int8_t new_Timezone);
 void mwritelanguage(UINT8 new_language);
+void wwrite_SeparatorMode(UINT8 new_hourmode);
 void wwrite_ClockHourMode(UINT8 new_hourmode);
 void wwrite_ChimeMode(UINT8 new_ChimeMode);
 void wwrite_ChimeStart(UINT8 new_ChimeStart);
