@@ -3,7 +3,7 @@
 # Pico Green Clock
 Firmware Version 10.10 released 28-DEC-2024
 
-NEW WITH FIRMWARE 10.01:
+NEW WITH FIRMWARE 10.10:
 =======================
  - Add new feature to select the hour / minute separator colon (:) character to change modes between constant/1s flash/15s pattern/12s bar operating modes.
  - Tweak the web page update buttons text to indicate the different update actions.
