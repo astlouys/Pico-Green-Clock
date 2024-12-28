@@ -32,7 +32,7 @@
           <form action="/settimezone.cgi">
             <label for="timezoneoffset">Timezone:</label><input type="number" id="timezoneoffset" name="timezoneoffset" min="-12" max="12" value="<!--#timezone-->">&nbsp;
             hours offset from UTC&emsp;
-            <input type="submit" value="Update">
+            <input type="submit" value="Update Timezone">
           </form>
           <form action="/setdstcountry.cgi">
             Daylight savings region:&nbsp;
@@ -83,19 +83,19 @@
             <input type="radio" id="secsepflash" name="secseparatormode" <!--#sepflash--> value="secsepflash"> <label for="secsepflash">Flash</label>
             <input type="radio" id="secseppat" name="secseparatormode" <!--#seppattn--> value="secseppat"> <label for="secseppat">15s Pattern (default)</label>
             <input type="radio" id="secsepbar" name="secseparatormode" <!--#sepbargh--> value="secsepbar"> <label for="secsepbar">12s Bar Graph</label>
-            <input type="submit" value="Update">
+            <input type="submit" value="Update Separator Mode">
           </form>
           <form action="/disphourmode.cgi">
             Clock Hour display:
             <input type="radio" id="set12hrmode" name="disphourmode" <!--#hr12mode--> value="set12hrmode"> <label for="set12hrmode">12Hr Mode</label>
             <input type="radio" id="set24hrmode" name="disphourmode" <!--#hr24mode--> value="set24hrmode"> <label for="set24hrmode">24Hr Mode</label>
-            <input type="submit" value="Update Mode"><br>
+            <input type="submit" value="Update Hour Mode"><br>
           </form>
           <form action="/shortsetkey.cgi">
             Short "Set" key sets :
             <input type="radio" id="settime" name="setshortkey" <!--#shsktime--> value="settime"> <label for="settime">Date and Time</label>
             <input type="radio" id="setalarm" name="setshortkey" <!--#shskalrm--> value="setalarm"> <label for="setalarm">Alarms</label>
-            <input type="submit" value="Update Mode"><br>
+            <input type="submit" value="Update Key Mode"><br>
           </form>
           <form action="/setchimemode.cgi">
             Chime Mode:
@@ -104,7 +104,7 @@
             <input type="radio" id="chimeon" name="chimemode" <!--#chmenon--> value="chimeon"> <label for="chimeon">On</label>&emsp;
             <label for="chimestart">Start hour:</label><input type="number" id="chimestart" name="chimestart" min="0" max="23" value="<!--#chmstart-->" size="2"> (24Hr)&ensp;
             <label for="chimestop">Stop hour:</label><input type="number" id="chimestop" name="chimestop" min="0" max="23" value="<!--#chimstop-->" size="2"> (24Hr)&ensp;
-            <input type="submit" value="Update">
+            <input type="submit" value="Update Chime Mode">
           </form>
           <form action="/setnightlightmode.cgi">
             Nightlight Mode:
@@ -114,7 +114,7 @@
             <input type="radio" id="nighgton" name="nighgtmode" <!--#ntliteon--> value="nighgton"> <label for="nighgton">On</label>&emsp;
             <label for="nighgtstart">Start hour:</label><input type="number" id="nighgtstart" name="nighgtstart" min="0" max="23" value="<!--#nltstart-->" size="2"> (24Hr)&ensp;
             <label for="nighgtstop">Stop hour:</label><input type="number" id="nighgtstop" name="nighgtstop" min="0" max="23" value="<!--#nlgtstop-->" size="2"> (24Hr)&ensp;
-            <input type="submit" value="Update">
+            <input type="submit" value="Update Nightlight Mode">
           </form>
         </fieldset>
         <br>
@@ -443,7 +443,7 @@
             <input type="radio" id="mid" name="dispdimmode" <!--#mdimmid--> value="mid"> <label for="mid">Medium</label>
             <input type="radio" id="low" name="dispdimmode" <!--#mdimlow--> value="low"> <label for="low">Low</label>
             <input type="radio" id="dark" name="dispdimmode" <!--#mdimdark--> value="dark"> <label for="dark">Dark</label>&nbsp;
-            <input type="submit" value="Select Mode">
+            <input type="submit" value="Select Dimming Mode">
           </form>
         </fieldset>
         <a href="/index.shtml">Refresh</a>
