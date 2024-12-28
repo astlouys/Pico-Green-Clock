@@ -4720,10 +4720,6 @@ void evaluate_blinking_time(void)
       DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off dot.
       DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
       DisplayBuffer[14] &= 0xEF; // slim ":" - turn Off dot.
-      if (DotBlinkCount > 999)
-      {
-        DotBlinkCount = 0; // reset DotBlinkCount
-      }
     }
 
     /* While the clock is displayed, drive the hour / minute separator to flash both dots for mode 2 */
@@ -4757,8 +4753,6 @@ void evaluate_blinking_time(void)
         DisplayBuffer[12] &= 0xEF; // slim ":" - turn Off dot.
         DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
         DisplayBuffer[14] &= 0xEF; // slim ":" - turn Off dot.
-
-        DotBlinkCount = 0; // reset DotBlinkCount
       }
     }
 
@@ -4839,8 +4833,6 @@ void evaluate_blinking_time(void)
           DisplayBuffer[11] |= 0x10; // slim ":" - turn On top dot.
           DisplayBuffer[13] |= 0x10; // slim ":" - turn On bottom dot.
         }
-
-        DotBlinkCount = 0; // reset DotBlinkCount
       }
     }
 
@@ -4898,10 +4890,10 @@ void evaluate_blinking_time(void)
         DisplayBuffer[13] |= 0x10; // slim ":" - turn On lower dot.
         DisplayBuffer[14] |= 0x10; // slim ":" - make sure bottom dot is turned On.
       }
-      if (DotBlinkCount > 999)
-      {
-        DotBlinkCount = 0; // reset DotBlinkCount
-      }
+    }
+    if (DotBlinkCount > 999)
+    {
+      DotBlinkCount = 0; // reset DotBlinkCount
     }
   }
 
