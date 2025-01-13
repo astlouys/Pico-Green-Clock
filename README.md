@@ -154,8 +154,8 @@ This has the following settings to make it work
 When runnning with the Pico Extension, the SDK is updated to 2.1.0 and things have been cleaned up. My environment still has GIT, Python and CMAKE installed and
 added to the path. CMAKE may not be necessary.
 The following code can be removed from the CMakeLists.txt file target_include_directories section
-...
+```
         ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
         ${PICO_SDK_PATH}/src/rp2_common/pico_cyw43_arch/include # for the WiFi hardware
-...
+```
 These are automatically included with the new Pico extension's set(sdkVersion 2.0.0) entry added by crjeder.
