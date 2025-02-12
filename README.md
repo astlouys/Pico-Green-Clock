@@ -1,4 +1,4 @@
-# NOTE: For those looking for a "Network Time Protocol" (NTP) clock with many features, you may want to take a look at my "Pico-RGB-Matrix" repository...
+# NOTE: For those looking for a "Network Time Protocol" (NTP) clock with many features, you may want to take a look at astlouys "Pico-RGB-Matrix" repository...
 
 # Pico Green Clock
 Firmware Version 10.10 released 28-DEC-2024
@@ -140,7 +140,7 @@ Pico-Clock-Green.bin            Pico-Clock-Green.hex            generated
 You now have an executable "uf2" that you can transfer to the Pico`s flash memory to run the Pico-Green-Clock.
 
 ### Building on Windows
-Version 10.00 and onwards have been built using the Pico C build environment. Version 10.10 is built using an old version of build environmet based on
+Version 10.00 and onwards have been built using the Pico C build environment. Version 10.10 is built using an old version of build environment based on
 a manual toolchain installation described at https://community.element14.com/products/raspberry-pi/b/blog/posts/working-with-the-raspberry-pi-pico-with-windows-and-c-c.
 This has the following settings to make it work
   Using Visual Studio Code and to build and run
@@ -151,7 +151,7 @@ This has the following settings to make it work
   OpenOCD has been installed as described at https://community.element14.com/products/raspberry-pi/b/blog/posts/debugging-the-raspberry-pi-pico-on-windows-10
 
 
-When runnning with the Pico Extension, the SDK is updated to 2.1.0 and things have been cleaned up. My environment still has GIT, Python and CMAKE installed and
+When runnning with the Visual Studio Code Raspberry Pi Pico Extension, the SDK is updated to 2.1.0 and things have been cleaned up. My environment still has GIT, Python and CMAKE installed and
 added to the path. CMAKE may not be necessary.
 The following code can be removed from the CMakeLists.txt file target_include_directories section
 ```
