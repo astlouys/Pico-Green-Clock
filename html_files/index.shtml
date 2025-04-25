@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title><!--#host--> Pico Clock</title>
+    </head>
+    <body> <h1><!--#host--> Pico Clock</h1>
+        <fieldset>
+        <legend>WiFi Network Configuration</legend>
+          <form action="/myhostname.cgi">
+            <label for="Pico-W Hostname">New hostname:</label>&ensp;&nbsp;
+            <input type="text" id="hostname" name="hostname" size='20' maxlength='40' value=<!--#host-->>&nbsp;
+            <input type="submit" value="Update Hostname"> - updates on next power cycle<br>
+          </form>
+          <form action="/mynetwork.cgi">
+            <label for="wifissid">New WiFi SSID:</label>&nbsp;
+            <input type="text" id="wifissid" name="wifissid" size='20' maxlength='40' value=<!--#wifissid-->>&nbsp;
+            <label for="wifipass">New WiFi Passphrase:</label>&nbsp;
+            <input type="password" id="wifipass" name="wifipass" size='20' maxlength='70' value=<!--#wifipass-->>&nbsp;
+            <input type="submit" value="Update WiFi"> - updates on next power cycle
+          </form>
+        </fieldset>
+        <br>
+        <fieldset>
+          <legend>Set Date and Time Information</legend>
+          <!--#date--><br>
+          <form action="/setdateandtime.cgi">
+            <label for="newtime">Today's Date and Time:</label>&nbsp;
+            <input type="datetime-local" id="newtime" name="newtime" value=<!--#datetime-->>&nbsp;
+            <input type="submit" name="UpdateTime" value="Update Date and Time">&emsp;
+            <input type="submit" name="SyncNTP" value="Synchronise NTP"><br>
+          </form>
+          <form action="/settimezone.cgi">
+            <label for="timezoneoffset">Timezone:</label><input type="number" id="timezoneoffset" name="timezoneoffset" min="-12" max="12" value="<!--#timezone-->">&nbsp;
+            hours offset from UTC&emsp;
+            <input type="submit" value="Update Timezone">
+          </form>
+          <form action="/setdstcountry.cgi">
+            Daylight savings region:&nbsp;
+            <label for="DSTZoneSel"></label><select id="DSTZoneSel" name="DSTZoneSel" >
+              <option value="0">None</option>
+              <option value="1">Australia</option>
+              <option value="2">Australia - Howe</option>
+              <option value="3">Chile</option>
+              <option value="4">Cuba</option>
+              <option value="5">Europe</option>
+              <option value="6">Israel</option>
+              <option value="7">Lebanon</option>
+              <option value="8">Moldova</option>
+              <option value="9">New-Zealand</option>
+              <option value="10">North America</option>
+              <option value="11">Palestine</option>
+              <option value="12">Paraguay</option>
+            </select>&nbsp;
+            <input type="submit" name="SetDSTZone" value="Change DST Region">&ensp;
+            <label for="dstactive">Summertime Active</label><input type="checkbox" <!--#dstactve--> id="dstactive" name="dstactive" value="active" >
+            <input type="submit" name="SetDSTMode" value="Update Summertime"><br>
+          </form>
+          <form action="/clearntperrors.cgi">
+            <!--#ntpstat-->&emsp;<input type="submit" name="ClearNTPErr" value="Clear NTP Errors"><br>
+          </form>
+        </fieldset>
+        <br>
+        <fieldset>
+          <legend>Clock Operation</legend>
+          <form action="/setlanguage.cgi">
+            Language :
+            <input type="radio" id="Engl" name="langmode" <!--#langengl--> value="Engl"> <label for="Engl">Eng</label>
+            <input type="radio" id="Frch" name="langmode" <!--#langfrch--> value="Frch"> <label for="Frch">Fr</label>
+            <input type="radio" id="Germ" name="langmode" <!--#langgerm--> value="Germ"> <label for="Germ">Ger</label>
+            <input type="radio" id="Czec" name="langmode" <!--#langczec--> value="Czec"> <label for="Czec">Cz</label>
+            <input type="radio" id="Span" name="langmode" <!--#langspan--> value="Span"> <label for="Span">Esp</label>
+            <input type="submit" value="Select Language">
+          </form>
+          <form action="/setkeyclick.cgi">
+            <label for="keyclick">Button Press Beep</label><input type="checkbox" <!--#keyclick--> id="keyclick" name="keyclick" value="active" >
+            <input type="submit" name="SetKeyClik" value="Update Keyclick">&emsp;
+            <label for="dispscroll">Display Scroll</label><input type="checkbox" <!--#discroll--> id="dispscroll" name="dispscroll" value="active" >
+            <input type="submit" name="SetDispScroll" value="Update Display Scroll"><br>
+          </form>
+          <form action="/setseparatormode.cgi">
+            Hour : Minute Separator (:) Mode:
+            <input type="radio" id="secsepconst" name="secseparatormode" <!--#sepconst--> value="secsepconst"> <label for="secsepconst">Constant</label>
+            <input type="radio" id="secsepflash" name="secseparatormode" <!--#sepflash--> value="secsepflash"> <label for="secsepflash">Flash</label>
+            <input type="radio" id="secseppat" name="secseparatormode" <!--#seppattn--> value="secseppat"> <label for="secseppat">15s Pattern (default)</label>
+            <input type="radio" id="secsepbar" name="secseparatormode" <!--#sepbargh--> value="secsepbar"> <label for="secsepbar">12s Bar Graph</label>
+            <input type="submit" value="Update Separator Mode">
+          </form>
+          <form action="/disphourmode.cgi">
+            Clock Hour display:
+            <input type="radio" id="set12hrmode" name="disphourmode" <!--#hr12mode--> value="set12hrmode"> <label for="set12hrmode">12Hr Mode</label>
+            <input type="radio" id="set24hrmode" name="disphourmode" <!--#hr24mode--> value="set24hrmode"> <label for="set24hrmode">24Hr Mode</label>
+            <input type="submit" value="Update Hour Mode"><br>
+          </form>
+          <form action="/shortsetkey.cgi">
+            Short "Set" key sets :
+            <input type="radio" id="settime" name="setshortkey" <!--#shsktime--> value="settime"> <label for="settime">Date and Time</label>
+            <input type="radio" id="setalarm" name="setshortkey" <!--#shskalrm--> value="setalarm"> <label for="setalarm">Alarms</label>
+            <input type="submit" value="Update Key Mode"><br>
+          </form>
+          <form action="/setchimemode.cgi">
+            Chime Mode:
+            <input type="radio" id="chimeoff" name="chimemode" <!--#chmenoff--> value="chimeoff"> <label for="chimeoff">Off</label>
+            <input type="radio" id="chimeday" name="chimemode" <!--#chmenday--> value="chimeday"> <label for="chimeday">Day time</label>
+            <input type="radio" id="chimeon" name="chimemode" <!--#chmenon--> value="chimeon"> <label for="chimeon">On</label>&emsp;
+            <label for="chimestart">Start hour:</label><input type="number" id="chimestart" name="chimestart" min="0" max="23" value="<!--#chmstart-->" size="2"> (24Hr)&ensp;
+            <label for="chimestop">Stop hour:</label><input type="number" id="chimestop" name="chimestop" min="0" max="23" value="<!--#chimstop-->" size="2"> (24Hr)&ensp;
+            <input type="submit" value="Update Chime Mode">
+          </form>
+          <form action="/setnightlightmode.cgi">
+            Nightlight Mode:
+            <input type="radio" id="nighgtoff" name="nighgtmode" <!--#nliteoff--> value="nighgtoff"> <label for="nighgtoff">Off</label>
+            <input type="radio" id="nighgtauto" name="nighgtmode" <!--#nlitauto--> value="nighgtauto"> <label for="nighgtauto">Auto</label>
+            <input type="radio" id="nighgtnite" name="nighgtmode" <!--#nltnight--> value="nighgtnite"> <label for="nighgtnite">Night time</label>
+            <input type="radio" id="nighgton" name="nighgtmode" <!--#ntliteon--> value="nighgton"> <label for="nighgton">On</label>&emsp;
+            <label for="nighgtstart">Start hour:</label><input type="number" id="nighgtstart" name="nighgtstart" min="0" max="23" value="<!--#nltstart-->" size="2"> (24Hr)&ensp;
+            <label for="nighgtstop">Stop hour:</label><input type="number" id="nighgtstop" name="nighgtstop" min="0" max="23" value="<!--#nlgtstop-->" size="2"> (24Hr)&ensp;
+            <input type="submit" value="Update Nightlight Mode">
+          </form>
+        </fieldset>
+        <br>
+        <fieldset>
+          <legend>Manage Alarms</legend>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 1: </label>
+            <label for="al0enab">Enable</label><input type="checkbox" <!--#alm0enab--> id="al0enab" name="al0enab" value="alamenab" >
+            <label for="al0time">time:</label><input type="time" id="al0time" name="al0time" value="<!--#alm0time-->">
+            <label for="al0mond">Mon</label><input type="checkbox" <!--#alm0mond--> id="al0mond" name="al0mond" value="alammond" >
+            <label for="al0tues">Tue</label><input type="checkbox" <!--#alm0tues--> id="al0tues" name="al0tues" value="alamtues" >
+            <label for="al0wedn">Wed</label><input type="checkbox" <!--#alm0weds--> id="al0wedn" name="al0wedn" value="alamweds" >
+            <label for="al0thur">Thu</label><input type="checkbox" <!--#alm0thur--> id="al0thur" name="al0thur" value="alamthur" >
+            <label for="al0frid">Fri</label><input type="checkbox" <!--#alm0frid--> id="al0frid" name="al0frid" value="alamfrid" >
+            <label for="al0satu">Sat</label><input type="checkbox" <!--#alm0satu--> id="al0satu" name="al0satu" value="alamsatu" >
+            <label for="al0sund">Sun</label><input type="checkbox" <!--#alm0sund--> id="al0sund" name="al0sund" value="alamsund" >
+            <label for="al0text">Text: </label><input type="text" id="al0text" name="al0text" size='20' maxlength='40' value="<!--#alm0text-->">
+            <label for="al0tone"> Alarm Sound: </label><select id="al0tone" name="al0tone" >
+              <option value="0">Default Beep</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al0actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm0actv--> id="al0actv" name="al0actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 1"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 2: </label>
+            <label for="al1enab">Enable</label><input type="checkbox" <!--#alm1enab--> id="al1enab" name="al1enab" value="alamenab" >
+            <label for="al1time">time:</label><input type="time" id="al1time" name="al1time" value="<!--#alm1time-->">
+            <label for="al1mond">Mon</label><input type="checkbox" <!--#alm1mond--> id="al1mond" name="al1mond" value="alammond" >
+            <label for="al1tues">Tue</label><input type="checkbox" <!--#alm1tues--> id="al1tues" name="al1tues" value="alamtues" >
+            <label for="al1wedn">Wed</label><input type="checkbox" <!--#alm1weds--> id="al1wedn" name="al1wedn" value="alamweds" >
+            <label for="al1thur">Thu</label><input type="checkbox" <!--#alm1thur--> id="al1thur" name="al1thur" value="alamthur" >
+            <label for="al1frid">Fri</label><input type="checkbox" <!--#alm1frid--> id="al1frid" name="al1frid" value="alamfrid" >
+            <label for="al1satu">Sat</label><input type="checkbox" <!--#alm1satu--> id="al1satu" name="al1satu" value="alamsatu" >
+            <label for="al1sund">Sun</label><input type="checkbox" <!--#alm1sund--> id="al1sund" name="al1sund" value="alamsund" >
+            <label for="al1text">Text: </label><input type="text" id="al1text" name="al1text" size='20' maxlength='40' value="<!--#alm1text-->">
+            <label for="al1tone"> Alarm Sound: </label><select id="al1tone" name="al1tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al1actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm1actv--> id="al1actv" name="al1actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 2"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 3: </label>
+            <label for="al2enab">Enable</label><input type="checkbox" <!--#alm2enab--> id="al2enab" name="al2enab" value="alamenab">
+            <label for="al2time">time:</label><input type="time" id="al2time" name="al2time" value="<!--#alm2time-->">
+            <label for="al2mond">Mon</label><input type="checkbox" <!--#alm2mond--> id="al2mond" name="al2mond" value="alammond">
+            <label for="al2tues">Tue</label><input type="checkbox" <!--#alm2tues--> id="al2tues" name="al2tues" value="alamtues">
+            <label for="al2wedn">Wed</label><input type="checkbox" <!--#alm2weds--> id="al2wedn" name="al2wedn" value="alamweds">
+            <label for="al2thur">Thu</label><input type="checkbox" <!--#alm2thur--> id="al2thur" name="al2thur" value="alamthur">
+            <label for="al2frid">Fri</label><input type="checkbox" <!--#alm2frid--> id="al2frid" name="al2frid" value="alamfrid">
+            <label for="al2satu">Sat</label><input type="checkbox" <!--#alm2satu--> id="al2satu" name="al2satu" value="alamsatu">
+            <label for="al2sund">Sun</label><input type="checkbox" <!--#alm2sund--> id="al2sund" name="al2sund" value="alamsund">
+            <label for="al2text">Text: </label><input type="text" id="al2text" name="al2text" size='20' maxlength='40' value="<!--#alm2text-->">
+            <label for="al2tone"> Alarm Sound: </label><select id="al2tone" name="al2tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al2actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm2actv--> id="al2actv" name="al2actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 3"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 4: </label>
+            <label for="al3enab">Enable</label><input type="checkbox" <!--#alm3enab--> id="al3enab" name="al3enab" value="alamenab">
+            <label for="al3time">time:</label><input type="time" id="al3time" name="al3time" value="<!--#alm3time-->">
+            <label for="al3mond">Mon</label><input type="checkbox" <!--#alm3mond--> id="al3mond" name="al3mond" value="alammond">
+            <label for="al3tues">Tue</label><input type="checkbox" <!--#alm3tues--> id="al3tues" name="al3tues" value="alamtues">
+            <label for="al3wedn">Wed</label><input type="checkbox" <!--#alm3weds--> id="al3wedn" name="al3wedn" value="alamweds">
+            <label for="al3thur">Thu</label><input type="checkbox" <!--#alm3thur--> id="al3thur" name="al3thur" value="alamthur">
+            <label for="al3frid">Fri</label><input type="checkbox" <!--#alm3frid--> id="al3frid" name="al3frid" value="alamfrid">
+            <label for="al3satu">Sat</label><input type="checkbox" <!--#alm3satu--> id="al3satu" name="al3satu" value="alamsatu">
+            <label for="al3sund">Sun</label><input type="checkbox" <!--#alm3sund--> id="al3sund" name="al3sund" value="alamsund">
+            <label for="al3text">Text: </label><input type="text" id="al3text" name="al3text" size='20' maxlength='40' value="<!--#alm3text-->">
+            <label for="al3tone"> Alarm Sound: </label><select id="al3tone" name="al3tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al3actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm3actv--> id="al3actv" name="al3actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 4"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 5: </label>
+            <label for="al4enab">Enable</label><input type="checkbox" <!--#alm4enab--> id="al4enab" name="al4enab" value="alamenab">
+            <label for="al4time">time:</label><input type="time" id="al4time" name="al4time" value="<!--#alm4time-->">
+            <label for="al4mond">Mon</label><input type="checkbox" <!--#alm4mond--> id="al4mond" name="al4mond" value="alammond">
+            <label for="al4tues">Tue</label><input type="checkbox" <!--#alm4tues--> id="al4tues" name="al4tues" value="alamtues">
+            <label for="al4wedn">Wed</label><input type="checkbox" <!--#alm4weds--> id="al4wedn" name="al4wedn" value="alamweds">
+            <label for="al4thur">Thu</label><input type="checkbox" <!--#alm4thur--> id="al4thur" name="al4thur" value="alamthur">
+            <label for="al4frid">Fri</label><input type="checkbox" <!--#alm4frid--> id="al4frid" name="al4frid" value="alamfrid">
+            <label for="al4satu">Sat</label><input type="checkbox" <!--#alm4satu--> id="al4satu" name="al4satu" value="alamsatu">
+            <label for="al4sund">Sun</label><input type="checkbox" <!--#alm4sund--> id="al4sund" name="al4sund" value="alamsund">
+            <label for="al4text">Text: </label><input type="text" id="al4text" name="al4text" size='20' maxlength='40' value="<!--#alm4text-->">
+            <label for="al4tone"> Alarm Sound: </label><select id="al4tone" name="al4tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al4actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm4actv--> id="al4actv" name="al4actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 5"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 6: </label>
+            <label for="al5enab">Enable</label><input type="checkbox" <!--#alm5enab--> id="al5enab" name="al5enab" value="alamenab">
+            <label for="al5time">time:</label><input type="time" id="al5time" name="al5time" value="<!--#alm5time-->">
+            <label for="al5mond">Mon</label><input type="checkbox" <!--#alm5mond--> id="al5mond" name="al5mond" value="alammond">
+            <label for="al5tues">Tue</label><input type="checkbox" <!--#alm5tues--> id="al5tues" name="al5tues" value="alamtues">
+            <label for="al5wedn">Wed</label><input type="checkbox" <!--#alm5weds--> id="al5wedn" name="al5wedn" value="alamweds">
+            <label for="al5thur">Thu</label><input type="checkbox" <!--#alm5thur--> id="al5thur" name="al5thur" value="alamthur">
+            <label for="al5frid">Fri</label><input type="checkbox" <!--#alm5frid--> id="al5frid" name="al5frid" value="alamfrid">
+            <label for="al5satu">Sat</label><input type="checkbox" <!--#alm5satu--> id="al5satu" name="al5satu" value="alamsatu">
+            <label for="al5sund">Sun</label><input type="checkbox" <!--#alm5sund--> id="al5sund" name="al5sund" value="alamsund">
+            <label for="al5text">Text: </label><input type="text" id="al5text" name="al5text" size='20' maxlength='40' value="<!--#alm5text-->">
+            <label for="al5tone"> Alarm Sound: </label><select id="al5tone" name="al5tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al5actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm5actv--> id="al5actv" name="al5actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 6"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 7: </label>
+            <label for="al6enab">Enable</label><input type="checkbox" <!--#alm6enab--> id="al6enab" name="al6enab" value="alamenab">
+            <label for="al6time">time:</label><input type="time" id="al6time" name="al6time" value="<!--#alm6time-->">
+            <label for="al6mond">Mon</label><input type="checkbox" <!--#alm6mond--> id="al6mond" name="al6mond" value="alammond">
+            <label for="al6tues">Tue</label><input type="checkbox" <!--#alm6tues--> id="al6tues" name="al6tues" value="alamtues">
+            <label for="al6wedn">Wed</label><input type="checkbox" <!--#alm6weds--> id="al6wedn" name="al6wedn" value="alamweds">
+            <label for="al6thur">Thu</label><input type="checkbox" <!--#alm6thur--> id="al6thur" name="al6thur" value="alamthur">
+            <label for="al6frid">Fri</label><input type="checkbox" <!--#alm6frid--> id="al6frid" name="al6frid" value="alamfrid">
+            <label for="al6satu">Sat</label><input type="checkbox" <!--#alm6satu--> id="al6satu" name="al6satu" value="alamsatu">
+            <label for="al6sund">Sun</label><input type="checkbox" <!--#alm6sund--> id="al6sund" name="al6sund" value="alamsund">
+            <label for="al6text">Text: </label><input type="text" id="al6text" name="al6text" size='20' maxlength='40' value="<!--#alm6text-->">
+            <label for="al6tone"> Alarm Sound: </label><select id="al6tone" name="al6tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al6actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm6actv--> id="al6actv" name="al6actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 7"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 8: </label>
+            <label for="al7enab">Enable</label><input type="checkbox" <!--#alm7enab--> id="al7enab" name="al7enab" value="alamenab">
+            <label for="al7time">time:</label><input type="time" id="al7time" name="al7time" value="<!--#alm7time-->">
+            <label for="al7mond">Mon</label><input type="checkbox" <!--#alm7mond--> id="al7mond" name="al7mond" value="alammond">
+            <label for="al7tues">Tue</label><input type="checkbox" <!--#alm7tues--> id="al7tues" name="al7tues" value="alamtues">
+            <label for="al7wedn">Wed</label><input type="checkbox" <!--#alm7weds--> id="al7wedn" name="al7wedn" value="alamweds">
+            <label for="al7thur">Thu</label><input type="checkbox" <!--#alm7thur--> id="al7thur" name="al7thur" value="alamthur">
+            <label for="al7frid">Fri</label><input type="checkbox" <!--#alm7frid--> id="al7frid" name="al7frid" value="alamfrid">
+            <label for="al7satu">Sat</label><input type="checkbox" <!--#alm7satu--> id="al7satu" name="al7satu" value="alamsatu">
+            <label for="al7sund">Sun</label><input type="checkbox" <!--#alm7sund--> id="al7sund" name="al7sund" value="alamsund">
+            <label for="al7text">Text: </label><input type="text" id="al7text" name="al7text" size='20' maxlength='40' value="<!--#alm7text-->">
+            <label for="al7tone"> Alarm Sound: </label><select id="al7tone" name="al7tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al7actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm7actv--> id="al7actv" name="al7actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 8"><br>
+          </form>
+          <form action="/htalarm.cgi">
+            <label for="alarms">Alarm 9: </label>
+            <label for="al8enab">Enable</label><input type="checkbox" <!--#alm8enab--> id="al8enab" name="al8enab" value="alamenab">
+            <label for="al8time">time:</label><input type="time" id="al8time" name="al8time" value="<!--#alm8time-->">
+            <label for="al8mond">Mon</label><input type="checkbox" <!--#alm8mond--> id="al8mond" name="al8mond" value="alammond">
+            <label for="al8tues">Tue</label><input type="checkbox" <!--#alm8tues--> id="al8tues" name="al8tues" value="alamtues">
+            <label for="al8wedn">Wed</label><input type="checkbox" <!--#alm8weds--> id="al8wedn" name="al8wedn" value="alamweds">
+            <label for="al8thur">Thu</label><input type="checkbox" <!--#alm8thur--> id="al8thur" name="al8thur" value="alamthur">
+            <label for="al8frid">Fri</label><input type="checkbox" <!--#alm8frid--> id="al8frid" name="al8frid" value="alamfrid">
+            <label for="al8satu">Sat</label><input type="checkbox" <!--#alm8satu--> id="al8satu" name="al8satu" value="alamsatu">
+            <label for="al8sund">Sun</label><input type="checkbox" <!--#alm8sund--> id="al8sund" name="al8sund" value="alamsund">
+            <label for="al8text">Text: </label><input type="text" id="al8text" name="al8text" size='20' maxlength='40' value="<!--#alm8text-->">
+            <label for="al8tone"> Alarm Sound: </label><select id="al8tone" name="al8tone">
+              <option value="0">Default Beeps</option>
+              <option value="1">1 Beep</option>
+              <option value="2">2 Beeps</option>
+              <option value="3">3 Beeps</option>
+              <option value="4">4 Beeps</option>
+              <option value="5">5 Beeps</option>
+              <option value="6">6 Beeps</option>
+              <option value="7">7 Beeps</option>
+              <option value="8">8 Beeps</option>
+              <option value="9">9 Beeps</option>
+              <option value="10">Happy Birthday</option>
+              <option value="11">Close Encounter</option>
+              <option value="12">Fete</option>
+              <option value="13">Horse Racing</option>
+              <option value="14">We Wish You a Merry Christmas</option>
+              <option value="15">The Sun Has Got His Hat On</option>
+              <option value="16">Canon a D</option>
+            </select>&nbsp;
+            <label for="al8actv">Use Onboard Buzzer</label><input type="checkbox" <!--#alm8actv--> id="al8actv" name="al8actv" value="alamactv" >
+            <input type="submit" value="Update Alarm 9"><br>
+          </form>
+        </fieldset>
+        <br>
+        <fieldset>
+          <legend>Control Display Dimming</legend>
+          <form action="/setdisplayadclevel.cgi">
+            <label for="mindimadclevel">Set the light level for dimmest display:</label><input type="number" id="mindimadclevel" name="mindimadclevel" min="180" max="520" value="<!--#dimlevel-->">&nbsp;
+            <input type="submit" value="Update">&emsp;- set to 10 above Min average light level<br>
+          </form>
+          Useful ADC level information:&emsp;<!--#light--><br>
+          <form action="/setdisplaymode.cgi">
+            <input type="radio" id="auto" name="dispdimmode" <!--#autodim--> value="auto"> <label for="auto">Auto</label>
+            &emsp;or&emsp;Manual&nbsp;
+            <input type="radio" id="full" name="dispdimmode" <!--#mdimfull--> value="full"> <label for="full">Full</label>
+            <input type="radio" id="high" name="dispdimmode" <!--#mdimhigh--> value="high"> <label for="high">High</label>
+            <input type="radio" id="mid" name="dispdimmode" <!--#mdimmid--> value="mid"> <label for="mid">Medium</label>
+            <input type="radio" id="low" name="dispdimmode" <!--#mdimlow--> value="low"> <label for="low">Low</label>
+            <input type="radio" id="dark" name="dispdimmode" <!--#mdimdark--> value="dark"> <label for="dark">Dark</label>&nbsp;
+            <input type="submit" value="Select Dimming Mode">
+          </form>
+        </fieldset>
+        <a href="/index.shtml">Refresh</a>
+        <script>
+          function selectElement(id, ValueToSelect){
+            let element = document.getElementById(id);
+            element.value = ValueToSelect;
+          }
+          selectElement('DSTZoneSel', '<!--#dstzone-->');
+          selectElement('al0tone', '<!--#alm0tone-->');
+          selectElement('al1tone', '<!--#alm1tone-->');
+          selectElement('al2tone', '<!--#alm2tone-->');
+          selectElement('al3tone', '<!--#alm3tone-->');
+          selectElement('al4tone', '<!--#alm4tone-->');
+          selectElement('al5tone', '<!--#alm5tone-->');
+          selectElement('al6tone', '<!--#alm6tone-->');
+          selectElement('al7tone', '<!--#alm7tone-->');
+          selectElement('al8tone', '<!--#alm8tone-->');
+        </script>
+   </body>
+</html>

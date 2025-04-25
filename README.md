@@ -1,10 +1,36 @@
-# NOTE: For those looking for a "Network Time Protocol" (NTP) clock with many features, you may want to take a look at my "Pico-RGB-Matrix" repository...
+# NOTE: For those looking for a "Network Time Protocol" (NTP) clock with many features, you may want to take a look at astlouys "Pico-RGB-Matrix" repository...
 
 # Pico Green Clock
-Firmware Version 9.03 released 09-SEP-2023
+Firmware Version 10.10 released 28-DEC-2024
 
-NOTE: Source code still shows 9.02. You may check near line 1257... If Spanish month names are there, it means you have Version 9.03.
-      Also, be aware that posted ".uf2" versions are still 9.02 (without Spanish support). You'll have to rebuild executables to get Spanish language support for now.
+NEW WITH FIRMWARE 10.10:
+=======================
+ - Add new feature to select the hour / minute separator colon (:) character to change modes between constant/1s flash/15s pattern/12s bar operating modes.
+ - Tweak the web page update buttons text to indicate the different update actions.
+
+
+NEW WITH FIRMWARE 10.01:
+=======================
+ - Correct the flash_config structure in the Pico-W NTP Client code. Now matches the one in the main code.
+ - Add more bytes to the alarm structure. This may cause the 10.01 first install to wipe out all flash alarm and WiFi data.
+ - Correct the light ADC initialisation after a firmware 10.00 release voltage reading fix caused more problems than it solves.
+ - Add in a new feature to temporarily disable all alarms for a 4 hour window by pressing any two buttons together. This doesn't affect any settings.
+ - Add in the ability for all of the alarms to drive jingles, a different set of beeps or use the onboard buzzer if the passive Piezo one is fitted.
+   These are controlled on the web page. The default beeps mode has alarm 1 as 1, 2 as 2, 3 as 3, etc. The cascading of multiple alarms has been removed.
+ - Add in support for local reminder, event and WiFi config files that can be pulled in when built without appearing in the git sources.
+ - Tweak daylight savings region web control drop down so that it's now populated correctly rather than having a print out of the region and drop down to change.
+ - Add periodic print out of the Pico-W WiFi connection status and IP address to the UART oand USB serial consoles (this will work with putty or other USB COM port).
+   This is to help identify a clock when building the source code isn't an option. Serial baud rate is 921600.
+
+NEW WITH FIRMWARE 10.00:
+=======================
+- Add hostname to the flash configuration to identify multiple clocks on a DHCP server.
+- Add web page to control the clock settings. This can change many things. Accessed as http://hostname or IP/index.shtml
+- Reduce the display minimum dim level by altering the display PWM frequency.
+- Add a step dimmer on the lower button to switch between auto dimming and 5 levels of manual modes.
+- Add a web control to set a local level for the minimum light level for maximum dimming. This can vary between clocks. Value stored in flash.
+- Add a web control to swap the operation of the set key from short press to set clock to short press to set the alarms.
+- Fix triggering of afternoon alarms when in 12hr display mode.
 
 NEW WITH FIRMWARE 9.02 and 9.03:
 =======================
@@ -19,14 +45,17 @@ NEW WITH FIRMWARE 9.02 and 9.03:
 NOTE: I went through a system crash before the release of version 9.02 and lost a few weeks of work. Also, I had less time for testing / quality control
       before Firmare Version 9.02 release. Please kindly let me know if you find "undocumented features" in the code (read: "bugs").
 
+NOTE: Source code still shows 9.02. You may check near line 1257... If Spanish month names are there, it means you have Version 9.03.
+      Also, be aware that posted ".uf2" versions are still 9.02 (without Spanish support). You'll have to rebuild executables to get Spanish language support for now.
 
-Firmware Hilights:
+
+Firmware Highlights:
 ==================
 - User Guide updated to cover current Firmware Version.
 - Support for Network Time Protocol ("NTP"). When using a PicoW, the Green Clock will re-synchronize itself from a time reference server over Internet.
 - Add a function to "set-and-save" Wi-Fi credentials to PicoW's flash memory for NTP Wi-Fi access.
 - Count-down timer alarm will now ring periodically for 30 minutes or until user presses the top button, whichever happens first.
-- Improve clock precision independantly of real-time IC and NTP by better synchronization of callback period time.
+- Improve clock precision independently of real-time IC and NTP by better synchronization of callback period time.
 - Modify algorithm of the "Chime Hour Count" so that it is less "aggressive" than the original version (thanks to Ewan Harrow for his collaboration).
 - Add auto detection of microcontroller type (Pico or PicoW).
 - Add an option so that Hourly Chime corresponds to the 12-hour format current value (needs to be turned On in the code).
@@ -47,7 +76,7 @@ Firmware Hilights:
 - Add a "System Idle-Time Monitor" to get an idea of current system load (remote control required).
 - Sound queue allows for different sounds to play "jingles" if user installed a passive buzzer.
 - Sound queue allows for easy support of different sound duration and different "trains of sounds" if using the integrated active buzzer.
-- Add a sound queue for active buzzer (integrated in Green Clock) and also for an optional passive buzzer to optimize its support. 
+- Add a sound queue for active buzzer (integrated in Green Clock) and also for an optional passive buzzer to optimize its support.
 - On and Off time (run-time parameters) added for Hourly Chime to make the clock silent during the night.
 - Double dots blinking in sequence on the display to know "how deep we are" in the current minute.
 - Add more levels of brightness (for display LEDs) with an hysteresis.
@@ -89,7 +118,7 @@ This way, as soon as you update your SDK, rebuilding your project will automatic
 ```
 $ git clone git@github.com:astlouys/Pico-Green-Clock.git
 ```
-3. Verify that the diretories are the following:
+3. Verify that the directories are the following:
 ```
 $ ls
 Pico-Green-Clock        pico-examples           pico-sdk
@@ -109,3 +138,24 @@ Makefile                        Pico-Clock-Green.elf.map        elf2uf2
 Pico-Clock-Green.bin            Pico-Clock-Green.hex            generated
 ```
 You now have an executable "uf2" that you can transfer to the Pico`s flash memory to run the Pico-Green-Clock.
+
+### Building on Windows
+Version 10.00 and onwards have been built using the Pico C build environment. Version 10.10 is built using an old version of build environment based on
+a manual toolchain installation described at https://community.element14.com/products/raspberry-pi/b/blog/posts/working-with-the-raspberry-pi-pico-with-windows-and-c-c.
+This has the following settings to make it work
+  Using Visual Studio Code and to build and run
+  Build Tools for Visual Studio installed for C++ build tools
+  GIT, Python and CMAKE have all been installed and added to the path
+  Pico SDK cloned and built to a known directory
+  Using CMAKE extension, configure environment with PICO_SDK_PATH configured to the directory where the 1.5.1 SDK has been cloned to
+  OpenOCD has been installed as described at https://community.element14.com/products/raspberry-pi/b/blog/posts/debugging-the-raspberry-pi-pico-on-windows-10
+
+
+When runnning with the Visual Studio Code Raspberry Pi Pico Extension, the SDK is updated to 2.1.0 and things have been cleaned up. My environment still has GIT, Python and CMAKE installed and
+added to the path. CMAKE may not be necessary.
+The following code can be removed from the CMakeLists.txt file target_include_directories section
+```
+        ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
+        ${PICO_SDK_PATH}/src/rp2_common/pico_cyw43_arch/include # for the WiFi hardware
+```
+These are automatically included with the new Pico extension's set(sdkVersion 2.0.0) entry added by crjeder.
