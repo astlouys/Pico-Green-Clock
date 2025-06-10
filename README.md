@@ -1,3 +1,5 @@
+![image](https://github.com/user-attachments/assets/da7e4c82-f380-4a0c-86c0-5e40cc4aa8cd)
+
 # NOTE: For those looking for a "Network Time Protocol" (NTP) clock with many features, you may want to take a look at my "Pico-RGB-Matrix" repository...
 
 # Pico Green Clock
